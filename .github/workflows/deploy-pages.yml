@@ -36,6 +36,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify PDF worker
+        run: test -s webapp/dist/pdf.worker.min.mjs
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
