@@ -10,6 +10,7 @@ export function createBlankSet(number) {
     rotation: '',
     scoreOwn: 0,
     scoreOther: 0,
+    durationMinutes: '',
     lineup: ['', '', '', '', '', ''],
     opponentLineup: ['', '', '', '', '', ''],
     own: Array(36).fill(''),

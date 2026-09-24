@@ -14,6 +14,16 @@ import './App.css'
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, CanvasRenderer])
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
+const formatDuration = minutes => {
+  if (minutes === '' || minutes === null || minutes === undefined) return '–'
+  const value = Number(minutes)
+  if (!Number.isFinite(value) || value <= 0) return '–'
+  const hours = Math.floor(value / 60)
+  const mins = value % 60
+  if (!hours) return `${mins} min`
+  if (!mins) return `${hours}h`
+  return `${hours}h ${mins}m`
+}
 const resultStr = m => `${m.sets.filter(s => s.scoreOwn > s.scoreOther).length} – ${m.sets.filter(s => s.scoreOther > s.scoreOwn).length}`
 
 function MainApp() {
@@ -146,7 +156,7 @@ function MainApp() {
       },
       series: [
         {
-          name: 'Punti al servizio (TPF)',
+          name: 'Punti in fase break point (BP)',
           type: 'bar',
           barMaxWidth: 24,
           data: aggregatedAnalysis.rows.map(r => r.points),
@@ -163,6 +173,14 @@ function MainApp() {
 
   // Trend / Set Chart Option
   const isSingleMatch = visibleMatches.length === 1
+  const totalDurationMinutes = useMemo(() => {
+    if (!isSingleMatch || !visibleMatches[0]) return null
+    const durations = visibleMatches[0].sets
+      .map(set => Number(set.durationMinutes))
+      .filter(value => Number.isFinite(value) && value > 0)
+    if (!durations.length) return null
+    return durations.reduce((total, value) => total + value, 0)
+  }, [visibleMatches, isSingleMatch])
   const trendEntries = useMemo(() => {
     if (isSingleMatch) {
       return visibleMatches[0].sets.map((s, i) => ({
@@ -908,10 +926,22 @@ function MainApp() {
                   </div>
 
                   <div className="vs-metric-card accent-orange">
-                    <span className="vs-metric-label">Punti al servizio (TPF)</span>
+                    <span className="vs-metric-label">Punti in fase break point (BP)</span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.breakPoints ?? '–'}</strong>
-                    <span className="vs-metric-detail">break point conquistati in battuta</span>
+                    <span className="vs-metric-detail">numero di punti conquistati in situazione di battuta</span>
                   </div>
+
+                  {isSingleMatch && (
+                    <div className="vs-metric-card accent-neutral">
+                      <span className="vs-metric-label">Durata gara</span>
+                      <strong className="vs-metric-value">{formatDuration(totalDurationMinutes)}</strong>
+                      <span className="vs-metric-detail">
+                        {visibleMatches[0].sets
+                          .map((set, index) => `Set ${index + 1}: ${formatDuration(set.durationMinutes)}`)
+                          .join(' · ')}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="vs-metric-card accent-neutral">
                     <span className="vs-metric-label">Differenziale</span>
@@ -934,7 +964,7 @@ function MainApp() {
                 <div className="vs-charts-grid">
                   <Chart
                     title="Rendimento per rotazione (P1 – P6)"
-                    subtitle="Punti fatti al proprio servizio vs punti subiti al servizio avversario"
+                    subtitle="Punti in fase break point vs punti subiti al servizio avversario"
                     option={rotationOption}
                   />
                   <Chart
@@ -1386,10 +1416,10 @@ function MainApp() {
 
                   <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
                     <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      5. Differenziale Netto (TPF – TPS)
+                      5. Differenziale Netto (BP – TPS)
                     </strong>
                     <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
-                      Bilancio tra punti conquistati al servizio e punti concessi all&apos;avversario. Evidenzia all&apos;istante le rotazioni in guadagno attivo e quelle deficitarie.
+                      Bilancio tra punti conquistati in fase break point e punti concessi all&apos;avversario. Evidenzia all&apos;istante le rotazioni in guadagno attivo e quelle deficitarie.
                     </span>
                   </div>
 
@@ -1413,7 +1443,7 @@ function MainApp() {
                       <strong>Fase Side-out (Cambio Palla)</strong>: ricezione del servizio avversario, alzata e attacco. Un valore contenuto di TPS indica un cambio palla rapido e sicuro al primo tentativo.
                     </li>
                     <li>
-                      <strong>Fase Break Point (Punto al Servizio)</strong>: battuta, muro, difesa e contrattacco. Un valore elevato di TPF indica una rotazione capace di creare serie di punti consecutivi sul proprio servizio.
+                      <strong>Fase Break Point (BP)</strong>: battuta, muro, difesa e contrattacco. Un valore elevato di BP indica una rotazione capace di creare serie di punti consecutivi sul proprio servizio.
                     </li>
                     <li>
                       <strong>Aggregazione multi-gara</strong>: selezionando più gare dallo storico o dal menu a discesa, il modello aggrega i turni e i punti di ciascuna rotazione, consentendo di valutare la costanza del rendimento nel corso del campionato.
@@ -1797,6 +1827,19 @@ function SetEditor({ set: s, index, team, opponent, update }) {
               min="0"
               value={s.scoreOther}
               onChange={(e) => update({ scoreOther: e.target.value === '' ? '' : +e.target.value })}
+            />
+          </div>
+          <div className="vs-field">
+            <label>Durata set (minuti)</label>
+            <input
+              type="number"
+              min="1"
+              max="180"
+              placeholder="Es. 24"
+              value={s.durationMinutes ?? ''}
+              onChange={(e) => update({
+                durationMinutes: e.target.value === '' ? '' : Number(e.target.value),
+              })}
             />
           </div>
         </div>
