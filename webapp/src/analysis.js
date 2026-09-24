@@ -4,7 +4,7 @@ export const template = source.Gara_1
 export const sum = a => a.reduce((s, v) => s + v, 0)
 export function matchSheet(match) {
   const sheet = { ...template, A1: `${match.team} - ${match.opponent}`, D7: match.team, L7: match.opponent }
-  match.sets.forEach((s, i) => {
+  match.sets.slice(0, 5).forEach((s, i) => {
     sheet[`B${8 + i * 12}`] = Number(s.rotation) || ''
     for (const [side, start] of [['own', 4], ['other', 12]]) {
       for (let j = 0; j < 36; j++) sheet[`${column(start + j % 6)}${9 + i * 12 + Math.floor(j / 6)}`] = s[side][j] ?? ''
@@ -33,9 +33,9 @@ export function validateMatch(m, requireRotations = true) {
   const errors = []
   if (!m.team?.trim() || !m.opponent?.trim() || m.team === m.opponent) errors.push('Indica due squadre diverse.')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || '') || Number.isNaN(Date.parse(m.date))) errors.push('Data gara non valida.')
-  if (!Array.isArray(m.sets) || !m.sets.length || m.sets.length > 5) return [...errors, 'Numero di set non valido.']
+  if (!Array.isArray(m.sets) || !m.sets.length || m.sets.length > 6) return [...errors, 'Numero di set non valido (da 1 a 6 set).']
   m.sets.forEach((s, i) => {
-    const prefix = `Set ${i + 1}`
+    const prefix = i === 5 ? 'Set 6 (Golden Set)' : `Set ${i + 1}`
     if (requireRotations && !(Number.isInteger(+s.rotation) && +s.rotation >= 1 && +s.rotation <= 6)) errors.push(`${prefix}: scegli la posizione iniziale P.`)
     for (const [side, score] of [['own', s.scoreOwn], ['other', s.scoreOther]]) {
       if (!Number.isInteger(score) || score < 0) errors.push(`${prefix}: punteggio non valido.`)
@@ -50,7 +50,7 @@ export function validateMatch(m, requireRotations = true) {
       }
       if (cells[last] !== score) errors.push(`${prefix}: ultimo progressivo diverso dal punteggio finale (${side === 'own' ? m.team : m.opponent}).`)
     }
-    if (s.scoreOwn === s.scoreOther || Math.max(s.scoreOwn, s.scoreOther) < (i === 4 ? 15 : 25) || Math.abs(s.scoreOwn - s.scoreOther) < 2) errors.push(`${prefix}: risultato non concluso.`)
+    if (s.scoreOwn === s.scoreOther || Math.max(s.scoreOwn, s.scoreOther) < (i >= 4 ? 15 : 25) || Math.abs(s.scoreOwn - s.scoreOther) < 2) errors.push(`${prefix}: risultato non concluso.`)
   })
   return [...new Set(errors)]
 }

@@ -43,7 +43,34 @@ export function parseItems(items, width, height) {
     sets.push({ number: i + 1, rotation: '', own: own.grid, other: other.grid, lineup: own.lineup, opponentLineup: other.lineup, scoreOwn: +scores[0], scoreOther: +scores[1] })
   }
   if (!sets.length) throw Error('Nessun set leggibile. Le scansioni non contengono il testo necessario all’importazione.')
-  return { team: teams[0], opponent: teams[1], date, number: textAt(272.13, 79.54, 2), sets }
+
+  // Estrazione arbitri e ufficiali di gara (1° Arbitro, 2° Arbitro, Segnapunti)
+  const ref1 = words.filter(w => Math.abs(w.y - 694.9) <= 5 && w.x >= 225 && w.x < 390).sort((a, b) => a.x - b.x).map(w => w.text).join(' ').trim()
+  const ref2 = words.filter(w => Math.abs(w.y - 707.5) <= 5 && w.x >= 225 && w.x < 390).sort((a, b) => a.x - b.x).map(w => w.text).join(' ').trim()
+  const scorer = words.filter(w => Math.abs(w.y - 720.4) <= 5 && w.x >= 225 && w.x < 390).sort((a, b) => a.x - b.x).map(w => w.text).join(' ').trim()
+  const ref1City = words.filter(w => Math.abs(w.y - 694.9) <= 5 && w.x >= 400 && w.x < 550).sort((a, b) => a.x - b.x).map(w => w.text).join(' ').trim()
+  const scorerCity = words.filter(w => Math.abs(w.y - 720.4) <= 5 && w.x >= 400 && w.x < 550).sort((a, b) => a.x - b.x).map(w => w.text).join(' ').trim()
+
+  // Estrazione luogo e impianto di gioco
+  const location = words.filter(w => Math.abs(w.y - 105.0) <= 4 && w.x >= 70 && w.x < 225).sort((a, b) => a.x - b.x).map(w => w.text).join(' ').trim()
+  const venue = words.filter(w => Math.abs(w.y - 103.9) <= 4 && w.x >= 250 && w.x < 420).sort((a, b) => a.x - b.x).map(w => w.text).join(' ').trim()
+
+  return {
+    team: teams[0],
+    opponent: teams[1],
+    date,
+    location: location || '',
+    venue: venue || '',
+    number: textAt(272.13, 79.54, 2),
+    sets,
+    referees: {
+      first: ref1 || '',
+      firstCity: ref1City || '',
+      second: ref2 || '',
+      scorer: scorer || '',
+      scorerCity: scorerCity || '',
+    },
+  }
 }
 
 // Jersey numbers supplied by the user; unknown lineups remain explicitly unset.

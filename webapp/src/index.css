@@ -1,5 +1,64 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-:root { font-family: 'DM Sans', sans-serif; color: #173b3f; background: #f7f8f3; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
-button, input, select { font: inherit; }
+:root {
+  --vs-bg: #F4F4F4;
+  --vs-surface: #FFFFFF;
+  --vs-border: rgba(1, 22, 39, 0.10);
+  --vs-border-hover: rgba(1, 22, 39, 0.22);
+  --vs-text: #505050;
+  --vs-heading: #383838;
+  --vs-muted: #7D7D7D;
+  --vs-accent: #011627;
+  --vs-accent-hover: #03304F;
+  --vs-accent-contrast: #FFFFFF;
+  --vs-orange: #E65100;
+  --vs-orange-soft: #FFF3E0;
+  --vs-teal: #028090;
+  --vs-teal-soft: #E0F2F1;
+  --vs-font-heading: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --vs-font-nav: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --vs-font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --vs-radius: 0.75rem;
+  --vs-container-max: 1180px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--vs-bg);
+  color: var(--vs-text);
+  font-family: var(--vs-font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--vs-font-heading);
+  color: var(--vs-heading);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 0;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+a {
+  color: var(--vs-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--vs-accent-hover);
+  text-decoration: underline;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
