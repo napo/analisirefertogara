@@ -14,6 +14,7 @@ import './App.css'
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, CanvasRenderer])
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
+const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '' }
 const formatDuration = minutes => {
   if (minutes === '' || minutes === null || minutes === undefined) return '–'
   const value = Number(minutes)
@@ -530,6 +531,8 @@ function MainApp() {
                                       ...m,
                                       team: m.opponent,
                                       opponent: m.team,
+                                      roster: m.opponentRoster || [],
+                                      opponentRoster: m.roster || [],
                                       sets: m.sets.map(s => ({
                                         ...s,
                                         own: s.other,
@@ -859,6 +862,8 @@ function MainApp() {
                             ...cur,
                             team: cur.opponent,
                             opponent: cur.team,
+                            roster: cur.opponentRoster || [],
+                            opponentRoster: cur.roster || [],
                             sets: cur.sets.map(s => ({
                               ...s,
                               own: s.other,
@@ -1219,6 +1224,8 @@ function MainApp() {
                                         ...m,
                                         team: m.opponent,
                                         opponent: m.team,
+                                        roster: m.opponentRoster || [],
+                                        opponentRoster: m.roster || [],
                                         sets: m.sets.map(s => ({
                                           ...s,
                                           own: s.other,
@@ -1539,6 +1546,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                       ...d,
                       team: d.opponent,
                       opponent: d.team,
+                      roster: d.opponentRoster || [],
+                      opponentRoster: d.roster || [],
                       sets: d.sets.map(s => ({
                         ...s,
                         own: s.other,
@@ -1567,6 +1576,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                   ...d,
                   team: d.opponent,
                   opponent: d.team,
+                  roster: d.opponentRoster || [],
+                  opponentRoster: d.roster || [],
                   sets: d.sets.map(s => ({
                     ...s,
                     own: s.other,
@@ -1654,6 +1665,72 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           </div>
         )}
       </div>
+
+      {(draft.roster?.length > 0 || draft.opponentRoster?.length > 0) && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '0.75rem',
+            marginBottom: '1.25rem',
+          }}
+        >
+          {[
+            { name: draft.team || 'Squadra analizzata', roster: draft.roster || [] },
+            { name: draft.opponent || 'Squadra avversaria', roster: draft.opponentRoster || [] },
+          ].map(({ name, roster }) => (
+            <div
+              key={name}
+              style={{
+                padding: '0.85rem 1rem',
+                background: '#FAFAFA',
+                border: '1px solid var(--vs-border)',
+                borderRadius: '0.5rem',
+              }}
+            >
+              <strong style={{ display: 'block', color: 'var(--vs-heading)', marginBottom: '0.35rem' }}>
+                Elenco atleti — {name}
+              </strong>
+              <span style={{ fontSize: '0.82rem', color: 'var(--vs-muted)' }}>
+                Il referto contiene i numeri di maglia, non i nomi.
+              </span>
+              <div style={{ display: 'grid', gap: '0.4rem', marginTop: '0.65rem' }}>
+                {roster.map((entry, index) => {
+                  const player = rosterPlayer(entry)
+                  const rosterKey = name === draft.team ? 'roster' : 'opponentRoster'
+                  return (
+                  <div
+                    key={`${player.number}-${index}`}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '3.5rem minmax(0, 1fr)',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <strong style={{ fontVariantNumeric: 'tabular-nums' }}>#{player.number}</strong>
+                    <input
+                      type="text"
+                      placeholder="Nome atleta"
+                      aria-label={`Nome atleta maglia ${player.number}`}
+                      value={player.name || ''}
+                      onChange={event => setDraft(draftValue => ({
+                        ...draftValue,
+                        [rosterKey]: (draftValue[rosterKey] || []).map((current, currentIndex) =>
+                          currentIndex === index
+                            ? { ...rosterPlayer(current), name: event.target.value }
+                            : current,
+                        ),
+                      }))}
+                    />
+                  </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Sezione Arbitri e Ufficiali di Gara */}
       <details

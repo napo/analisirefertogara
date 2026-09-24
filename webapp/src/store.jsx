@@ -28,6 +28,8 @@ export function createBlankMatch() {
     location: '',
     venue: '',
     number: '',
+    roster: [],
+    opponentRoster: [],
     fileName: 'Compilazione manuale',
     isManual: true,
     referees: {

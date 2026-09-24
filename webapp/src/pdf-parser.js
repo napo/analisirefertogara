@@ -55,6 +55,7 @@ export function parseItems(items, width, height) {
   const date = dateText.split('/').reverse().join('-')
 
   const sets = []
+  const rosters = [new Set(), new Set()]
 
   const timeToMinutes = value => {
     const [h, m] = value.split(':').map(Number)
@@ -98,6 +99,17 @@ export function parseItems(items, width, height) {
             2,
           ),
       )
+
+      const rosterStartX = 111.4 + offsetX + offset
+      words
+        .filter(
+          w =>
+            [174.5 + offsetY, 187.5 + offsetY].some(y => Math.abs(w.y - y) <= 3) &&
+            w.x >= rosterStartX - 4 &&
+            w.x <= rosterStartX + 170 &&
+            /^\d{1,2}$/.test(w.text),
+        )
+        .forEach(w => rosters[side].add(Number(w.text)))
 
       const grid = Array.from({ length: 48 }, (_, j) => {
         const found = pick(
@@ -376,6 +388,9 @@ export function parseItems(items, width, height) {
       scorer: scorer || '',
       scorerCity: scorerCity || '',
     },
+
+    roster: [...rosters[0]].sort((a, b) => a - b),
+    opponentRoster: [...rosters[1]].sort((a, b) => a - b),
   }
 }
 

@@ -1,7 +1,6 @@
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
-import worker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { parseItems } from './pdf-parser.js'
-GlobalWorkerOptions.workerSrc = worker
+GlobalWorkerOptions.workerSrc = `${import.meta.env.BASE_URL}pdf.worker.min.mjs`
 export async function importPdf(file) {
   if (file.size > 20 * 1024 * 1024) throw Error('Il PDF supera il limite di 20 MB.')
   const buffer = await file.arrayBuffer()
