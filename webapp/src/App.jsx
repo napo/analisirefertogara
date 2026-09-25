@@ -143,20 +143,15 @@ function MainApp() {
       const pageHeight = 297
       const margin = 10
       const printWidth = pageWidth - margin * 2
-      const printHeight = (canvas.height * printWidth) / canvas.width
+      const footerSpace = 8
+      const availableHeight = pageHeight - margin * 2 - footerSpace
+      const scale = Math.min(printWidth / canvas.width, availableHeight / canvas.height)
+      const renderWidth = canvas.width * scale
+      const renderHeight = canvas.height * scale
+      const positionX = (pageWidth - renderWidth) / 2
+      const positionY = margin + (availableHeight - renderHeight) / 2
 
-      let heightLeft = printHeight
-      let position = margin
-
-      pdf.addImage(imgData, 'PNG', margin, position, printWidth, printHeight)
-      heightLeft -= (pageHeight - margin * 2)
-
-      while (heightLeft > 0) {
-        position = position - (pageHeight - margin * 2)
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', margin, position, printWidth, printHeight)
-        heightLeft -= (pageHeight - margin * 2)
-      }
+      pdf.addImage(imgData, 'PNG', positionX, positionY, renderWidth, renderHeight)
 
       pdf.setFontSize(8)
       pdf.setTextColor(100, 100, 100)
