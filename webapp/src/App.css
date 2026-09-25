@@ -625,6 +625,10 @@
   margin-top: 1rem;
 }
 
+.vs-set-data-layout {
+  display: block;
+}
+
 .vs-grid-table {
   border-collapse: collapse;
   width: 100%;
@@ -725,15 +729,6 @@
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 2px solid var(--vs-orange);
-}
-
-.vs-export-footer {
-  margin-top: 1.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--vs-border);
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--vs-muted);
 }
 
 @media print {

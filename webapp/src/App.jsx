@@ -16,8 +16,66 @@ import './App.css'
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, CanvasRenderer])
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
-const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '' }
+const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '', setterRole: '' }
+const isSetter = player => Boolean(player.isSetter || player.setterRole === 'P1' || player.setterRole === 'P2')
+const liberoValues = (libero, key) => Array.isArray(libero?.[key])
+  ? [...libero[key], '', '', '', '', '', ''].slice(0, 6)
+  : Array(6).fill(libero?.[key] || '')
 const resultStr = m => `${m.sets.filter(s => s.scoreOwn > s.scoreOther).length} – ${m.sets.filter(s => s.scoreOther > s.scoreOwn).length}`
+const updateSetterRotations = match => {
+  const setters = (match.roster || []).map(rosterPlayer)
+    .filter(isSetter)
+  return {
+    ...match,
+    sets: (match.sets || []).map(set => {
+      const setter = setters.find(player => set.lineup?.some(number => String(number) === String(player.number)))
+      const position = setter ? set.lineup.findIndex(number => String(number) === String(setter.number)) + 1 : ''
+      return { ...set, rotation: position || '' }
+    }),
+  }
+}
+const athleteStats = matches => {
+  const stats = new Map()
+  for (const match of matches) {
+    const names = new Map((match.roster || []).map(rosterPlayer).map(player => [String(player.number), player.name || '']))
+    for (const set of match.sets || []) {
+      const active = new Set((set.lineup || []).filter(Boolean).map(String))
+      for (const entry of set.liberoReplacements || []) {
+        active.add(String(entry.player))
+        active.add(String(entry.libero))
+      }
+      for (const key of ['onCourt', 'entered', 'otherEntered']) {
+        for (const number of liberoValues(set.libero, key).filter(Boolean)) active.add(String(number))
+      }
+      const pointsPlayed = Number(set.scoreOwn || 0) + Number(set.scoreOther || 0)
+      for (const number of active) {
+        if (!stats.has(number)) stats.set(number, { number, name: names.get(number) || '', pointsPlayed: 0, services: 0, serviceTurns: 0, consecutive: 0, pointsAtServe: 0 })
+        stats.get(number).pointsPlayed += pointsPlayed
+      }
+
+      let previous = 0
+      for (const [index, value] of (set.own || []).entries()) {
+        if (value === '' || value === null || value === undefined) continue
+        if (value === 'X') { previous = 0; continue }
+        if (!Number.isInteger(value)) continue
+        const playerNumber = set.lineup?.[index % 6]
+        if (playerNumber === '' || playerNumber === undefined) { previous = value; continue }
+        const number = String(playerNumber)
+        if (!stats.has(number)) stats.set(number, { number, name: names.get(number) || '', pointsPlayed: 0, services: 0, serviceTurns: 0, consecutive: 0, pointsAtServe: 0 })
+        const points = Math.max(0, value - previous - 1)
+        const player = stats.get(number)
+        player.services += points + 1
+        player.serviceTurns += 1
+        player.consecutive += points + 1
+        player.pointsAtServe += points
+        previous = value
+      }
+    }
+  }
+  return [...stats.values()]
+    .map(player => ({ ...player, averageConsecutive: player.serviceTurns ? player.consecutive / player.serviceTurns : 0, averagePointsAtServe: player.serviceTurns ? player.pointsAtServe / player.serviceTurns : 0 }))
+    .sort((a, b) => Number(a.number) - Number(b.number))
+}
 
 function MainApp() {
   const {
@@ -99,6 +157,10 @@ function MainApp() {
         pdf.addImage(imgData, 'PNG', margin, position, printWidth, printHeight)
         heightLeft -= (pageHeight - margin * 2)
       }
+
+      pdf.setFontSize(8)
+      pdf.setTextColor(100, 100, 100)
+      pdf.text('basato su Referto Volley - un progetto di maurizio napolitano', pageWidth / 2, pageHeight - 5, { align: 'center' })
 
       const matchLabel = visibleMatches.length === 1 && visibleMatches[0]
         ? `${visibleMatches[0].team}_vs_${visibleMatches[0].opponent}_${visibleMatches[0].date}`
@@ -380,10 +442,10 @@ function MainApp() {
             <div className="vs-review-grid">
               <label className="vs-field">
                 <span>Cerca gare</span>
-                <input type="search" placeholder="Squadra, numero gara, campionato, manifestazione…"
+                <input type="search" placeholder="Squadra, numero gara, campionato…"
                   value={filters.query} onChange={e => { updateFilters({ ...filters, query: e.target.value }); setSelectedHistoryIds([]) }} />
               </label>
-              {[['championship', 'Campionato'], ['event', 'Manifestazione / intestazione'], ['gender', 'Divisione']].map(([key, label]) => (
+              {[['championship', 'Campionato'], ['gender', 'Divisione']].map(([key, label]) => (
                 <label className="vs-field" key={key}>
                   <span>{label}</span>
                   <select value={filters[key]} onChange={e => { updateFilters({ ...filters, [key]: e.target.value }); setSelectedHistoryIds([]) }}>
@@ -454,7 +516,7 @@ function MainApp() {
                   </button>
                 </div>
                 <div style={{ marginTop: '1rem', fontSize: '0.82rem', color: 'var(--vs-muted)' }}>
-                  <span>Modelli PDF supportati: SNUG</span>
+                  <span>Sono supportati i modelli PDF dei software prodotti da SNUG e NEWBIT</span>
                 </div>
               </div>
             )}
@@ -559,6 +621,8 @@ function MainApp() {
                                         scoreOther: s.scoreOwn,
                                         lineup: s.opponentLineup,
                                         opponentLineup: s.lineup,
+                                        libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
+                                        opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                                         liberoReplacements: s.opponentLiberoReplacements || [],
                                         opponentLiberoReplacements: s.liberoReplacements || [],
                                         rotation: '',
@@ -891,6 +955,8 @@ function MainApp() {
                               scoreOther: s.scoreOwn,
                               lineup: s.opponentLineup,
                               opponentLineup: s.lineup,
+                              libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
+                              opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                               liberoReplacements: s.opponentLiberoReplacements || [],
                               opponentLiberoReplacements: s.liberoReplacements || [],
                               rotation: '',
@@ -940,6 +1006,24 @@ function MainApp() {
 
                 {/* Metric Cards */}
                 <div className="vs-metrics-grid">
+                  {isSingleMatch && (
+                    <div className="vs-metric-card accent-neutral">
+                      <span className="vs-metric-label">Durata gara</span>
+                      <strong className="vs-metric-value">{formatDuration(totalDurationMinutes)}</strong>
+                      <span className="vs-metric-detail">
+                        {visibleMatches[0].sets
+                          .map((set, index) => `Set ${index + 1}: ${formatDuration(set.durationMinutes)}`)
+                          .join(' · ')}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="vs-metric-card accent-neutral">
+                    <span className="vs-metric-label">Numero {visibleMatches[0].gender === 'Femminile' ? 'atlete' : 'atleti'} coinvolti</span>
+                    <strong className="vs-metric-value">{aggregatedAnalysis.athletesInvolved}</strong>
+                    <span className="vs-metric-detail">ingressi in campo univoci</span>
+                  </div>
+
                   <div className="vs-metric-card accent-navy">
                     <span className="vs-metric-label">Punti fatti</span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.scored}</strong>
@@ -952,10 +1036,30 @@ function MainApp() {
                     <span className="vs-metric-detail">totale punti subiti dagli avversari</span>
                   </div>
 
+                  <div className="vs-metric-card accent-neutral">
+                    <span className="vs-metric-label">Fatti-Subiti</span>
+                    <strong
+                      className="vs-metric-value"
+                      style={{
+                        color: (aggregatedAnalysis.scored - aggregatedAnalysis.conceded) >= 0 ? 'var(--vs-heading)' : '#D32F2F',
+                      }}
+                    >
+                      {(aggregatedAnalysis.scored - aggregatedAnalysis.conceded) > 0 ? '+' : ''}
+                      {aggregatedAnalysis.scored - aggregatedAnalysis.conceded}
+                    </strong>
+                    <span className="vs-metric-detail">indica la differenza fra i punti fatti e quelli subiti</span>
+                  </div>
+
                   <div className="vs-metric-card accent-orange">
                     <span className="vs-metric-label">Punti in fase break point (BP)</span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.breakPoints ?? '–'}</strong>
                     <span className="vs-metric-detail">numero di punti conquistati in situazione di battuta</span>
+                  </div>
+
+                  <div className="vs-metric-card accent-teal">
+                    <span className="vs-metric-label">Punti in fase cambio-palla</span>
+                    <strong className="vs-metric-value">{aggregatedAnalysis.reception.pointsInReception}</strong>
+                    <span className="vs-metric-detail">punti conquistati in fase ricezione</span>
                   </div>
 
                   <div className="vs-metric-card accent-teal">
@@ -974,48 +1078,7 @@ function MainApp() {
                       Escluse le fasi terminate senza cambio palla a fine set
                     </span>
                   </div>
-
-                  {isSingleMatch && (
-                    <div className="vs-metric-card accent-neutral">
-                      <span className="vs-metric-label">{Number(visibleMatches[0].durationMinutes) > 0 ? 'Durata gara (pause comprese)' : 'Durata dei set (pause escluse)'}</span>
-                      <strong className="vs-metric-value">{formatDuration(totalDurationMinutes)}</strong>
-                      <span className="vs-metric-detail">
-                        {visibleMatches[0].sets
-                          .map((set, index) => `Set ${index + 1}: ${formatDuration(set.durationMinutes)}`)
-                          .join(' · ')}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="vs-metric-card accent-neutral">
-                    <span className="vs-metric-label">Fatti-Subiti</span>
-                    <strong
-                      className="vs-metric-value"
-                      style={{
-                        color: (aggregatedAnalysis.scored - aggregatedAnalysis.conceded) >= 0 ? 'var(--vs-heading)' : '#D32F2F',
-                      }}
-                    >
-                      {(aggregatedAnalysis.scored - aggregatedAnalysis.conceded) > 0 ? '+' : ''}
-                      {aggregatedAnalysis.scored - aggregatedAnalysis.conceded}
-                    </strong>
-                    <span className="vs-metric-detail">indica la differenza fra i punti fatti e quelli subiti</span>
-                    <span className="vs-metric-detail">
-                      {formatWins(aggregatedAnalysis.wins, visibleMatches.length)}
-                    </span>
-                  </div>
                 </div>
-
-                {visibleMatches.some(m => m.sets.some(set => set.liberoReplacements?.length || set.opponentLiberoReplacements?.length)) && (
-                  <section className="vs-card">
-                    <h2 className="vs-card-title">Ingressi libero / under registrati</h2>
-                    <p className="vs-card-subtitle">Giocatore in campo → libero. Le righe indicano l’ordine nel referto, non il punteggio o la rotazione.</p>
-                    {visibleMatches.map(m => <div key={m.id}>
-                      <h3>{m.date} · {m.team} – {m.opponent}</h3>
-                      <p className="vs-metric-detail">{matchHeading(m)}</p>
-                      {m.sets.map((set, index) => <LiberoEntries key={index} set={set} team={m.team} opponent={m.opponent} roster={m.roster} opponentRoster={m.opponentRoster} />)}
-                    </div>)}
-                  </section>
-                )}
 
                 {/* Charts Grid */}
                 <div className="vs-charts-grid">
@@ -1054,7 +1117,7 @@ function MainApp() {
                           <th className="num-cell-header">TT subiti</th>
                           <th className="num-cell-header">TP subiti</th>
                           <th className="num-cell-header">MP subiti</th>
-                          <th className="num-cell-header">Differenziale MP</th>
+                          <th className="num-cell-header">Differenza MP</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1094,11 +1157,39 @@ function MainApp() {
                   </p>
                 </div>
 
-                {/* Footer per esportazione PDF / Stampa */}
-                <div className="vs-export-footer">
-                  <hr style={{ border: 'none', borderTop: '1px solid var(--vs-border)', margin: '0 0 0.85rem 0' }} />
-                  <span>basato su Referto Volley - un progetto di maurizio napolitano</span>
+                <div className="vs-card">
+                  <div className="vs-card-header">
+                    <div>
+                      <h2 className="vs-card-title">{visibleMatches[0].gender === 'Femminile' ? 'Atlete entrate' : 'Atleti entrati'}</h2>
+                      <p className="vs-card-subtitle">Statistiche degli ingressi in campo univoci</p>
+                    </div>
+                  </div>
+                  <div className="vs-table-wrap">
+                    <table className="vs-table">
+                      <thead>
+                        <tr>
+                          <th>Atleta</th>
+                          <th className="num-cell-header">Punti giocati</th>
+                          <th className="num-cell-header">Servizi effettuati</th>
+                          <th className="num-cell-header">Media servizi consecutivi</th>
+                          <th className="num-cell-header">Media dei punti della squadra al servizio</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {athleteStats(visibleMatches).map(player => (
+                          <tr key={player.number}>
+                            <td><strong>{player.number}</strong>{player.name ? ` · ${player.name}` : ''}</td>
+                            <td className="num-cell">{player.pointsPlayed}</td>
+                            <td className="num-cell">{player.services}</td>
+                            <td className="num-cell">{fmt(player.averageConsecutive)}</td>
+                            <td className="num-cell">{fmt(player.averagePointsAtServe)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+
               </div>
             ) : (
               <p>Errore nel calcolo dei dati della gara.</p>
@@ -1292,6 +1383,8 @@ function MainApp() {
                                           scoreOther: s.scoreOwn,
                                           lineup: s.opponentLineup,
                                           opponentLineup: s.lineup,
+                                          libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
+                                          opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                                           liberoReplacements: s.opponentLiberoReplacements || [],
                                           opponentLiberoReplacements: s.liberoReplacements || [],
                                           rotation: '',
@@ -1539,6 +1632,8 @@ function MainApp() {
 // Subcomponent: Verification & Review Card for imported PDF or manual entry
 function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemoveSet, busy }) {
   const [sourceUrl, setSourceUrl] = useState('')
+  const sideA = draft.sideA || (draft.selectedSide === 'B' ? draft.opponent : draft.team)
+  const sideB = draft.sideB || (draft.selectedSide === 'B' ? draft.team : draft.opponent)
 
   useEffect(() => {
     if (!draft?.pdf) return
@@ -1561,9 +1656,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           </div>
           <h2 className="vs-card-title">{draft.fileName || 'Referto di gara'}</h2>
           <p className="vs-card-subtitle">
-            {draft.isManual
-              ? 'Inserisci i dati delle squadre, i punteggi dei set e i turni di battuta (supportati fino a 6 set con Golden Set).'
-              : 'I dati sono stati letti dal referto. Verifica la squadra da analizzare e indica la posizione del palleggiatore (P) per ogni set.'}
+            Inserisci o verifica i dati delle squadre, i punteggi, i turni di battuta e il libero per ogni set.
           </p>
         </div>
         <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={onCancel}>
@@ -1613,6 +1706,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                         scoreOther: s.scoreOwn,
                         lineup: s.opponentLineup,
                         opponentLineup: s.lineup,
+                        libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
+                        opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                         liberoReplacements: s.opponentLiberoReplacements || [],
                         opponentLiberoReplacements: s.liberoReplacements || [],
                         rotation: '',
@@ -1629,10 +1724,12 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           <div className="vs-field">
             <label>Squadra da analizzare</label>
             <select
-              value="own"
-              onChange={() => {
+              value={draft.selectedSide || 'A'}
+              onChange={(event) => {
+                if (event.target.value === (draft.selectedSide || 'A')) return
                 setDraft(d => applySetter({
                   ...d,
+                  selectedSide: event.target.value,
                   team: d.opponent,
                   opponent: d.team,
                   roster: d.opponentRoster || [],
@@ -1645,6 +1742,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                     scoreOther: s.scoreOwn,
                     lineup: s.opponentLineup,
                     opponentLineup: s.lineup,
+                    libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
+                    opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                     liberoReplacements: s.opponentLiberoReplacements || [],
                     opponentLiberoReplacements: s.liberoReplacements || [],
                     rotation: '',
@@ -1652,13 +1751,13 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                 }))
               }}
             >
-              <option value="own">{draft.team} (squadra attiva)</option>
-              <option value="other">Inverti: {draft.opponent}</option>
+              <option value="A">{sideA} (squadra A)</option>
+              <option value="B">{sideB} (squadra B)</option>
             </select>
           </div>
         )}
 
-        {[['championship', 'Campionato / serie'], ['number', 'Numero gara'], ['event', 'Manifestazione / intestazione']].map(([key, label]) => (
+        {[['championship', 'Campionato / serie'], ['number', 'Numero gara']].map(([key, label]) => (
           <label className="vs-field" key={key}>
             <span>{label}</span>
             <input value={draft[key] || ''} onChange={e => setDraft({ ...draft, [key]: e.target.value })} />
@@ -1706,26 +1805,6 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           />
         </div>
 
-        <div className="vs-field">
-          <label>Maglia palleggiatore (auto-assegna P)</label>
-          <input
-            type="number"
-            min="1"
-            max="99"
-            placeholder="Es. 7"
-            onChange={(e) => {
-              const jersey = e.target.value
-              setDraft(d => ({
-                ...d,
-                sets: d.sets.map(s => {
-                  const idx = s.lineup.findIndex(n => String(n) === jersey)
-                  return { ...s, rotation: idx >= 0 ? idx + 1 : s.rotation }
-                }),
-              }))
-            }}
-          />
-        </div>
-
         {sourceUrl && (
           <div className="vs-field" style={{ justifyContent: 'flex-end' }}>
             <a
@@ -1741,19 +1820,18 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         )}
       </div>
 
-      {(draft.roster?.length > 0 || draft.opponentRoster?.length > 0) && (
+      {draft.roster?.length > 0 && (
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '0.75rem',
+            display: 'block',
             marginBottom: '1.25rem',
           }}
         >
-          {[
-            { name: draft.team || 'Squadra analizzata', roster: draft.roster || [] },
-            { name: draft.opponent || 'Squadra avversaria', roster: draft.opponentRoster || [] },
-          ].map(({ name, roster }) => (
+          {(() => {
+            const name = draft.team || 'Squadra analizzata'
+            const roster = draft.roster || []
+            const rosterKey = 'roster'
+            return (
             <div
               key={name}
               style={{
@@ -1770,15 +1848,29 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                 Nomi e numeri letti dal referto. Puoi correggere o completare i nomi prima di salvare.
               </span>
               <div style={{ display: 'grid', gap: '0.4rem', marginTop: '0.65rem' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '3.5rem minmax(0, 1fr) 2.4rem',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: 'var(--vs-muted)',
+                    fontSize: '0.75rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span />
+                  <span style={{ textAlign: 'left' }}>Atleta</span>
+                  <strong title="Imposta chi gioca al palleggio">p</strong>
+                </div>
                 {roster.map((entry, index) => {
                   const player = rosterPlayer(entry)
-                  const rosterKey = name === draft.team ? 'roster' : 'opponentRoster'
                   return (
                   <div
                     key={`${player.number}-${index}`}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '3.5rem minmax(0, 1fr)',
+                      gridTemplateColumns: '3.5rem minmax(0, 1fr) 2.4rem',
                       alignItems: 'center',
                       gap: '0.5rem',
                     }}
@@ -1798,12 +1890,30 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                         ),
                       }))}
                     />
+                    <input
+                      type="checkbox"
+                      checked={isSetter(player)}
+                      disabled={!isSetter(player) && roster.map(rosterPlayer).filter(isSetter).length >= 3}
+                      aria-label={`Imposta chi gioca al palleggio: ${player.name || `maglia ${player.number}`}`}
+                      title="Imposta chi gioca al palleggio"
+                      onChange={event => setDraft(draftValue => {
+                        const nextRoster = (draftValue[rosterKey] || []).map((current, currentIndex) => {
+                          const currentPlayer = rosterPlayer(current)
+                          return currentIndex === index
+                            ? { ...currentPlayer, isSetter: event.target.checked, setterRole: '' }
+                            : currentPlayer
+                        })
+                        const nextDraft = { ...draftValue, [rosterKey]: nextRoster }
+                        return rosterKey === 'roster' ? updateSetterRotations(nextDraft) : nextDraft
+                      })}
+                    />
                   </div>
                   )
                 })}
               </div>
             </div>
-          ))}
+            )
+          })()}
         </div>
       )}
 
@@ -1869,8 +1979,6 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           index={index}
           team={draft.team || 'Squadra analizzata'}
           opponent={draft.opponent || 'Squadra avversaria'}
-          roster={draft.roster}
-          opponentRoster={draft.opponentRoster}
           update={(patch) => {
             setDraft(d => ({
               ...d,
@@ -1936,7 +2044,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 }
 
 // Subcomponent: Set Details & 6x6 Turns Grid
-function SetEditor({ set: s, index, team, opponent, roster, opponentRoster, update }) {
+function SetEditor({ set: s, index, team, opponent, update }) {
   const isGoldenSet = index === 5
   const isTieBreak = index === 4
   const setLabel = isGoldenSet ? 'Set 6 — Golden Set (a 15 punti)' : isTieBreak ? 'Set 5 — Tie-break (a 15 punti)' : `Set ${index + 1}`
@@ -1950,22 +2058,7 @@ function SetEditor({ set: s, index, team, opponent, roster, opponentRoster, upda
         </span>
       </summary>
       <div className="vs-set-body">
-        <LiberoEntries set={s} team={team} opponent={opponent} roster={roster} opponentRoster={opponentRoster} />
         <div className="vs-review-grid" style={{ marginBottom: '1rem' }}>
-          <div className="vs-field">
-            <label>Posizione iniziale Palleggiatore (P)</label>
-            <select
-              value={s.rotation}
-              onChange={(e) => update({ rotation: e.target.value ? +e.target.value : '' })}
-            >
-              <option value="">Indica la posizione (P1 – P6)</option>
-              {[1, 2, 3, 4, 5, 6].map(pos => (
-                <option key={pos} value={pos}>
-                  P{pos} {s.lineup?.[pos - 1] ? `· maglia #${s.lineup[pos - 1]}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="vs-field">
             <label>Punti {team}</label>
             <input
@@ -1999,24 +2092,30 @@ function SetEditor({ set: s, index, team, opponent, roster, opponentRoster, upda
           </div>
         </div>
 
-        <div className="vs-turn-grid">
-          {[
-            { key: 'own', name: team },
-            { key: 'other', name: opponent },
-          ].map(({ key, name }) => (
-            <div key={key}>
-              <h4 style={{ fontSize: '0.9rem', marginBottom: '0.25rem', color: 'var(--vs-heading)' }}>
-                {name} — Progressivi a fine turno
-              </h4>
-              <p style={{ fontSize: '0.78rem', color: 'var(--vs-muted)', margin: '0 0 0.5rem' }}>
-                X = primo turno in ricezione · I numeri indicano il punteggio raggiunto
-              </p>
-              <div className="vs-table-wrap">
+        <div className="vs-set-data-layout">
+          <div className="vs-turn-grid">
+            {[
+              { key: 'own', liberoKey: 'libero', name: team },
+              { key: 'other', liberoKey: 'opponentLibero', name: opponent },
+            ].map(({ key, liberoKey, name }) => {
+              const libero = s[liberoKey] || {}
+              const liberoFields = {
+                onCourt: liberoValues(libero, 'onCourt'),
+                entered: liberoValues(libero, 'entered'),
+                otherEntered: liberoValues(libero, 'otherEntered'),
+              }
+              return (
+                <div key={key}>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.35rem', color: 'var(--vs-heading)' }}>
+                    {name}
+                  </h4>
+                  <div className="vs-table-wrap">
                 <table className="vs-grid-table">
                   <thead>
                     <tr>
                       <th>Giro</th>
                       {['I', 'II', 'III', 'IV', 'V', 'VI'].map(v => <th key={v}>{v}</th>)}
+                      <th colSpan="3">Libero</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2043,13 +2142,29 @@ function SetEditor({ set: s, index, team, opponent, roster, opponentRoster, upda
                             </td>
                           )
                         })}
+                        {Object.entries(liberoFields).map(([field, values]) => (
+                          <td key={field}>
+                            <input
+                              aria-label={`Set ${index + 1}, ${name}, giro ${r + 1}, libero ${field}`}
+                              value={values[r]}
+                              maxLength={3}
+                              onChange={event => {
+                                const values = liberoValues(libero, field)
+                                values[r] = event.target.value
+                                update({ [liberoKey]: { ...libero, [field]: values } })
+                              }}
+                            />
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          ))}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </details>
@@ -2094,23 +2209,3 @@ export default function App() {
   )
 }
 
-function LiberoEntries({ set, team, opponent, roster = [], opponentRoster = [] }) {
-  if (!set.liberoReplacements?.length && !set.opponentLiberoReplacements?.length) return null
-  const playerLabel = (number, players) => {
-    const player = players.map(rosterPlayer).find(p => Number(p.number) === number)
-    return `#${number}${player?.name ? ` ${player.name}` : ''}`
-  }
-  return <details style={{ margin: '0.75rem 0' }} open>
-    <summary>Set {set.number} · Libero / under</summary>
-    {[[team, set.liberoReplacements, roster], [opponent, set.opponentLiberoReplacements, opponentRoster]].map(([name, entries, players], side) => (
-      <div key={side} style={{ margin: '0.5rem 0' }}>
-        <strong>{name}</strong>
-        {entries?.length ? <ol>{entries.map((entry, index) => <li key={index}>
-          {`${playerLabel(entry.player, players)} → ${playerLabel(entry.libero, players)}`}
-          {entry.isLiberoChange ? ' (cambio tra liberi)' : ''}
-          {entry.section > 0 ? ' (dopo il cambio campo)' : ''}
-        </li>)}</ol> : <p className="vs-metric-detail">Nessuna registrazione nel referto.</p>}
-      </div>
-    ))}
-  </details>
-}

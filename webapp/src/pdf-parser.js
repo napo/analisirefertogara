@@ -1,6 +1,27 @@
+const emptyLibero = () => ({
+  onCourt: Array(6).fill(''),
+  entered: Array(6).fill(''),
+  otherEntered: Array(6).fill(''),
+})
+
+const liberoFields = replacements => {
+  const fields = emptyLibero()
+  for (const entry of replacements || []) {
+    const row = entry.row - 1
+    if (row < 0 || row >= 6) continue
+    if (entry.step === 1) {
+      fields.onCourt[row] = String(entry.player)
+      fields.entered[row] = String(entry.libero)
+    } else {
+      fields.otherEntered[row] = String(entry.libero)
+    }
+  }
+  return fields
+}
+
 // SNUG electronic scoresheet, reference geometry normalized to A3 landscape.
 // Values are located by geometry AND font size to exclude printed turn counters.
-export function parseItems(items, width, height) {
+export function parseItems(items, width, height, operatorList = null) {
   const sx = 1190.55 / width, sy = 841.89 / height
 
   const words = items
@@ -27,7 +48,7 @@ export function parseItems(items, width, height) {
       .join(' ')
 
   if (words.some(w => /NEWBIT|Referto Elettronico/i.test(w.text))) {
-    return parseFipav(words)
+    return parseFipav(words, width, height, operatorList)
   }
 
   if (
@@ -261,6 +282,8 @@ export function parseItems(items, width, height) {
 
       lineup: own.lineup,
       opponentLineup: other.lineup,
+      libero: liberoFields(own.liberoReplacements),
+      opponentLibero: liberoFields(other.liberoReplacements),
       liberoReplacements: own.liberoReplacements,
       opponentLiberoReplacements: other.liberoReplacements,
 
@@ -406,7 +429,7 @@ export function parseItems(items, width, height) {
   }
 }
 
-function parseFipav(words) {
+function parseFipav(words, width, height, operatorList) {
   const text = (x, y, dx = 3, dy = 4) => words
     .filter(w => Math.abs(w.x - x) <= dx && Math.abs(w.y - y) <= dy)
     .sort((a, b) => a.x - b.x)
@@ -457,16 +480,118 @@ function parseFipav(words) {
   }).filter(Boolean)
   if (!scores.length) throw Error('Risultato finale FIPAV non riconosciuto.')
 
+  const scaleX = 1190.55 / width
+  const scaleY = 841.89 / height
+  const divisionMarks = operatorList?.fnArray.flatMap((fn, index) => {
+    if (fn !== 91 || operatorList.argsArray[index][1][0].length !== 7) return []
+    const bounds = operatorList.argsArray[index][2]
+    if (bounds[1] < 780 || bounds[1] > 800 || bounds[0] < 40 || bounds[2] > 230 || bounds[2] - bounds[0] < 5 || bounds[3] - bounds[1] < 5) return []
+    return [{
+      x: ((bounds[0] + bounds[2]) / 2) * scaleX,
+      y: (height - (bounds[1] + bounds[3]) / 2) * scaleY,
+    }]
+  }) || []
+  const gender = divisionMarks.some(w => w.x < 140)
+    ? 'Maschile'
+    : divisionMarks.some(w => w.x >= 140 && w.x < 230)
+      ? 'Femminile'
+      : ''
+
+  const graphicXs = operatorList?.fnArray.flatMap((fn, index) => {
+    if (fn !== 91 || operatorList.argsArray[index][1][0].length !== 7) return []
+    const bounds = operatorList.argsArray[index][2]
+    const width = bounds[2] - bounds[0]
+    const boxHeight = bounds[3] - bounds[1]
+    if (width < 5 || boxHeight < 5 || Math.abs(width - boxHeight) >= 3) return []
+    return [{
+      x: ((bounds[0] + bounds[2]) / 2) * scaleX,
+      y: (height - (bounds[1] + bounds[3]) / 2) * scaleY,
+    }]
+  }) || []
+
+  const panelRows = [
+    { y: 151.5, pair: 0, ownSide: 0 },
+    { y: 151.5, pair: 1, ownSide: 1 },
+    { y: 305.9, pair: 0, ownSide: 0 },
+    { y: 305.9, pair: 1, ownSide: 1 },
+    { y: 460.2, pair: 0, ownSide: 1 },
+  ]
+  const lineupStarts = [[108.5, 369.1], [658.7, 922.2]]
+  const readLineup = (y, start) => Array.from({ length: 6 }, (_, index) => {
+    const expectedX = start + index * 29
+    return words.find(w =>
+      Math.abs(w.x - expectedX) <= 5 && Math.abs(w.y - y) <= 3 &&
+      /^\d+$/.test(w.text) && w.size >= 9 && w.size <= 11,
+    )?.text || ''
+  })
+  const lineups = panelRows.map(({ y, pair, ownSide }) => {
+    const sides = [
+      readLineup(y, lineupStarts[pair][0]),
+      readLineup(y, lineupStarts[pair][1]),
+    ]
+    return { own: sides[ownSide], other: sides[1 - ownSide] }
+  })
+  const liberoStarts = [[305.7, 566.3], [855.9, 1116.5]]
+  const liberoSequences = panelRows.map(({ y, pair, ownSide }) => {
+    const fields = [
+      { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
+      { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
+    ]
+    for (const side of [0, 1]) {
+      const start = liberoStarts[pair][side]
+      for (const word of words.filter(w =>
+        Math.abs(w.x - start) <= 4 && w.y >= y - 18 && w.y < y + 55 && /\d+\s*[-–/]\s*\d+/.test(w.text),
+      )) {
+        const row = Math.round((word.y - (y - 15.4)) / 14.2)
+        if (row < 0 || row >= 6) continue
+        const numbers = word.text.match(/\d+/g) || []
+        fields[side].onCourt[row] = numbers[0] || ''
+        fields[side].entered[row] = numbers[1] || ''
+        fields[side].otherEntered[row] = numbers[2] || ''
+      }
+    }
+    return { own: fields[ownSide], other: fields[1 - ownSide] }
+  })
+  const progressionStarts = [[102.5, 365.4], [652.8, 913.4]]
+  const progressions = panelRows.map(({ y, pair, ownSide }) => {
+    const sides = progressionStarts[pair].map(start => words
+      .filter(w =>
+        w.x > start - 15 && w.x < start + 165 &&
+        w.y > y + 45 && w.y < y + 145 &&
+        w.size >= 7.5 && w.size <= 8.2 && /^\d+$/.test(w.text),
+      )
+      .sort((a, b) => a.y - b.y || a.x - b.x)
+      .map(w => Number(w.text)))
+    return { own: sides[ownSide], other: sides[1 - ownSide] }
+  })
+  const fifthSetContinuation = words
+    .filter(w =>
+      w.x > progressionStarts[1][0] - 15 && w.x < progressionStarts[1][0] + 165 &&
+      w.y > panelRows[4].y + 45 && w.y < panelRows[4].y + 145 &&
+      w.size >= 7.5 && w.size <= 8.2 && /^\d+$/.test(w.text),
+    )
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+    .map(w => Number(w.text))
+  progressions[4].other.push(...fifthSetContinuation)
+
   const sets = scores.map((score, index) => {
-    const own = Array.from({ length: 36 }, (_, point) => point < score.own ? point + 1 : '')
-    const other = Array.from({ length: 36 }, (_, point) => point < score.other ? point + 1 : '')
+    const own = Array(36).fill('')
+    const other = Array(36).fill('')
+    for (const [target, values] of [[own, progressions[index]?.own], [other, progressions[index]?.other]]) {
+      for (const [cell, value] of (values || []).slice(0, 36).entries()) target[cell] = value
+    }
+    const expectedX = index % 2 === 0 ? 360 : 910
+    const expectedY = 208 + Math.floor(index / 2) * 154
+    if (graphicXs.some(mark => Math.abs(mark.x - expectedX) < 15 && Math.abs(mark.y - expectedY) < 15)) other[0] = 'X'
     return {
       number: index + 1,
       rotation: '',
       own,
       other,
-      lineup: ['', '', '', '', '', ''],
-      opponentLineup: ['', '', '', '', '', ''],
+      lineup: lineups[index]?.own || ['', '', '', '', '', ''],
+      opponentLineup: lineups[index]?.other || ['', '', '', '', '', ''],
+      libero: liberoSequences[index]?.own || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
+      opponentLibero: liberoSequences[index]?.other || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
       liberoReplacements: [],
       opponentLiberoReplacements: [],
       scoreOwn: score.own,
@@ -476,15 +601,16 @@ function parseFipav(words) {
   })
 
   return {
+    progressionsImported: true,
     durationMinutes: scores.reduce((total, score) => total + score.durationMinutes, 0),
     championship: text(115.8, 50.5, 70),
     event: '',
-    gender: /MASCHILE/i.test(words.map(w => w.text).join(' ')) ? 'Maschile' : 'Femminile',
+    gender,
     team: teams[0],
     opponent: teams[1],
     date: dateText.split('/').reverse().join('-'),
-    location: text(64.4, 78.6, 45),
-    venue: text(273.5, 78.6, 100),
+    location: (text(64.4, 78.6, 30) || '').toLocaleLowerCase('it-IT').replace(/^./, value => value.toUpperCase()),
+    venue: text(273.5, 78.6, 30),
     number: text(284.9, 50.5, 35),
     sets,
     referees: { first: '', firstCity: '', second: '', scorer: '', scorerCity: '' },
@@ -530,7 +656,12 @@ export function refreshImportedMatch(existing, parsed) {
   const reversed = existing.team === parsed.opponent
   const merge = (incoming, saved = []) => incoming.map(player => {
     const previous = saved.find(entry => Number(typeof entry === 'object' ? entry.number : entry) === player.number)
-    return { ...player, name: previous?.name?.trim() ? previous.name : player.name }
+    return {
+      ...player,
+      name: previous?.name?.trim() ? previous.name : player.name,
+      setterRole: previous?.setterRole || player.setterRole || '',
+      isSetter: previous?.isSetter ?? player.isSetter ?? false,
+    }
   })
   return {
     ...existing,
@@ -541,6 +672,10 @@ export function refreshImportedMatch(existing, parsed) {
     number: existing.number || parsed.number,
     sets: existing.sets.map((set, index) => ({
       ...set,
+      lineup: set.lineup?.some(Boolean) ? set.lineup : parsed.sets[index]?.lineup ?? set.lineup,
+      opponentLineup: set.opponentLineup?.some(Boolean) ? set.opponentLineup : parsed.sets[index]?.opponentLineup ?? set.opponentLineup,
+      libero: set.libero || parsed.sets[index]?.libero || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
+      opponentLibero: set.opponentLibero || parsed.sets[index]?.opponentLibero || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
       durationMinutes: Number(set.durationMinutes) > 0 ? set.durationMinutes : parsed.sets[index]?.durationMinutes ?? '',
       liberoReplacements: set.liberoReplacements ?? (reversed ? parsed.sets[index]?.opponentLiberoReplacements : parsed.sets[index]?.liberoReplacements) ?? [],
       opponentLiberoReplacements: set.opponentLiberoReplacements ?? (reversed ? parsed.sets[index]?.liberoReplacements : parsed.sets[index]?.opponentLiberoReplacements) ?? [],

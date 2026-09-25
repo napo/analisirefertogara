@@ -1,6 +1,6 @@
 import source from './data/workbook.json' with { type: 'json' }
 import { column, workbookEngine } from './formulas.js'
-import { receptionStats } from './reception.js'
+import { receptionStats, servicePoints } from './reception.js'
 export const template = source.Gara_1
 export const sum = a => a.reduce((s, v) => s + v, 0)
 export function matchSheet(match) {
@@ -13,6 +13,27 @@ export function matchSheet(match) {
   })
   return sheet
 }
+
+function involvedNumbers(match) {
+  const numbers = new Set()
+  for (const set of match.sets || []) {
+    for (const number of set.lineup || []) {
+      if (number !== '' && number !== null && number !== undefined) numbers.add(String(number))
+    }
+    for (const entry of set.liberoReplacements || []) {
+      numbers.add(String(entry.player))
+      numbers.add(String(entry.libero))
+    }
+    for (const key of ['onCourt', 'entered', 'otherEntered']) {
+      const list = Array.isArray(set.libero?.[key]) ? set.libero[key] : [set.libero?.[key]]
+      for (const number of list) {
+        if (number !== '' && number !== null && number !== undefined) numbers.add(String(number))
+      }
+    }
+  }
+  return numbers
+}
+
 export function analyze(matches) {
   const sheets = Object.fromEntries(matches.map((m, i) => [`Gara_${i + 1}`, matchSheet(m)]))
   for (let i = matches.length + 1; i <= 15; i++) sheets['Gara_' + i] = { ...template }
@@ -26,11 +47,13 @@ export function analyze(matches) {
     rotation: i + 1, turns: get(`${column(2 + i)}7`), points: get(`${column(2 + i)}8`), mean: get(`${column(2 + i)}9`),
     share: get(`${column(2 + i)}10`), concededTurns: get(`${column(17 + i)}7`), conceded: get(`${column(17 + i)}8`), concededMean: get(`${column(17 + i)}9`),
   }))
-  return { rows, engine, sheets, reception: receptionStats(matches), breakPoints: get('C5'), opponentBreakPoints: get('R5'),
+  const athletesInvolved = new Set(matches.flatMap(match => [...involvedNumbers(match)]))
+  const breakPoints = matches.reduce((total, match) => total + match.sets.reduce((sum, set) => sum + servicePoints(set.own), 0), 0)
+  return { rows, engine, sheets, reception: receptionStats(matches), athletesInvolved: athletesInvolved.size, breakPoints, opponentBreakPoints: get('R5'),
     scored: sum(matches.flatMap(m => m.sets.map(s => s.scoreOwn))), conceded: sum(matches.flatMap(m => m.sets.map(s => s.scoreOther))),
     wins: matches.filter(m => m.sets.filter(s => s.scoreOwn > s.scoreOther).length > m.sets.filter(s => s.scoreOther > s.scoreOwn).length).length }
 }
-export function validateMatch(m, requireRotations = true) {
+export function validateMatch(m, requireRotations = false) {
   const errors = []
   if (!m.team?.trim() || !m.opponent?.trim() || m.team === m.opponent) errors.push('Indica due squadre diverse.')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || '') || Number.isNaN(Date.parse(m.date))) errors.push('Data gara non valida.')

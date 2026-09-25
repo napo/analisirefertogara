@@ -14,6 +14,8 @@ export function createBlankSet(number) {
     durationMinutes: '',
     lineup: ['', '', '', '', '', ''],
     opponentLineup: ['', '', '', '', '', ''],
+    libero: { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
+    opponentLibero: { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
     own: Array(36).fill(''),
     other: Array(36).fill(''),
   }
