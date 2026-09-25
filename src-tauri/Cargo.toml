@@ -1,0 +1,19 @@
+[package]
+name = "referto-volley"
+version = "0.1.0"
+description = "Analisi locale dei referti di gara della pallavolo"
+authors = ["Maurizio Napolitano"]
+license = "WTFPL"
+repository = "https://github.com/napo/analisirefertogara"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.6", features = [] }

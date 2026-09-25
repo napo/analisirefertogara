@@ -173,7 +173,7 @@ function MainApp() {
 
       pdf.setFontSize(8)
       pdf.setTextColor(100, 100, 100)
-      pdf.text('basato su Referto Volley - un progetto di maurizio napolitano', pageWidth / 2, pageHeight - 5, { align: 'center' })
+      pdf.text('Referto Volley - Maurizio Napolitano - modello Excel delle rotazioni di Andrea Fortunati', pageWidth / 2, pageHeight - 5, { align: 'center' })
 
       const matchLabel = visibleMatches.length === 1 && visibleMatches[0]
         ? `${visibleMatches[0].team}_vs_${visibleMatches[0].opponent}_${visibleMatches[0].date}`
@@ -414,17 +414,16 @@ function MainApp() {
         ) : activeTab === 'reports' ? (
           <section className="vs-hero">
             <div className="vs-eyebrow">Analisi del referto di gara</div>
-            <h1 className="vs-hero-title">La prestazione della squadra attraverso il referto di gara</h1>
+            <h1 className="vs-hero-title">Il rendimento della squadra attraverso il referto di gara</h1>
             <p className="vs-hero-lead">
-              Il referto di gara è la prima traccia di dati che ci permette di leggere una prestazione sportiva. Dietro ogni numero e turno di battuta del referto federale c&apos;è la storia reale del rendimento della squadra.
-              Carica il PDF per analizzare l&apos;efficienza delle sei rotazioni, i punti conquistati al servizio, l&apos;andamento dei set ed altro ancora.
+              Referto Volley permette di analizzare i dati contenuti nel referto di gara della pallavolo e di osservare il rendimento della squadra nelle diverse rotazioni e nelle fasi break point e cambio palla.
             </p>
             <div className="vs-metadata-line">
               <span>Archivio locale attivo</span>
               <span aria-hidden="true">·</span>
               <span>{matches.length} {matches.length === 1 ? 'gara salvata' : 'gare salvate'}</span>
               <span aria-hidden="true">·</span>
-              <span>Salvataggio persistente in React Store (IndexedDB)</span>
+              <span>Archivio nel browser tramite IndexedDB</span>
             </div>
           </section>
         ) : null}
@@ -572,7 +571,7 @@ function MainApp() {
             <div className="vs-card">
               <div className="vs-card-header">
                 <div>
-                  <h2 className="vs-card-title">Referti memorizzati nello store locale</h2>
+                  <h2 className="vs-card-title">Referti salvati nell’archivio locale</h2>
                   <p className="vs-card-subtitle">
                     Tutti i file PDF originali e i dati estratti sono salvati direttamente nel tuo browser.
                   </p>
@@ -1100,13 +1099,13 @@ function MainApp() {
                   <div className="vs-metric-card accent-orange">
                     <span className="vs-metric-label">Punti in fase break point (BP)</span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.breakPoints ?? '–'}</strong>
-                    <span className="vs-metric-detail">numero di punti conquistati in situazione di battuta</span>
+                    <span className="vs-metric-detail">punti conquistati dalla squadra mentre è al servizio</span>
                   </div>
 
                   <div className="vs-metric-card accent-teal">
-                    <span className="vs-metric-label">Punti in fase cambio-palla</span>
+                    <span className="vs-metric-label">Punti conquistati in fase cambio palla (CP)</span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.reception.pointsInReception}</strong>
-                    <span className="vs-metric-detail">punti conquistati in fase ricezione</span>
+                    <span className="vs-metric-detail">punti conquistati dalla squadra mentre è in ricezione</span>
                   </div>
 
                   <div className="vs-metric-card accent-teal">
@@ -1118,7 +1117,7 @@ function MainApp() {
                       media degli scambi, incluso il punto che riconquista il servizio
                     </span>
                     <span className="vs-metric-detail">
-                      {aggregatedAnalysis.reception.meanLost === null ? '–' : fmt(aggregatedAnalysis.reception.meanLost)} punti subiti in media prima del cambio palla
+                      {aggregatedAnalysis.reception.meanLost === null ? '–' : fmt(aggregatedAnalysis.reception.meanLost)} punti subiti in media in fase cambio palla prima di riconquistare il servizio
                       {' · '}{aggregatedAnalysis.reception.completed} cambi palla ottenuti
                     </span>
                     <span className="vs-metric-detail">
@@ -1130,7 +1129,7 @@ function MainApp() {
                 {/* Charts Grid */}
                 <div className="vs-charts-grid">
                   <Chart
-                    title="Rendimento per rotazione (P1 – P6)"
+                    title="Rendimento per rotazione (P1–P6)"
                     subtitle="Punti in fase break point vs punti subiti in fase cambio palla"
                     option={rotationOption}
                   />
@@ -1147,7 +1146,9 @@ function MainApp() {
                     <div>
                       <h2 className="vs-card-title">Le sei rotazioni a confronto</h2>
                       <p className="vs-card-subtitle">
-                        TT = turni totali · TP = punti al servizio · MP = media punti a turno · % punti sul totale al servizio
+                        BP = fase break point (squadra al servizio) · CP = fase cambio palla (squadra in ricezione).
+                        TT = turni totali · MP = media punti per turno: conquistati in BP, subiti in CP.
+                        % punti BP = quota dei punti in fase break point della rotazione sul totale in fase break point.
                       </p>
                     </div>
                   </div>
@@ -1157,14 +1158,14 @@ function MainApp() {
                       <thead>
                         <tr>
                           <th>Rotazione</th>
-                          <th className="num-cell-header">TT fatti</th>
-                          <th className="num-cell-header">TP fatti</th>
-                          <th className="num-cell-header">MP fatti</th>
-                          <th className="num-cell-header">% punti</th>
-                          <th className="num-cell-header">TT subiti</th>
-                          <th className="num-cell-header">TP subiti</th>
-                          <th className="num-cell-header">MP subiti</th>
-                          <th className="num-cell-header">Differenza MP</th>
+                          <th className="num-cell-header" title="Turni totali in fase break point">TT BP</th>
+                          <th className="num-cell-header" title="Punti conquistati dalla squadra mentre è al servizio">Punti BP</th>
+                          <th className="num-cell-header" title="Media punti conquistati per turno in fase break point">MP BP</th>
+                          <th className="num-cell-header" title="Quota dei punti in fase break point della rotazione sul totale in fase break point">% punti BP</th>
+                          <th className="num-cell-header" title="Turni totali in fase cambio palla">TT CP</th>
+                          <th className="num-cell-header" title="Punti subiti in fase cambio palla: punti dell’avversario mentre la squadra è in ricezione">Punti subiti CP</th>
+                          <th className="num-cell-header" title="Media punti subiti per turno in fase cambio palla">MP CP</th>
+                          <th className="num-cell-header" title="MP BP meno MP CP: differenza tra le medie delle due fasi">Differenza MP</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1199,8 +1200,9 @@ function MainApp() {
                   </div>
 
                   <p style={{ fontSize: '0.82rem', color: 'var(--vs-muted)', margin: '1rem 0 0' }}>
-                    * Nota tecnica: il modello sottrae il punto di cambio palla dall&apos;inizio del turno di battuta.
-                    La rotazione indicata con <strong>P</strong> corrisponde alla posizione in campo del palleggiatore all&apos;avvio della rotazione.
+                    Il punto che riconquista il servizio appartiene alla fase cambio palla e viene escluso dai punti in fase break point.
+                    <strong>P1–P6</strong> identifica la rotazione dalla posizione del palleggiatore.
+                    La differenza MP è la media punti conquistati in BP meno la media punti subiti in CP; non misura l’efficienza dei singoli fondamentali.
                   </p>
                 </div>
 
@@ -1208,7 +1210,7 @@ function MainApp() {
                   <div className="vs-card-header">
                     <div>
                       <h2 className="vs-card-title">{visibleMatches[0].gender === 'Femminile' ? 'Atlete entrate' : 'Atleti entrati'}</h2>
-                      <p className="vs-card-subtitle">Statistiche degli ingressi in campo univoci</p>
+                      <p className="vs-card-subtitle">Dati ricavati dalle formazioni e dai turni registrati: i punti in fase break point sono della squadra, non del singolo atleta. I punti nei set sono il totale dei punti delle due squadre nei set in cui l’atleta risulta coinvolto, non i soli scambi da lui giocati. I servizi sono stimati dai progressivi dei turni.</p>
                     </div>
                   </div>
                   <div className="vs-table-wrap">
@@ -1216,10 +1218,10 @@ function MainApp() {
                       <thead>
                         <tr>
                           <th>Atleta</th>
-                          <th className="num-cell-header">Punti giocati</th>
-                          <th className="num-cell-header">Servizi effettuati</th>
-                          <th className="num-cell-header">Media servizi consecutivi</th>
-                          <th className="num-cell-header">Media punti al suo servizio</th>
+                          <th className="num-cell-header">Punti nei set di presenza</th>
+                          <th className="num-cell-header">Servizi stimati</th>
+                          <th className="num-cell-header">Media servizi consecutivi stimati</th>
+                          <th className="num-cell-header" title="Media punti della squadra per turno in fase break point con l’atleta al servizio">MP BP con atleta al servizio</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1252,7 +1254,7 @@ function MainApp() {
                 <div>
                   <h2 className="vs-card-title">Storico delle gare registrate</h2>
                   <p className="vs-card-subtitle">
-                    Tutte le partite analizzate e archiviate in locale su questo dispositivo.
+                    Le gare salvate in questo browser su questo dispositivo. Esporta un backup JSON per conservarle o trasferirle.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -1499,9 +1501,11 @@ function MainApp() {
             <div className="vs-card">
               <h2 className="vs-card-title" style={{ marginBottom: '0.4rem' }}>Gestione archivio e privacy</h2>
               <p style={{ color: 'var(--vs-text)', fontSize: '0.92rem', margin: '0 0 1rem', maxWidth: '48rem' }}>
-                Tutti i file PDF originali, le formazioni e i conteggi dei set sono memorizzati localmente nel browser
-                tramite IndexedDB e gestiti nello store React. Nessun dato viene trasmesso a server esterni o cloud terzi.
-                Con la funzione &quot;Esporta backup&quot; puoi salvare un unico file con tutti i PDF e le analisi per aprirli su un altro dispositivo.
+                I PDF caricati non vengono inviati a un server per essere analizzati. I referti salvati e i dati estratti rimangono sul dispositivo,
+                nell’archivio locale del browser tramite IndexedDB. L’archivio è associato al browser e al dispositivo utilizzati.
+                Con &quot;Esporta backup&quot; puoi salvare un file JSON con le gare e i PDF e ripristinarlo su un altro dispositivo.
+                La cancellazione dei dati del sito o del browser può comportare la perdita dell’archivio se non hai esportato un backup.
+                Font, script e risorse sono inclusi nell’applicazione: l’elaborazione non dipende da servizi esterni.
               </p>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
@@ -1529,132 +1533,105 @@ function MainApp() {
         {/* TAB 4: INFORMAZIONI */}
         {activeTab === 'info' && (
           <section>
-            {/* Project & Author Card */}
-            <div className="vs-card" style={{ marginBottom: '1.5rem', background: '#FFFFFF' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-                <VolleyScoresheetLogo size={44} />
-                <div>
-                  <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--vs-heading)', letterSpacing: '-0.02em' }}>
-                    Referto Volley
-                  </h1>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  padding: '1.1rem 1.35rem',
-                  background: 'var(--vs-orange-soft)',
-                  borderRadius: 'var(--vs-radius)',
-                  border: '1px solid rgba(230, 81, 0, 0.25)',
-                  marginBottom: '1.25rem',
-                }}
-              >
-                <p style={{ margin: 0, fontSize: '1.05rem', color: 'var(--vs-heading)', fontWeight: 600 }}>
-                  Progetto di <a href="https://github.com/napo" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--vs-orange)', textDecoration: 'underline', fontWeight: 700 }}>Maurizio Napolitano</a>
-                </p>
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.95rem', color: 'var(--vs-text)' }}>
-                  basato sul lavoro del file Excel di <strong>Andrea Fortunati</strong>.
-                </p>
-              </div>
-
-              <p style={{ margin: 0, color: 'var(--vs-text)', lineHeight: 1.65 }}>
-                Referto Volley nasce per consentire a tecnici, atleti e appassionati di pallavolo di estrarre e visualizzare
-                in modo immediato ed accurato le statistiche di rendimento di squadra a partire dal referto ufficiale di gara (modello federale SNUG).
-                Tutti i dati risiedono localmente nel browser (IndexedDB), garantendo massima privacy e funzionamento anche offline.
+            <div className="vs-card">
+              <h1 className="vs-card-title">Cos’è Referto Volley</h1>
+              <p>
+                Referto Volley permette di analizzare i dati contenuti nel referto di gara della pallavolo e di osservare il rendimento della squadra nelle diverse rotazioni e nelle fasi break point e cambio palla.
               </p>
             </div>
 
-            {/* Come funziona il modello di calcolo */}
             <div className="vs-card">
-              <div className="vs-card-header">
-                <div>
-                  <h2 className="vs-card-title">Come funziona il modello di calcolo</h2>
-                  <p className="vs-card-subtitle">
-                    Spiegazione dell&apos;algoritmo di Andrea Fortunati per l&apos;analisi delle rotazioni da referto di gara.
-                  </p>
-                </div>
-              </div>
+              <h2 className="vs-card-title">Come funziona l’analisi</h2>
+              <p>
+                Carica un referto PDF compatibile oppure compila una gara manualmente. Prima di salvare, verifica squadre,
+                atleti, palleggiatore, punteggi e turni registrati. Dai progressivi del referto l’applicazione ricava i punti
+                nelle due fasi e li raggruppa per rotazione. Puoi consultare tabelle e grafici ed esportare il report in PDF.
+              </p>
+              <p>
+                Il referto non indica quale fondamentale abbia prodotto ogni punto. Questi dati descrivono il rendimento
+                della squadra nelle fasi di gioco e non misurano l’efficienza di attacco, ricezione, muro o altri fondamentali.
+              </p>
+            </div>
 
-              <div style={{ marginTop: '0.5rem' }}>
-                <p style={{ margin: '0 0 1.25rem', lineHeight: 1.65 }}>
-                  Il modello traduce la griglia progressiva del referto federale (i turni di battuta da 1 a 6 registrati in sequenza circolare per ciascun set)
-                  nel rendimento effettivo di ciascuna delle sei rotazioni (<strong>P1, P2, P3, P4, P5, P6</strong>, in base alla posizione iniziale del palleggiatore).
-                </p>
+            <div className="vs-card">
+              <h2 className="vs-card-title">Fase break point e fase cambio palla</h2>
+              <p>
+                <strong>Fase break point (BP)</strong>: la squadra è al servizio. I punti in fase break point sono
+                i punti conquistati dalla squadra mentre è al servizio, qualunque sia il fondamentale che li ha prodotti.
+              </p>
+              <p>
+                <strong>Fase cambio palla (CP)</strong>: la squadra è in ricezione. I punti subiti in fase cambio palla
+                sono i punti conquistati dall’avversario mentre la squadra è in ricezione prima che riconquisti il servizio.
+                Il punto che riconquista il servizio è invece un punto conquistato in fase cambio palla e non rientra nei punti in fase break point.
+              </p>
+              <ul>
+                <li><strong>TT — turni totali</strong>: turni conteggiati nella fase indicata, BP o CP.</li>
+                <li><strong>MP — media punti per turno</strong>: punti conquistati divisi per i turni in BP; punti subiti divisi per i turni in CP.</li>
+                <li><strong>% punti BP</strong>: quota dei punti in fase break point della rotazione sul totale in fase break point.</li>
+                <li><strong>Differenza MP</strong>: MP BP meno MP CP. Confronta le medie delle due fasi, non i punti totali della gara.</li>
+              </ul>
+              <p>
+                La media degli scambi in ricezione per cambio palla include il punto che riconquista il servizio.
+                Questo indicatore esclude le fasi terminate a fine set senza riconquistare il servizio.
+              </p>
+            </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                  <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
-                    <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      1. TT (Turni Totali)
-                    </strong>
-                    <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
-                      Quante volte la squadra è andata in battuta in quella determinata rotazione durante il set o la partita.
-                    </span>
-                  </div>
+            <div className="vs-card">
+              <h2 className="vs-card-title">Rotazioni P1–P6</h2>
+              <p>
+                P1–P6 identifica ciascuna rotazione dalla posizione del palleggiatore: P1 in zona 1, P2 in zona 2,
+                fino a P6 in zona 6. La posizione iniziale del palleggiatore nel set permette di associare i turni
+                alle rotazioni successive. Verifica chi gioca al palleggio prima di salvare il referto.
+              </p>
+              <p>
+                Tabelle e grafici confrontano i punti in fase break point e i punti subiti in fase cambio palla per ciascuna rotazione.
+              </p>
+            </div>
 
-                  <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
-                    <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      2. TP / TPF (Punti al Servizio)
-                    </strong>
-                    <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
-                      Punti segnati mentre la squadra è al servizio (break point effettivi). Il punto di ingresso in battuta (cambio palla) viene sottratto dal progressivo.
-                    </span>
-                  </div>
+            <div className="vs-card">
+              <h2 className="vs-card-title">Analisi di più gare</h2>
+              <p>
+                Nella scheda Analisi referto puoi scegliere una gara, tutte le gare della squadra o una selezione.
+                Puoi anche selezionare più gare della stessa squadra nello Storico. L’analisi aggregata somma punti e turni
+                per rotazione e calcola le medie sui totali: non è la media semplice delle medie delle singole gare.
+              </p>
+            </div>
 
-                  <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
-                    <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      3. CP (Cambio Palla)
-                    </strong>
-                    <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
-                      Punti subiti durante il turno di battuta avversario prima di riuscire ad effettuare il cambio palla (misura della tenuta in ricezione).
-                    </span>
-                  </div>
+            <div className="vs-card">
+              <h2 className="vs-card-title">Dati, privacy e funzionamento locale</h2>
+              <p>
+                Referto Volley è progettato per elaborare i referti localmente nel browser. I PDF caricati non vengono inviati
+                a un server per essere analizzati. I dati estratti rimangono sul dispositivo dell’utente.
+                Le gare salvate e i PDF vengono conservati localmente nel browser tramite IndexedDB.
+              </p>
+              <p>
+                L’archivio rimane associato al browser e al dispositivo utilizzati. Dallo Storico puoi esportare un backup JSON
+                con gare e PDF e ripristinarlo anche su un altro dispositivo. La cancellazione dei dati del sito o del browser
+                può comportare la perdita dell’archivio locale se non hai esportato un backup.
+              </p>
+              <p>
+                Referto Volley non utilizza cookie di profilazione, analytics o pubblicitari e non utilizza cookie per memorizzare i dati delle gare.
+                L’archivio dell’applicazione viene conservato localmente nel browser tramite IndexedDB.
+                Il codice applicativo non imposta cookie e non integra servizi di analytics, tracking, pubblicità o telemetria.
+              </p>
+              <p>
+                Font, script e risorse sono distribuiti con l’applicazione e non vengono caricati da servizi esterni.
+                La versione web richiede una connessione per caricare il sito; le applicazioni Tauri includono le risorse per l’uso locale.
+                L’archivio di ogni applicazione è separato da quello del browser: usa il backup JSON per trasferire le gare.
+              </p>
+            </div>
 
-                  <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
-                    <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      4. MP (Media Punti per Turno)
-                    </strong>
-                    <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
-                      Rapporto TP / TT. Indica l&apos;efficienza offensiva di ogni rotazione in fase di battuta e contrattacco: un valore &gt; 1 significa che la squadra allunga il vantaggio.
-                    </span>
-                  </div>
-
-                  <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
-                    <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      5. Differenza (BP – CP)
-                    </strong>
-                    <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
-                      Bilancio tra punti conquistati in fase break point e punti concessi all&apos;avversario. Evidenzia all&apos;istante le rotazioni in guadagno attivo e quelle deficitarie.
-                    </span>
-                  </div>
-
-                  <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
-                    <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      6. Posizione Palleggiatore (P1 – P6)
-                    </strong>
-                    <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
-                      La rotazione è convenzionalmente identificata dalla zona occupata dal palleggiatore all&apos;avvio del set:
-                      P1 (zona 1), P6 (zona 6), P5 (zona 5), P4 (zona 4), P3 (zona 3), P2 (zona 2).
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ padding: '1.25rem', background: 'var(--vs-surface)', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
-                  <h3 style={{ fontSize: '1.05rem', marginBottom: '0.5rem', color: 'var(--vs-heading)' }}>
-                    Interpretazione tattica delle due fasi di gioco
-                  </h3>
-                  <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--vs-text)', lineHeight: 1.7 }}>
-                    <li>
-                      <strong>Fase Side-out (Cambio Palla)</strong>: ricezione del servizio avversario, alzata e attacco. Un valore contenuto di CP indica un cambio palla rapido e sicuro al primo tentativo.
-                    </li>
-                    <li>
-                      <strong>Fase Break Point (BP)</strong>: battuta, muro, difesa e contrattacco. Un valore elevato di BP indica una rotazione capace di creare serie di punti consecutivi sul proprio servizio.
-                    </li>
-                    <li>
-                      <strong>Aggregazione multi-gara</strong>: selezionando più gare dallo storico o dal menu a discesa, il modello aggrega i turni e i punti di ciascuna rotazione, consentendo di valutare la costanza del rendimento nel corso del campionato.
-                    </li>
-                  </ul>
-                </div>
-              </div>
+            <div className="vs-card">
+              <h2 className="vs-card-title">Progetto, autori e licenza</h2>
+              <p>
+                Referto Volley è un progetto di <a href="https://github.com/napo" target="_blank" rel="noopener noreferrer">Maurizio Napolitano</a>,
+                basato sul modello di analisi delle rotazioni sviluppato da Andrea Fortunati in un foglio di calcolo Excel.
+              </p>
+              <p>
+                Il credito ad Andrea Fortunati riguarda il modello di analisi delle rotazioni nel foglio Excel.
+                L’importazione PDF, l’interfaccia, l’archivio locale e le altre funzionalità dell’applicazione sono sviluppi del progetto software.
+              </p>
+              <p>Il software è distribuito con licenza <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">WTFPL — Do What The Fuck You Want To Public License, Version 2</a>.</p>
             </div>
           </section>
         )}
@@ -1664,11 +1641,14 @@ function MainApp() {
           <div>
             <strong>Referto Volley</strong> — Analisi e lettura referti di gara della pallavolo
             <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--vs-muted)', marginTop: '0.2rem' }}>
-              Modello originale e calcolo delle rotazioni ideato da Andrea Fortunati
+              Progetto di Maurizio Napolitano, basato sul modello di analisi delle rotazioni sviluppato da Andrea Fortunati in un foglio di calcolo Excel.
             </span>
           </div>
           <div>
-            <span>Elaborazione 100% locale nel browser · Nessun caricamento su server</span>
+            <span>Analisi dei PDF nel browser · Archivio locale tramite IndexedDB</span>
+            <span style={{ display: 'block', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+              <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">WTFPL — Do What The Fuck You Want To Public License, Version 2</a>
+            </span>
           </div>
         </footer>
       </main>
@@ -2075,7 +2055,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--vs-border)', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.85rem', color: 'var(--vs-muted)' }}>
-          I dati e il file referto saranno memorizzati permanentemente nello store locale del browser.
+          I dati e il referto saranno salvati nell’archivio locale del browser tramite IndexedDB. Esporta un backup dallo Storico per conservarne una copia.
         </span>
         <button
           type="button"

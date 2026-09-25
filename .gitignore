@@ -1,0 +1,11 @@
+node_modules/
+webapp/dist/
+src-tauri/target/
+src-tauri/gen/
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+.env
+.env.local
+.DS_Store

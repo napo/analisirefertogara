@@ -262,7 +262,7 @@ export function MatchStoreProvider({ children }) {
       setSelectedMatchId(customDraft.id)
       setDraft(null)
       setActiveTab('analysis')
-      setMessage(`Gara ${customDraft.team} vs ${customDraft.opponent} salvata nello store locale con successo.`)
+      setMessage(`Gara ${customDraft.team} vs ${customDraft.opponent} salvata nell’archivio locale del browser.`)
       return true
     } catch (e) {
       setError(`Salvataggio non riuscito: ${e.message}`)

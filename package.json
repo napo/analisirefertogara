@@ -10,10 +10,19 @@
     "build": "npm run build --workspace=webapp",
     "lint": "npm run lint --workspace=webapp",
     "preview": "npm run preview --workspace=webapp",
-    "test": "npm run test --workspace=webapp"
+    "test": "npm run test --workspace=webapp",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "android:build": "tauri android build",
+    "ios:build": "tauri ios build"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1"
-  }
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.5"
+  },
+  "license": "WTFPL"
 }
