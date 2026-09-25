@@ -248,10 +248,12 @@ export function MatchStoreProvider({ children }) {
     setError('')
     try {
       const singleAnalysis = analyze([customDraft])
-      await dbSaveMatch(customDraft)
-      const savedMatch = { ...customDraft, analysis: singleAnalysis }
+      const persistedMatch = { ...customDraft }
+      delete persistedMatch.analysis
+      await dbSaveMatch(persistedMatch)
+      const savedMatch = { ...persistedMatch, analysis: singleAnalysis }
       setMatches(prev => {
-        const filtered = prev.filter(m => m.id !== customDraft.id)
+        const filtered = prev.filter(m => m.id !== persistedMatch.id)
         return [...filtered, savedMatch].sort((a, b) => a.date.localeCompare(b.date))
       })
       setLatestMatchId(customDraft.id)
@@ -281,8 +283,10 @@ export function MatchStoreProvider({ children }) {
     setError('')
     try {
       const singleAnalysis = analyze([match])
-      await dbSaveMatch(match)
-      const updated = { ...match, analysis: singleAnalysis }
+      const persistedMatch = { ...match }
+      delete persistedMatch.analysis
+      await dbSaveMatch(persistedMatch)
+      const updated = { ...persistedMatch, analysis: singleAnalysis }
       setMatches(prev => prev.map(m => m.id === match.id ? updated : m))
       setMessage('Gara aggiornata con successo.')
       return true

@@ -1172,7 +1172,7 @@ function MainApp() {
                           <th className="num-cell-header">Punti giocati</th>
                           <th className="num-cell-header">Servizi effettuati</th>
                           <th className="num-cell-header">Media servizi consecutivi</th>
-                          <th className="num-cell-header">Media dei punti della squadra al servizio</th>
+                          <th className="num-cell-header">Media punti al suo servizio</th>
                         </tr>
                       </thead>
                       <tbody>
