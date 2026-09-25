@@ -1,5 +1,6 @@
 import source from './data/workbook.json' with { type: 'json' }
 import { column, workbookEngine } from './formulas.js'
+import { receptionStats } from './reception.js'
 export const template = source.Gara_1
 export const sum = a => a.reduce((s, v) => s + v, 0)
 export function matchSheet(match) {
@@ -25,7 +26,7 @@ export function analyze(matches) {
     rotation: i + 1, turns: get(`${column(2 + i)}7`), points: get(`${column(2 + i)}8`), mean: get(`${column(2 + i)}9`),
     share: get(`${column(2 + i)}10`), concededTurns: get(`${column(17 + i)}7`), conceded: get(`${column(17 + i)}8`), concededMean: get(`${column(17 + i)}9`),
   }))
-  return { rows, engine, sheets, breakPoints: get('C5'), opponentBreakPoints: get('R5'),
+  return { rows, engine, sheets, reception: receptionStats(matches), breakPoints: get('C5'), opponentBreakPoints: get('R5'),
     scored: sum(matches.flatMap(m => m.sets.map(s => s.scoreOwn))), conceded: sum(matches.flatMap(m => m.sets.map(s => s.scoreOther))),
     wins: matches.filter(m => m.sets.filter(s => s.scoreOwn > s.scoreOther).length > m.sets.filter(s => s.scoreOther > s.scoreOwn).length).length }
 }

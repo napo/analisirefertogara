@@ -8,6 +8,8 @@ import html2canvas from 'html2canvas'
 import { MatchStoreProvider, useMatchStore } from './store'
 import { applySetter } from './pdf-parser'
 import { validateMatch } from './analysis'
+import { formatDuration, formatWins, matchDuration } from './format'
+import { emptyFilters, matchHeading } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
 import './App.css'
 
@@ -15,21 +17,14 @@ echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendCompone
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
 const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '' }
-const formatDuration = minutes => {
-  if (minutes === '' || minutes === null || minutes === undefined) return '–'
-  const value = Number(minutes)
-  if (!Number.isFinite(value) || value <= 0) return '–'
-  const hours = Math.floor(value / 60)
-  const mins = value % 60
-  if (!hours) return `${mins} min`
-  if (!mins) return `${hours}h`
-  return `${hours}h ${mins}m`
-}
 const resultStr = m => `${m.sets.filter(s => s.scoreOwn > s.scoreOther).length} – ${m.sets.filter(s => s.scoreOther > s.scoreOwn).length}`
 
 function MainApp() {
   const {
     matches,
+    filteredMatches,
+    filters,
+    updateFilters,
     teams,
     activeTeam,
     setSelectedTeam,
@@ -176,11 +171,7 @@ function MainApp() {
   const isSingleMatch = visibleMatches.length === 1
   const totalDurationMinutes = useMemo(() => {
     if (!isSingleMatch || !visibleMatches[0]) return null
-    const durations = visibleMatches[0].sets
-      .map(set => Number(set.durationMinutes))
-      .filter(value => Number.isFinite(value) && value > 0)
-    if (!durations.length) return null
-    return durations.reduce((total, value) => total + value, 0)
+    return matchDuration(visibleMatches[0])
   }, [visibleMatches, isSingleMatch])
   const trendEntries = useMemo(() => {
     if (isSingleMatch) {
@@ -275,7 +266,7 @@ function MainApp() {
                   className={`vs-nav-item ${activeTab === 'info' ? 'active' : ''}`}
                   onClick={() => setActiveTab('info')}
                 >
-                  Info
+                  Informazioni
                 </button>
               </li>
             </ul>
@@ -321,7 +312,7 @@ function MainApp() {
       />
 
       <main className="vs-shell">
-        {/* HERO / WELCOME AREA: si riduce quando si compila o verifica una gara */}
+        {/* Introduzione solo nella home; intestazione compatta durante la verifica. */}
         {draft && activeTab === 'reports' ? (
           <section className="vs-hero-compact">
             <div className="vs-hero-compact-inner">
@@ -345,7 +336,7 @@ function MainApp() {
               </button>
             </div>
           </section>
-        ) : (
+        ) : activeTab === 'reports' ? (
           <section className="vs-hero">
             <div className="vs-eyebrow">Analisi del referto di gara</div>
             <h1 className="vs-hero-title">La prestazione della squadra attraverso il referto di gara</h1>
@@ -361,7 +352,7 @@ function MainApp() {
               <span>Salvataggio persistente in React Store (IndexedDB)</span>
             </div>
           </section>
-        )}
+        ) : null}
 
         {/* NOTICES */}
         {error && (
@@ -383,6 +374,32 @@ function MainApp() {
         )}
 
         {loading && <p>Caricamento archivio locale in corso…</p>}
+
+        {activeTab !== 'info' && !draft && matches.length > 0 && (
+          <section className="vs-card" aria-label="Ricerca e filtri gare">
+            <div className="vs-review-grid">
+              <label className="vs-field">
+                <span>Cerca gare</span>
+                <input type="search" placeholder="Squadra, numero gara, campionato, manifestazione…"
+                  value={filters.query} onChange={e => { updateFilters({ ...filters, query: e.target.value }); setSelectedHistoryIds([]) }} />
+              </label>
+              {[['championship', 'Campionato'], ['event', 'Manifestazione / intestazione'], ['gender', 'Divisione']].map(([key, label]) => (
+                <label className="vs-field" key={key}>
+                  <span>{label}</span>
+                  <select value={filters[key]} onChange={e => { updateFilters({ ...filters, [key]: e.target.value }); setSelectedHistoryIds([]) }}>
+                    <option value="">Tutti</option>
+                    {[...new Set(matches.map(m => m[key]).filter(Boolean))].sort().map(value => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+            <div className="vs-metadata-line">
+              <span>{filteredMatches.length} gare trovate su {matches.length}. L’analisi aggregata usa le gare filtrate della squadra scelta.</span>
+              <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => { updateFilters(emptyFilters); setSelectedHistoryIds([]) }}>Azzera filtri</button>
+            </div>
+            {!filteredMatches.length && <p>Nessuna gara corrisponde ai filtri.</p>}
+          </section>
+        )}
 
         {/* TAB 1: REFERTI DI GARA */}
         {activeTab === 'reports' && (
@@ -480,7 +497,7 @@ function MainApp() {
                       </tr>
                     </thead>
                     <tbody>
-                      {matches.map((m) => {
+                      {filteredMatches.map((m) => {
                         const day = m.date.slice(8)
                         const month = m.date.slice(5, 7)
                         const year = m.date.slice(0, 4)
@@ -489,7 +506,8 @@ function MainApp() {
                             <td className="tabular-nums" style={{ fontWeight: 600 }}>{`${day}/${month}/${year}`}</td>
                             <td>
                               <strong style={{ color: 'var(--vs-heading)' }}>{m.team}</strong> vs {m.opponent}
-                              {(m.location || m.venue) && (
+                              <div className="vs-metric-detail">{matchHeading(m)}</div>
+                                {(m.location || m.venue) && (
                                 <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--vs-muted)' }}>
                                   📍 {[m.location, m.venue].filter(Boolean).join(' · ')}
                                 </span>
@@ -541,6 +559,8 @@ function MainApp() {
                                         scoreOther: s.scoreOwn,
                                         lineup: s.opponentLineup,
                                         opponentLineup: s.lineup,
+                                        liberoReplacements: s.opponentLiberoReplacements || [],
+                                        opponentLiberoReplacements: s.liberoReplacements || [],
                                         rotation: '',
                                       })),
                                     })
@@ -642,7 +662,7 @@ function MainApp() {
                         if (!latest) return null
                         return (
                           <option value={latest.id}>
-                            ★ Ultima gara: {latest.date} vs {latest.opponent} ({resultStr(latest)})
+                            ★ Ultima gara: {latest.date} vs {latest.opponent} ({resultStr(latest)}) · {matchHeading(latest)}
                           </option>
                         )
                       })()}
@@ -654,7 +674,7 @@ function MainApp() {
                         if (latestMatchId && m.id === latestMatchId) return null
                         return (
                           <option key={m.id} value={m.id}>
-                            {m.date} vs {m.opponent} ({resultStr(m)})
+                            {m.date} vs {m.opponent} ({resultStr(m)}) · {matchHeading(m)}
                           </option>
                         )
                       })}
@@ -764,6 +784,7 @@ function MainApp() {
                         />
                         <span style={{ fontWeight: isChecked ? 600 : 400, color: 'var(--vs-heading)' }}>
                           {m.date} vs {m.opponent}
+                          <small style={{ display: 'block' }}>{matchHeading(m)}</small>
                         </span>
                         <span style={{ fontSize: '0.78rem', color: 'var(--vs-muted)', marginLeft: 'auto' }}>
                           ({resultStr(m)})
@@ -811,9 +832,6 @@ function MainApp() {
                       Referto Volley
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.92rem', color: 'var(--vs-muted)', fontWeight: 500 }}>
-                    La prestazione della squadra attraverso il referto di gara
-                  </div>
                 </div>
 
                 {/* Blocco Squadra analizzata / Info gara o aggregato */}
@@ -840,6 +858,7 @@ function MainApp() {
                       <span style={{ color: 'var(--vs-muted)' }}>
                         📅 {visibleMatches[0].date.slice(8)}/{visibleMatches[0].date.slice(5, 7)}/{visibleMatches[0].date.slice(0, 4)}
                       </span>
+                      <span>{matchHeading(visibleMatches[0])}</span>
                       {(visibleMatches[0].location || visibleMatches[0].venue) && (
                         <span style={{ color: 'var(--vs-muted)' }}>
                           📍 {[visibleMatches[0].location, visibleMatches[0].venue].filter(Boolean).join(' · ')}
@@ -872,6 +891,8 @@ function MainApp() {
                               scoreOther: s.scoreOwn,
                               lineup: s.opponentLineup,
                               opponentLineup: s.lineup,
+                              liberoReplacements: s.opponentLiberoReplacements || [],
+                              opponentLiberoReplacements: s.liberoReplacements || [],
                               rotation: '',
                             })),
                           }
@@ -906,12 +927,13 @@ function MainApp() {
                       <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--vs-heading)', display: 'block', marginBottom: '0.2rem' }}>
                         Analisi aggregata: {activeTeam}
                       </span>
+                      <div className="vs-metric-detail">{[...new Set(visibleMatches.map(matchHeading).filter(Boolean))].join(' / ')}</div>
                       <span style={{ color: 'var(--vs-muted)' }}>
                         {visibleMatches.length} gare analizzate · {visibleMatches.reduce((acc, m) => acc + m.sets.length, 0)} set complessivi
                       </span>
                     </div>
                     <span className="tabular-nums" style={{ fontWeight: 800, color: 'var(--vs-orange)', fontSize: '1.05rem' }}>
-                      {aggregatedAnalysis.wins} {aggregatedAnalysis.wins === 1 ? 'vittoria' : 'vittorie'} su {visibleMatches.length} gare
+                      {formatWins(aggregatedAnalysis.wins, visibleMatches.length)}
                     </span>
                   </div>
                 )}
@@ -936,9 +958,26 @@ function MainApp() {
                     <span className="vs-metric-detail">numero di punti conquistati in situazione di battuta</span>
                   </div>
 
+                  <div className="vs-metric-card accent-teal">
+                    <span className="vs-metric-label">Scambi in ricezione per cambio palla</span>
+                    <strong className="vs-metric-value">
+                      {aggregatedAnalysis.reception.meanRallies === null ? '–' : fmt(aggregatedAnalysis.reception.meanRallies)}
+                    </strong>
+                    <span className="vs-metric-detail">
+                      media degli scambi, incluso il punto che riconquista il servizio
+                    </span>
+                    <span className="vs-metric-detail">
+                      {aggregatedAnalysis.reception.meanLost === null ? '–' : fmt(aggregatedAnalysis.reception.meanLost)} punti subiti in media prima del cambio palla
+                      {' · '}{aggregatedAnalysis.reception.completed} cambi palla ottenuti
+                    </span>
+                    <span className="vs-metric-detail">
+                      Escluse le fasi terminate senza cambio palla a fine set
+                    </span>
+                  </div>
+
                   {isSingleMatch && (
                     <div className="vs-metric-card accent-neutral">
-                      <span className="vs-metric-label">Durata gara</span>
+                      <span className="vs-metric-label">{Number(visibleMatches[0].durationMinutes) > 0 ? 'Durata gara (pause comprese)' : 'Durata dei set (pause escluse)'}</span>
                       <strong className="vs-metric-value">{formatDuration(totalDurationMinutes)}</strong>
                       <span className="vs-metric-detail">
                         {visibleMatches[0].sets
@@ -949,7 +988,7 @@ function MainApp() {
                   )}
 
                   <div className="vs-metric-card accent-neutral">
-                    <span className="vs-metric-label">Differenziale</span>
+                    <span className="vs-metric-label">Fatti-Subiti</span>
                     <strong
                       className="vs-metric-value"
                       style={{
@@ -959,11 +998,24 @@ function MainApp() {
                       {(aggregatedAnalysis.scored - aggregatedAnalysis.conceded) > 0 ? '+' : ''}
                       {aggregatedAnalysis.scored - aggregatedAnalysis.conceded}
                     </strong>
+                    <span className="vs-metric-detail">indica la differenza fra i punti fatti e quelli subiti</span>
                     <span className="vs-metric-detail">
-                      {aggregatedAnalysis.wins} {aggregatedAnalysis.wins === 1 ? 'vittoria' : 'vittorie'} su {visibleMatches.length} gare
+                      {formatWins(aggregatedAnalysis.wins, visibleMatches.length)}
                     </span>
                   </div>
                 </div>
+
+                {visibleMatches.some(m => m.sets.some(set => set.liberoReplacements?.length || set.opponentLiberoReplacements?.length)) && (
+                  <section className="vs-card">
+                    <h2 className="vs-card-title">Ingressi libero / under registrati</h2>
+                    <p className="vs-card-subtitle">Giocatore in campo → libero. Le righe indicano l’ordine nel referto, non il punteggio o la rotazione.</p>
+                    {visibleMatches.map(m => <div key={m.id}>
+                      <h3>{m.date} · {m.team} – {m.opponent}</h3>
+                      <p className="vs-metric-detail">{matchHeading(m)}</p>
+                      {m.sets.map((set, index) => <LiberoEntries key={index} set={set} team={m.team} opponent={m.opponent} roster={m.roster} opponentRoster={m.opponentRoster} />)}
+                    </div>)}
+                  </section>
+                )}
 
                 {/* Charts Grid */}
                 <div className="vs-charts-grid">
@@ -1122,9 +1174,14 @@ function MainApp() {
                           type="button"
                           className="vs-btn vs-btn-sm vs-btn-primary"
                           onClick={() => {
-                            const first = matches.find(m => selectedHistoryIds.includes(m.id))
+                            const selected = filteredMatches.filter(m => selectedHistoryIds.includes(m.id))
+                            if (new Set(selected.map(m => m.team)).size > 1) {
+                              setError('Per confrontare le rotazioni, seleziona gare della stessa squadra analizzata.')
+                              return
+                            }
+                            const first = selected[0]
                             if (first) setSelectedTeam(first.team)
-                            selectMatchesForAnalysis(selectedHistoryIds)
+                            selectMatchesForAnalysis(selected.map(m => m.id))
                           }}
                         >
                           📊 Analizza e aggrega {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara' : 'gare'}
@@ -1147,9 +1204,9 @@ function MainApp() {
                           <th style={{ width: '40px', textAlign: 'center' }}>
                             <input
                               type="checkbox"
-                              checked={matches.length > 0 && selectedHistoryIds.length === matches.length}
+                              checked={filteredMatches.length > 0 && filteredMatches.every(m => selectedHistoryIds.includes(m.id))}
                               onChange={(e) => {
-                                if (e.target.checked) setSelectedHistoryIds(matches.map(m => m.id))
+                                if (e.target.checked) setSelectedHistoryIds(filteredMatches.map(m => m.id))
                                 else setSelectedHistoryIds([])
                               }}
                               title="Seleziona tutte le gare per l'analisi"
@@ -1163,7 +1220,7 @@ function MainApp() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[...matches].reverse().map((m) => {
+                        {[...filteredMatches].reverse().map((m) => {
                           const day = m.date.slice(8)
                           const month = m.date.slice(5, 7)
                           const year = m.date.slice(0, 4)
@@ -1185,6 +1242,7 @@ function MainApp() {
                               <td className="tabular-nums" style={{ fontWeight: 600 }}>{`${day}/${month}/${year}`}</td>
                               <td>
                                 <strong style={{ color: 'var(--vs-heading)' }}>{m.team}</strong> – {m.opponent}
+                                <div className="vs-metric-detail">{matchHeading(m)}</div>
                                 {(m.location || m.venue) && (
                                   <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--vs-muted)' }}>
                                     📍 {[m.location, m.venue].filter(Boolean).join(' · ')}
@@ -1234,6 +1292,8 @@ function MainApp() {
                                           scoreOther: s.scoreOwn,
                                           lineup: s.opponentLineup,
                                           opponentLineup: s.lineup,
+                                          liberoReplacements: s.opponentLiberoReplacements || [],
+                                          opponentLiberoReplacements: s.liberoReplacements || [],
                                           rotation: '',
                                         })),
                                       })
@@ -1326,7 +1386,7 @@ function MainApp() {
           </section>
         )}
 
-        {/* TAB 4: INFO */}
+        {/* TAB 4: INFORMAZIONI */}
         {activeTab === 'info' && (
           <section>
             {/* Project & Author Card */}
@@ -1337,9 +1397,6 @@ function MainApp() {
                   <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--vs-heading)', letterSpacing: '-0.02em' }}>
                     Referto Volley
                   </h1>
-                  <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--vs-muted)' }}>
-                    La prestazione della squadra attraverso il referto di gara
-                  </p>
                 </div>
               </div>
 
@@ -1556,6 +1613,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                         scoreOther: s.scoreOwn,
                         lineup: s.opponentLineup,
                         opponentLineup: s.lineup,
+                        liberoReplacements: s.opponentLiberoReplacements || [],
+                        opponentLiberoReplacements: s.liberoReplacements || [],
                         rotation: '',
                       })),
                     }))
@@ -1586,6 +1645,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                     scoreOther: s.scoreOwn,
                     lineup: s.opponentLineup,
                     opponentLineup: s.lineup,
+                    liberoReplacements: s.opponentLiberoReplacements || [],
+                    opponentLiberoReplacements: s.liberoReplacements || [],
                     rotation: '',
                   })),
                 }))
@@ -1596,6 +1657,20 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
             </select>
           </div>
         )}
+
+        {[['championship', 'Campionato / serie'], ['number', 'Numero gara'], ['event', 'Manifestazione / intestazione']].map(([key, label]) => (
+          <label className="vs-field" key={key}>
+            <span>{label}</span>
+            <input value={draft[key] || ''} onChange={e => setDraft({ ...draft, [key]: e.target.value })} />
+          </label>
+        ))}
+        <label className="vs-field">
+          <span>Divisione</span>
+          <select value={draft.gender || ''} onChange={e => setDraft({ ...draft, gender: e.target.value })}>
+            <option value="">Non indicata</option>
+            <option>Maschile</option><option>Femminile</option>
+          </select>
+        </label>
 
         <div className="vs-field">
           <label>Data gara</label>
@@ -1794,6 +1869,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           index={index}
           team={draft.team || 'Squadra analizzata'}
           opponent={draft.opponent || 'Squadra avversaria'}
+          roster={draft.roster}
+          opponentRoster={draft.opponentRoster}
           update={(patch) => {
             setDraft(d => ({
               ...d,
@@ -1859,7 +1936,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 }
 
 // Subcomponent: Set Details & 6x6 Turns Grid
-function SetEditor({ set: s, index, team, opponent, update }) {
+function SetEditor({ set: s, index, team, opponent, roster, opponentRoster, update }) {
   const isGoldenSet = index === 5
   const isTieBreak = index === 4
   const setLabel = isGoldenSet ? 'Set 6 — Golden Set (a 15 punti)' : isTieBreak ? 'Set 5 — Tie-break (a 15 punti)' : `Set ${index + 1}`
@@ -1873,6 +1950,7 @@ function SetEditor({ set: s, index, team, opponent, update }) {
         </span>
       </summary>
       <div className="vs-set-body">
+        <LiberoEntries set={s} team={team} opponent={opponent} roster={roster} opponentRoster={opponentRoster} />
         <div className="vs-review-grid" style={{ marginBottom: '1rem' }}>
           <div className="vs-field">
             <label>Posizione iniziale Palleggiatore (P)</label>
@@ -2014,4 +2092,25 @@ export default function App() {
       <MainApp />
     </MatchStoreProvider>
   )
+}
+
+function LiberoEntries({ set, team, opponent, roster = [], opponentRoster = [] }) {
+  if (!set.liberoReplacements?.length && !set.opponentLiberoReplacements?.length) return null
+  const playerLabel = (number, players) => {
+    const player = players.map(rosterPlayer).find(p => Number(p.number) === number)
+    return `#${number}${player?.name ? ` ${player.name}` : ''}`
+  }
+  return <details style={{ margin: '0.75rem 0' }} open>
+    <summary>Set {set.number} · Libero / under</summary>
+    {[[team, set.liberoReplacements, roster], [opponent, set.opponentLiberoReplacements, opponentRoster]].map(([name, entries, players], side) => (
+      <div key={side} style={{ margin: '0.5rem 0' }}>
+        <strong>{name}</strong>
+        {entries?.length ? <ol>{entries.map((entry, index) => <li key={index}>
+          {`${playerLabel(entry.player, players)} → ${playerLabel(entry.libero, players)}`}
+          {entry.isLiberoChange ? ' (cambio tra liberi)' : ''}
+          {entry.section > 0 ? ' (dopo il cambio campo)' : ''}
+        </li>)}</ol> : <p className="vs-metric-detail">Nessuna registrazione nel referto.</p>}
+      </div>
+    ))}
+  </details>
 }

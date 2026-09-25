@@ -3,6 +3,7 @@ import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, sa
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
 import { applySetter, refreshImportedMatch } from './pdf-parser'
+import { emptyFilters, filterMatches } from './match-filters'
 
 export function createBlankSet(number) {
   return {
@@ -28,6 +29,9 @@ export function createBlankMatch() {
     location: '',
     venue: '',
     number: '',
+    championship: '',
+    event: '',
+    gender: '',
     roster: [],
     opponentRoster: [],
     fileName: 'Compilazione manuale',
@@ -49,6 +53,8 @@ const MatchStoreContext = createContext(null)
 
 export function MatchStoreProvider({ children }) {
   const [matches, setMatches] = useState([])
+  const [filters, setFilters] = useState(emptyFilters)
+  const filteredMatches = useMemo(() => filterMatches(matches, filters), [matches, filters])
   const [selectedMatchId, setSelectedMatchId] = useState('all')
   const [selectedTeam, setSelectedTeam] = useState('')
   const [activeTab, setActiveTab] = useState('reports') // 'reports' = "Referti di gara", 'analysis' = "Analisi referto", 'history' = "Storico gare"
@@ -60,6 +66,12 @@ export function MatchStoreProvider({ children }) {
 
   const [latestMatchId, setLatestMatchId] = useState(null)
   const [selectedMatchIds, setSelectedMatchIds] = useState([])
+
+  const updateFilters = useCallback(next => {
+    setFilters(next)
+    setSelectedMatchId('all')
+    setSelectedMatchIds([])
+  }, [])
 
   // Load matches from IndexedDB and enrich with calculated analysis in React state
   const refresh = useCallback(async () => {
@@ -91,8 +103,8 @@ export function MatchStoreProvider({ children }) {
 
   // Unique teams
   const teams = useMemo(() => {
-    return [...new Set(matches.map(m => m.team).filter(Boolean))]
-  }, [matches])
+    return [...new Set(filteredMatches.map(m => m.team).filter(Boolean))]
+  }, [filteredMatches])
 
   const activeTeam = useMemo(() => {
     if (teams.includes(selectedTeam)) return selectedTeam
@@ -100,8 +112,8 @@ export function MatchStoreProvider({ children }) {
   }, [teams, selectedTeam])
 
   const teamMatches = useMemo(() => {
-    return matches.filter(m => m.team === activeTeam)
-  }, [matches, activeTeam])
+    return filteredMatches.filter(m => m.team === activeTeam)
+  }, [filteredMatches, activeTeam])
 
   // In dropdown and listings, present the latest/most recently loaded match first!
   const sortedTeamMatches = useMemo(() => {
@@ -124,7 +136,7 @@ export function MatchStoreProvider({ children }) {
     }
     if (selectedMatchId === 'custom') {
       const filtered = teamMatches.filter(m => selectedMatchIds.includes(m.id))
-      return filtered.length > 0 ? filtered : teamMatches
+      return filtered
     }
     return teamMatches.filter(m => m.id === selectedMatchId)
   }, [teamMatches, selectedMatchId, selectedMatchIds])
@@ -241,6 +253,7 @@ export function MatchStoreProvider({ children }) {
         return [...filtered, savedMatch].sort((a, b) => a.date.localeCompare(b.date))
       })
       setLatestMatchId(customDraft.id)
+      setFilters(emptyFilters)
       setSelectedTeam(customDraft.team)
       setSelectedMatchId(customDraft.id)
       setDraft(null)
@@ -351,7 +364,7 @@ export function MatchStoreProvider({ children }) {
   }, [matches, refresh])
 
   const contextValue = useMemo(() => ({
-    matches,
+    matches, filteredMatches, filters, updateFilters,
     teams,
     activeTeam,
     selectedTeam,
@@ -388,7 +401,7 @@ export function MatchStoreProvider({ children }) {
     exportBackup,
     restoreBackup,
   }), [
-    matches,
+    matches, filteredMatches, filters, updateFilters,
     teams,
     activeTeam,
     selectedTeam,

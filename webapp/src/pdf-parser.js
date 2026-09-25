@@ -71,11 +71,6 @@ export function parseItems(items, width, height) {
     return new Map(players.map(player => [player.number, player]))
   })
 
-  const timeToMinutes = value => {
-    const [h, m] = value.split(':').map(Number)
-    return h * 60 + m
-  }
-
   for (let i = 0; i < 5; i++) {
     const summaryY = 620.95 + i * 18.99
 
@@ -128,6 +123,31 @@ export function parseItems(items, width, height) {
       if (teamIndex >= 0) {
         for (const number of lineupNumbers) {
           if (!rosters[teamIndex].has(number)) rosters[teamIndex].set(number, { number, name: '' })
+        }
+      }
+
+      // One record per physical row: SNUG redraws struck-out text repeatedly.
+      const liberoReplacements = []
+      const columns = [306.99 + offsetX + offset]
+      if (i === 4 && side === 0) columns.push(columns[0] + 538.58)
+      for (const [section, x] of columns.entries()) {
+        const rows = new Map()
+        for (const word of words.filter(w => Math.abs(w.x - x) <= 3 &&
+          w.y >= 155 + offsetY && w.y < 275 + offsetY && /\d+\s*[-–/]\s*\d+/.test(w.text))) {
+          const row = Math.round((word.y - 161.14 - offsetY) / 12.755)
+          const previous = rows.get(row)
+          if (!previous || word.text.length > previous.length) rows.set(row, word.text)
+        }
+        for (const [row, raw] of [...rows].sort((a, b) => a[0] - b[0])) {
+          const numbers = raw.match(/\d+/g).map(Number)
+          for (let step = 1; step < numbers.length; step++) {
+            const player = numbers[step - 1], libero = numbers[step]
+            const isLibero = number => /\bL[12]\b/i.test(rosters[teamIndex]?.get(number)?.name || '')
+            liberoReplacements.push({
+              row: row + 1, section, step, raw, player, libero,
+              isLiberoChange: isLibero(player) && isLibero(libero),
+            })
+          }
         }
       }
 
@@ -204,6 +224,7 @@ export function parseItems(items, width, height) {
       return {
         name,
         lineup,
+        liberoReplacements,
         grid,
       }
     })
@@ -222,57 +243,10 @@ export function parseItems(items, width, height) {
       )
     }
 
-    /*
-     * Durata del set.
-     *
-     * Cerca eventuali orari HH:MM presenti
-     * sulla stessa riga del riepilogo del set.
-     *
-     * Se trova almeno due orari:
-     *   primo = inizio set
-     *   secondo = fine set
-     *
-     * Se non riesce a riconoscerli,
-     * durationMinutes resta vuoto.
-     */
-    const summaryWords = words
-      .filter(
-        w =>
-          Math.abs(w.y - summaryY) <= 3,
-      )
-      .sort((a, b) => a.x - b.x)
-
-    const timeValues = summaryWords
-      .map(w => w.text)
-      .filter(
-        value =>
-          /^\d{1,2}:\d{2}$/.test(value),
-      )
-
-    let durationMinutes = ''
-
-    if (timeValues.length >= 2) {
-      const start =
-        timeToMinutes(timeValues[0])
-
-      let end =
-        timeToMinutes(timeValues[1])
-
-      // eventuale passaggio della mezzanotte
-      if (end < start) {
-        end += 24 * 60
-      }
-
-      const duration = end - start
-
-      // protezione da valori chiaramente errati
-      if (
-        duration > 0 &&
-        duration < 180
-      ) {
-        durationMinutes = duration
-      }
-    }
+    // SNUG prints elapsed minutes in the central summary column, not HH:MM.
+    const durationText = pick(788.03, summaryY + 2.27, 3, 2, 10)
+      .find(w => /^\d+$/.test(w.text))?.text
+    const durationMinutes = Number(durationText) > 0 ? Number(durationText) : ''
 
     sets.push({
       number: i + 1,
@@ -283,6 +257,8 @@ export function parseItems(items, width, height) {
 
       lineup: own.lineup,
       opponentLineup: other.lineup,
+      liberoReplacements: own.liberoReplacements,
+      opponentLiberoReplacements: other.liberoReplacements,
 
       scoreOwn: +scores[0],
       scoreOther: +scores[1],
@@ -383,7 +359,19 @@ export function parseItems(items, width, height) {
     .join(' ')
     .trim()
 
+  const durationPart = x => pick(x, 739.44, 3, 2, 10)
+    .find(w => /^\d+$/.test(w.text))?.text
+  const hours = durationPart(836.79)
+  const minutes = durationPart(853.23)
+  const durationMinutes = hours !== undefined && minutes !== undefined && Number(minutes) < 60
+    ? Number(hours) * 60 + Number(minutes) : ''
+
   return {
+    durationMinutes,
+    championship: textAt(121.89, 79.54, 3),
+    event: textAt(412.44, 79.54, 3),
+    gender: pick(206.65, 92.54, 3).some(w => /x/i.test(w.text)) ? 'Femminile'
+      : pick(136.9, 92.54, 3).some(w => /x/i.test(w.text)) ? 'Maschile' : '',
     team: teams[0],
     opponent: teams[1],
     date,
@@ -455,6 +443,17 @@ export function refreshImportedMatch(existing, parsed) {
   })
   return {
     ...existing,
+    durationMinutes: Number(existing.durationMinutes) > 0 ? existing.durationMinutes : parsed.durationMinutes,
+    championship: existing.championship || parsed.championship,
+    event: existing.event || parsed.event,
+    gender: existing.gender || parsed.gender,
+    number: existing.number || parsed.number,
+    sets: existing.sets.map((set, index) => ({
+      ...set,
+      durationMinutes: Number(set.durationMinutes) > 0 ? set.durationMinutes : parsed.sets[index]?.durationMinutes ?? '',
+      liberoReplacements: set.liberoReplacements ?? (reversed ? parsed.sets[index]?.opponentLiberoReplacements : parsed.sets[index]?.liberoReplacements) ?? [],
+      opponentLiberoReplacements: set.opponentLiberoReplacements ?? (reversed ? parsed.sets[index]?.liberoReplacements : parsed.sets[index]?.opponentLiberoReplacements) ?? [],
+    })),
     roster: merge(reversed ? parsed.opponentRoster : parsed.roster, existing.roster),
     opponentRoster: merge(reversed ? parsed.roster : parsed.opponentRoster, existing.opponentRoster),
   }
