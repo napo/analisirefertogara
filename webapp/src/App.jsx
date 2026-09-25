@@ -940,7 +940,7 @@ function MainApp() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
                     <VolleyScoresheetLogo size={36} />
                     <span style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--vs-heading)', letterSpacing: '-0.02em' }}>
-                      Referto Volley
+                      Analisi Referto Volley
                     </span>
                   </div>
                 </div>
