@@ -564,6 +564,60 @@
   gap: 0.4rem;
 }
 
+.vs-search-field {
+  position: relative;
+}
+
+.vs-search-dropdown {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: #FFFFFF;
+  border: 1px solid var(--vs-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 28px rgba(1, 22, 39, 0.12);
+  overflow: hidden;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.vs-search-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid #F3F4F6;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.vs-search-option:hover,
+.vs-search-option:focus-visible {
+  background: #F8FAFC;
+  outline: none;
+}
+
+.vs-search-option-title {
+  font-weight: 600;
+  color: var(--vs-heading);
+}
+
+.vs-search-option-meta {
+  font-size: 0.75rem;
+  color: var(--vs-muted);
+}
+
+.vs-search-empty {
+  padding: 0.75rem 0.9rem;
+  color: var(--vs-muted);
+  font-size: 0.82rem;
+}
+
 .vs-field label {
   font-family: var(--vs-font-nav);
   font-size: 0.82rem;

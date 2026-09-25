@@ -124,6 +124,24 @@ function MainApp() {
   const [exportingPdf, setExportingPdf] = useState(false)
   const [showMatchPicker, setShowMatchPicker] = useState(false)
   const [selectedHistoryIds, setSelectedHistoryIds] = useState([])
+  const [searchMenuOpen, setSearchMenuOpen] = useState(false)
+  const searchFieldRef = useRef(null)
+
+  const searchResults = useMemo(() => {
+    const source = filters.query ? filteredMatches : matches
+    return source.slice(0, 10)
+  }, [filters.query, filteredMatches, matches])
+
+  useEffect(() => {
+    const handlePointerDown = event => {
+      if (searchFieldRef.current && !searchFieldRef.current.contains(event.target)) {
+        setSearchMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [])
 
   // Export report area to PDF
   const exportToPdf = async () => {
@@ -215,7 +233,7 @@ function MainApp() {
           data: aggregatedAnalysis.rows.map(r => r.points),
         },
         {
-          name: 'Punti subiti al serv. avv. (TPS)',
+          name: 'Punti subiti in fase cambio palla (CP)',
           type: 'bar',
           barMaxWidth: 24,
           data: aggregatedAnalysis.rows.map(r => r.conceded),
@@ -435,11 +453,45 @@ function MainApp() {
         {activeTab !== 'info' && !draft && matches.length > 0 && (
           <section className="vs-card" aria-label="Ricerca e filtri gare">
             <div className="vs-review-grid">
-              <label className="vs-field">
+              <div className="vs-field vs-search-field" ref={searchFieldRef}>
                 <span>Cerca gare</span>
-                <input type="search" placeholder="Squadra, numero gara, campionato…"
-                  value={filters.query} onChange={e => { updateFilters({ ...filters, query: e.target.value }); setSelectedHistoryIds([]) }} />
-              </label>
+                <input
+                  type="search"
+                  placeholder="Squadra, numero gara, campionato…"
+                  value={filters.query}
+                  onFocus={() => setSearchMenuOpen(true)}
+                  onChange={e => {
+                    updateFilters({ ...filters, query: e.target.value })
+                    setSelectedHistoryIds([])
+                    setSearchMenuOpen(true)
+                  }}
+                />
+                {searchMenuOpen && (
+                  <div className="vs-search-dropdown" role="listbox" aria-label="Risultati ricerca gare">
+                    {searchResults.length ? (
+                      searchResults.map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className="vs-search-option"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            const value = [m.team, m.opponent, matchHeading(m), m.date].filter(Boolean).join(' ')
+                            updateFilters({ ...filters, query: value })
+                            setSelectedHistoryIds([])
+                            setSearchMenuOpen(false)
+                          }}
+                        >
+                          <span className="vs-search-option-title">{m.team} vs {m.opponent}</span>
+                          <span className="vs-search-option-meta">{m.date} · {matchHeading(m)}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="vs-search-empty">Nessuna gara trovata</div>
+                    )}
+                  </div>
+                )}
+              </div>
               {[['championship', 'Campionato'], ['gender', 'Divisione']].map(([key, label]) => (
                 <label className="vs-field" key={key}>
                   <span>{label}</span>
@@ -452,7 +504,7 @@ function MainApp() {
             </div>
             <div className="vs-metadata-line">
               <span>{filteredMatches.length} gare trovate su {matches.length}. L’analisi aggregata usa le gare filtrate della squadra scelta.</span>
-              <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => { updateFilters(emptyFilters); setSelectedHistoryIds([]) }}>Azzera filtri</button>
+              <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => { updateFilters(emptyFilters); setSelectedHistoryIds([]); setSearchMenuOpen(false) }}>Azzera filtri</button>
             </div>
             {!filteredMatches.length && <p>Nessuna gara corrisponde ai filtri.</p>}
           </section>
@@ -1079,7 +1131,7 @@ function MainApp() {
                 <div className="vs-charts-grid">
                   <Chart
                     title="Rendimento per rotazione (P1 – P6)"
-                    subtitle="Punti in fase break point vs punti subiti al servizio avversario"
+                    subtitle="Punti in fase break point vs punti subiti in fase cambio palla"
                     option={rotationOption}
                   />
                   <Chart
@@ -1550,7 +1602,7 @@ function MainApp() {
 
                   <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
                     <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      3. TPS (Punti Subiti)
+                      3. CP (Cambio Palla)
                     </strong>
                     <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
                       Punti subiti durante il turno di battuta avversario prima di riuscire ad effettuare il cambio palla (misura della tenuta in ricezione).
@@ -1568,7 +1620,7 @@ function MainApp() {
 
                   <div style={{ padding: '1rem', background: '#FAFAFA', borderRadius: '0.5rem', border: '1px solid var(--vs-border)' }}>
                     <strong style={{ color: 'var(--vs-heading)', display: 'block', marginBottom: '0.35rem', fontSize: '0.98rem' }}>
-                      5. Differenziale Netto (BP – TPS)
+                      5. Differenza (BP – CP)
                     </strong>
                     <span style={{ fontSize: '0.86rem', color: 'var(--vs-muted)' }}>
                       Bilancio tra punti conquistati in fase break point e punti concessi all&apos;avversario. Evidenzia all&apos;istante le rotazioni in guadagno attivo e quelle deficitarie.
@@ -1592,7 +1644,7 @@ function MainApp() {
                   </h3>
                   <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--vs-text)', lineHeight: 1.7 }}>
                     <li>
-                      <strong>Fase Side-out (Cambio Palla)</strong>: ricezione del servizio avversario, alzata e attacco. Un valore contenuto di TPS indica un cambio palla rapido e sicuro al primo tentativo.
+                      <strong>Fase Side-out (Cambio Palla)</strong>: ricezione del servizio avversario, alzata e attacco. Un valore contenuto di CP indica un cambio palla rapido e sicuro al primo tentativo.
                     </li>
                     <li>
                       <strong>Fase Break Point (BP)</strong>: battuta, muro, difesa e contrattacco. Un valore elevato di BP indica una rotazione capace di creare serie di punti consecutivi sul proprio servizio.
