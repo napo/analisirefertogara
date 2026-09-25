@@ -26,6 +26,10 @@ export function parseItems(items, width, height) {
       .map(v => v.text)
       .join(' ')
 
+  if (words.some(w => /NEWBIT|Referto Elettronico/i.test(w.text))) {
+    return parseFipav(words)
+  }
+
   if (
     !words.some(w => w.text.includes('SNUG')) ||
     !words.some(w => w.text.includes('RISULTATO'))
@@ -399,6 +403,93 @@ export function parseItems(items, width, height) {
 
     roster: [...rosters[0].values()].sort((a, b) => a.number - b.number),
     opponentRoster: [...rosters[1].values()].sort((a, b) => a.number - b.number),
+  }
+}
+
+function parseFipav(words) {
+  const text = (x, y, dx = 3, dy = 4) => words
+    .filter(w => Math.abs(w.x - x) <= dx && Math.abs(w.y - y) <= dy)
+    .sort((a, b) => a.x - b.x)
+    .map(w => w.text)
+    .join(' ')
+    .trim()
+
+  const around = (x, y, dx = 3, dy = 4) => words.filter(w =>
+    Math.abs(w.x - x) <= dx && Math.abs(w.y - y) <= dy)
+
+  const headerLine = words.filter(w => w.y > 45 && w.y < 105)
+  const dateText = headerLine.find(w => /^\d{2}\/\d{2}\/\d{4}$/.test(w.text))?.text
+  const teams = [
+    words.filter(w => w.y > 86 && w.y < 100 && w.x > 80 && w.x < 300)
+      .map(w => w.text).join(' ').replace(/\s+/g, ' ').trim(),
+    words.filter(w => w.y > 86 && w.y < 100 && w.x > 350 && w.x < 560)
+      .map(w => w.text).join(' ').replace(/\s+/g, ' ').trim(),
+  ]
+
+  if (!dateText || teams.some(team => !team)) {
+    throw Error('Formato FIPAV non riconosciuto: intestazione incompleta.')
+  }
+
+  const roster = [[], []]
+  const rosterWords = words.filter(w => w.y > 450 && w.y < 665 && w.x > 900)
+  for (const word of rosterWords) {
+    const side = word.x < 1030 ? 0 : 1
+    const number = word.text.match(/^\d+$/)?.[0]
+    if (!number) continue
+    const nameWords = rosterWords.filter(n =>
+      Math.abs(n.y - word.y) <= 2 &&
+      n.x > word.x + 8 && n.x < (side ? 1190 : 1030) &&
+      !/^\d+$/.test(n.text) && !/^[LM]\d?$/.test(n.text),
+    )
+    const name = nameWords.sort((a, b) => a.x - b.x).map(n => n.text).join(' ').trim()
+    const libero = rosterWords.find(n => Math.abs(n.y - word.y) <= 2 && /^L[12]?$/.test(n.text))?.text
+    if (name && !roster[side].some(player => player.number === Number(number))) {
+      roster[side].push({ number: Number(number), name: libero ? `${name} - ${libero}` : name })
+    }
+  }
+
+  const summaryRows = [648.3, 669.3, 690.3, 711.4, 732.4]
+  const scores = summaryRows.map(y => {
+    const own = around(648.3, y, 3, 2).find(w => /^\d+$/.test(w.text))
+    const other = around(723.9, y, 3, 2).find(w => /^\d+$/.test(w.text))
+    const duration = around(699, y, 3, 2).find(w => /^\d+$/.test(w.text))
+    return own && other ? { own: Number(own.text), other: Number(other.text), durationMinutes: duration ? Number(duration.text) : '' } : null
+  }).filter(Boolean)
+  if (!scores.length) throw Error('Risultato finale FIPAV non riconosciuto.')
+
+  const sets = scores.map((score, index) => {
+    const own = Array.from({ length: 36 }, (_, point) => point < score.own ? point + 1 : '')
+    const other = Array.from({ length: 36 }, (_, point) => point < score.other ? point + 1 : '')
+    return {
+      number: index + 1,
+      rotation: '',
+      own,
+      other,
+      lineup: ['', '', '', '', '', ''],
+      opponentLineup: ['', '', '', '', '', ''],
+      liberoReplacements: [],
+      opponentLiberoReplacements: [],
+      scoreOwn: score.own,
+      scoreOther: score.other,
+      durationMinutes: score.durationMinutes,
+    }
+  })
+
+  return {
+    durationMinutes: scores.reduce((total, score) => total + score.durationMinutes, 0),
+    championship: text(115.8, 50.5, 70),
+    event: '',
+    gender: /MASCHILE/i.test(words.map(w => w.text).join(' ')) ? 'Maschile' : 'Femminile',
+    team: teams[0],
+    opponent: teams[1],
+    date: dateText.split('/').reverse().join('-'),
+    location: text(64.4, 78.6, 45),
+    venue: text(273.5, 78.6, 100),
+    number: text(284.9, 50.5, 35),
+    sets,
+    referees: { first: '', firstCity: '', second: '', scorer: '', scorerCity: '' },
+    roster: roster[0].sort((a, b) => a.number - b.number),
+    opponentRoster: roster[1].sort((a, b) => a.number - b.number),
   }
 }
 
