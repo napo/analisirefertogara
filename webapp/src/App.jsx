@@ -1692,7 +1692,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                 Elenco atleti — {name}
               </strong>
               <span style={{ fontSize: '0.82rem', color: 'var(--vs-muted)' }}>
-                Il referto contiene i numeri di maglia, non i nomi.
+                Nomi e numeri letti dal referto. Puoi correggere o completare i nomi prima di salvare.
               </span>
               <div style={{ display: 'grid', gap: '0.4rem', marginTop: '0.65rem' }}>
                 {roster.map((entry, index) => {

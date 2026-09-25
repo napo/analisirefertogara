@@ -9,7 +9,8 @@
     "dev": "npm run dev --workspace=webapp",
     "build": "npm run build --workspace=webapp",
     "lint": "npm run lint --workspace=webapp",
-    "preview": "npm run preview --workspace=webapp"
+    "preview": "npm run preview --workspace=webapp",
+    "test": "npm run test --workspace=webapp"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",

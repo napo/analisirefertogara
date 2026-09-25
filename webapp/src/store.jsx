@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany, backup as dbBackup } from './storage'
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
-import { applySetter } from './pdf-parser'
+import { applySetter, refreshImportedMatch } from './pdf-parser'
 
 export function createBlankSet(number) {
   return {
@@ -177,10 +177,9 @@ export function MatchStoreProvider({ children }) {
     setMessage('')
     try {
       const parsed = await importPdf(file)
-      if (matches.some(m => m.id === parsed.id)) {
-        throw Error('Questo referto PDF è già presente nell’archivio locale.')
-      }
-      const prepared = applySetter(parsed)
+      const existing = matches.find(m => m.id === parsed.id)
+      const prepared = existing ? refreshImportedMatch(existing, parsed) : applySetter(parsed)
+      if (existing) setMessage('Referto già presente: verifica i nomi e salva per aggiornare la gara esistente.')
       setDraft(prepared)
       setLatestMatchId(prepared.id)
       setActiveTab('reports')

@@ -37,7 +37,7 @@ jobs:
         run: npm run build
 
       - name: Verify PDF worker
-        run: test -s webapp/dist/pdf.worker.min.mjs
+        run: find webapp/dist/assets -name 'pdf.worker.min-*.mjs' -size +0c | grep -q .
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

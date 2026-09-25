@@ -55,7 +55,21 @@ export function parseItems(items, width, height) {
   const date = dateText.split('/').reverse().join('-')
 
   const sets = []
-  const rosters = [new Set(), new Set()]
+  // The printed roster columns can have the opposite order to the result table.
+  const rosters = teams.map(team => {
+    const header = words.find(w => w.text === team && Math.abs(w.y - 425.36) <= 3 && w.x > 930)
+    if (!header) return new Map()
+    const left = header.x < 1030 ? 908 : 1032
+    const right = left + 123
+    const players = words.filter(w =>
+      w.x >= left && w.x < left + 18 && w.y > 445 && w.y < 638 && /^\d{1,2}$/.test(w.text),
+    ).map(w => ({
+      number: Number(w.text),
+      name: words.filter(n => n.x >= left + 20 && n.x < right && Math.abs(n.y - w.y) <= 2)
+        .sort((a, b) => a.x - b.x).map(n => n.text).join(' ').trim(),
+    }))
+    return new Map(players.map(player => [player.number, player]))
+  })
 
   const timeToMinutes = value => {
     const [h, m] = value.split(':').map(Number)
@@ -101,15 +115,21 @@ export function parseItems(items, width, height) {
       )
 
       const rosterStartX = 111.4 + offsetX + offset
-      words
+      const lineupNumbers = words
         .filter(
           w =>
             [174.5 + offsetY, 187.5 + offsetY].some(y => Math.abs(w.y - y) <= 3) &&
-            w.x >= rosterStartX - 4 &&
-            w.x <= rosterStartX + 170 &&
+            Array.from({ length: 6 }, (_, column) => rosterStartX + column * 28.346)
+              .some(x => Math.abs(w.x - x) <= 2) &&
             /^\d{1,2}$/.test(w.text),
         )
-        .forEach(w => rosters[side].add(Number(w.text)))
+        .map(w => Number(w.text))
+      const teamIndex = teams.indexOf(name)
+      if (teamIndex >= 0) {
+        for (const number of lineupNumbers) {
+          if (!rosters[teamIndex].has(number)) rosters[teamIndex].set(number, { number, name: '' })
+        }
+      }
 
       const grid = Array.from({ length: 48 }, (_, j) => {
         const found = pick(
@@ -389,8 +409,8 @@ export function parseItems(items, width, height) {
       scorerCity: scorerCity || '',
     },
 
-    roster: [...rosters[0]].sort((a, b) => a - b),
-    opponentRoster: [...rosters[1]].sort((a, b) => a - b),
+    roster: [...rosters[0].values()].sort((a, b) => a.number - b.number),
+    opponentRoster: [...rosters[1].values()].sort((a, b) => a.number - b.number),
   }
 }
 
@@ -423,5 +443,19 @@ export function applySetter(match) {
             : '',
       }
     }),
+  }
+}
+
+// Reimporting enriches the roster while retaining reviewed match data and names.
+export function refreshImportedMatch(existing, parsed) {
+  const reversed = existing.team === parsed.opponent
+  const merge = (incoming, saved = []) => incoming.map(player => {
+    const previous = saved.find(entry => Number(typeof entry === 'object' ? entry.number : entry) === player.number)
+    return { ...player, name: previous?.name?.trim() ? previous.name : player.name }
+  })
+  return {
+    ...existing,
+    roster: merge(reversed ? parsed.opponentRoster : parsed.roster, existing.roster),
+    opponentRoster: merge(reversed ? parsed.roster : parsed.opponentRoster, existing.opponentRoster),
   }
 }
