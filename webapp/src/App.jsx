@@ -13,6 +13,7 @@ import { emptyFilters, matchHeading } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
 import MatchFlow from './MatchFlow'
 import AthletesTable from './AthletesTable'
+import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './Glossary'
 import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
 import './App.css'
@@ -714,7 +715,7 @@ function MainApp() {
                         <th>Gara</th>
                         <th>Risultato</th>
                         <th>File originale</th>
-                        <th className="num-cell-header">Azioni</th>
+                        <th className="num-cell-header">Operazioni</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1205,6 +1206,8 @@ function MainApp() {
                 )}
 
                 {/* Metric Cards */}
+                <GlossaryDetails />
+
                 <div className="vs-metrics-grid">
                   {isSingleMatch && (
                     <div className="vs-metric-card accent-neutral">
@@ -1251,24 +1254,24 @@ function MainApp() {
                   </div>
 
                   <div className="vs-metric-card accent-bp">
-                    <span className="vs-metric-label">Punti in fase break point (BP)</span>
+                    <span className="vs-metric-label">Punti in fase break point (BP) <InfoTip id="bp" /></span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.breakPoints ?? '–'}</strong>
                     <span className="vs-metric-detail">punti conquistati dalla squadra mentre è al servizio</span>
                   </div>
 
                   <div className="vs-metric-card accent-cp">
-                    <span className="vs-metric-label">Punti conquistati in fase cambio palla (CP)</span>
+                    <span className="vs-metric-label">Punti conquistati in fase cambio palla (CP) <InfoTip id="cp" /></span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.reception.pointsInReception}</strong>
                     <span className="vs-metric-detail">punti conquistati dalla squadra mentre è in ricezione</span>
                   </div>
 
                   <div className="vs-metric-card accent-cp">
-                    <span className="vs-metric-label">Scambi in ricezione per cambio palla</span>
+                    <span className="vs-metric-label">Rally in ricezione per cambio palla</span>
                     <strong className="vs-metric-value">
                       {aggregatedAnalysis.reception.meanRallies === null ? '–' : fmt(aggregatedAnalysis.reception.meanRallies)}
                     </strong>
                     <span className="vs-metric-detail">
-                      media degli scambi, incluso il punto che riconquista il servizio
+                      media dei rally in ricezione, compreso quello che riconquista il servizio
                     </span>
                     <span className="vs-metric-detail">
                       {aggregatedAnalysis.reception.meanLost === null ? '–' : fmt(aggregatedAnalysis.reception.meanLost)} punti subiti in media in fase cambio palla prima di riconquistare il servizio
@@ -1370,13 +1373,15 @@ function MainApp() {
                     <div>
                       <h2 className="vs-card-title">{isFemaleAnalysis ? 'Atlete entrate' : 'Atleti entrati'}</h2>
                       <p className="vs-card-subtitle">
-                        Dati ricavati dalle formazioni e dai turni registrati: i punti in fase break point sono della squadra, non {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}. I punti nei set sono il totale dei punti delle due squadre nei set in cui {isFemaleAnalysis ? "l'atleta risulta coinvolta, non i soli scambi da lei giocati" : "l'atleta risulta coinvolto, non i soli scambi da lui giocati"}. I servizi sono stimati dai progressivi dei turni.
+                        Dati ricavati dalle formazioni e dai turni registrati: i punti in fase break point sono della squadra, non {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}. I rally nei set di presenza sono tutti i rally dei set in cui l’atleta risulta in campo, non i soli rally giocati. I servizi sono stimati dai progressivi dei turni. Questi dati descrivono che cosa è successo alla squadra, non azioni tecniche {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}.
                       </p>
                     </div>
                   </div>
                   <AthletesTable matches={visibleMatches} female={isFemaleAnalysis} printing={exportingPdf} />
                 </div>
 
+                {/* Glossary: only in the PDF / print, always the last block of the report */}
+                <GlossaryPrintTable />
               </div>
             ) : (
               <p>Errore nel calcolo dei dati della gara.</p>
@@ -1494,7 +1499,7 @@ function MainApp() {
                           <th>Incontro</th>
                           <th>Risultato</th>
                           <th>Parziali per set</th>
-                          <th className="num-cell-header">Azioni</th>
+                          <th className="num-cell-header">Operazioni</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1720,7 +1725,7 @@ function MainApp() {
                 <li><strong>Differenza MP</strong>: MP BP meno MP CP. Confronta le medie delle due fasi, non i punti totali della gara.</li>
               </ul>
               <p>
-                La media degli scambi in ricezione per cambio palla include il punto che riconquista il servizio.
+                La media dei rally in ricezione per cambio palla include il rally che riconquista il servizio.
                 Questo indicatore esclude le fasi terminate a fine set senza riconquistare il servizio.
               </p>
             </div>
@@ -1744,6 +1749,15 @@ function MainApp() {
                 Puoi anche selezionare più gare della stessa squadra nello Storico. L’analisi aggregata somma punti e turni
                 per rotazione e calcola le medie sui totali: non è la media semplice delle medie delle singole gare.
               </p>
+            </div>
+
+            <div className="vs-card" id="glossario">
+              <h2 className="vs-card-title">Glossario</h2>
+              <p className="vs-card-subtitle">
+                Termini usati nelle analisi e nel report PDF. Rally, punto e punteggio sono concetti distinti:
+                il rally è la sequenza di gioco, il punto è il suo esito, il punteggio è la somma dei punti.
+              </p>
+              <GlossaryList />
             </div>
 
             <div className="vs-card">

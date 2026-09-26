@@ -20,9 +20,11 @@ Carica un referto PDF compatibile o compila una gara manualmente, verifica i dat
 | % punti BP | Quota dei punti in fase break point della rotazione sul totale in fase break point. |
 | Differenza MP | MP BP meno MP CP. |
 
-Il punto che riconquista il servizio è conquistato in fase cambio palla e viene escluso dai punti in fase break point. La media degli scambi in ricezione per cambio palla include quel punto ed esclude le fasi terminate a fine set senza riconquistare il servizio.
+Terminologia: il **rally** è la sequenza di gioco dal servizio all’assegnazione del punto, il **punto** è il suo esito, il **punteggio** è la somma dei punti delle due squadre. Il glossario completo è nella pagina Informazioni e in fondo a ogni report PDF.
 
-Nell’analisi di più gare, punti e turni vengono sommati per rotazione e le medie sono calcolate sui totali. Nella tabella degli atleti, i punti nei set di presenza sono il totale dei punti delle due squadre nei set in cui l’atleta risulta coinvolto, non il conteggio dei suoi singoli scambi; i servizi sono stimati dai progressivi. I punti in fase break point sono sempre punti della squadra.
+Il punto che riconquista il servizio è conquistato in fase cambio palla e viene escluso dai punti in fase break point. La media dei rally in ricezione per cambio palla include il rally che riconquista il servizio ed esclude le fasi terminate a fine set senza riconquistare il servizio.
+
+Nell’analisi di più gare, punti e turni vengono sommati per rotazione e le medie sono calcolate sui totali. Nella tabella degli atleti, i rally nei set di presenza sono tutti i rally dei set in cui l’atleta risulta in campo, non i soli rally giocati; i servizi sono stimati dai progressivi. I punti in fase break point sono sempre punti della squadra.
 
 ## Dati, privacy e funzionamento locale
 

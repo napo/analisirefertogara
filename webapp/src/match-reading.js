@@ -65,7 +65,7 @@ export function describeSet(indicators, flow, context = {}, { compact = false } 
   const sentences = []
   sentences.push(`${ordinal(i.set)} set ${i.won ? 'vinto' : 'perso'} ${i.final.own}-${i.final.other}.`)
   if (!flow.complete) {
-    sentences.push('La sequenza dei punti ricostruita dal referto è incompleta: la lettura riguarda solo la parte disponibile.')
+    sentences.push('La sequenza dei rally ricostruita dal referto è incompleta: la lettura riguarda solo la parte disponibile.')
   }
 
   if (i.lastTie && i.ties > 1) {
@@ -105,7 +105,7 @@ export function describeSet(indicators, flow, context = {}, { compact = false } 
 
   if (compact) return sentences.join(' ')
 
-  sentences.push(`In fase BP ${plural(i.bp.won, 'punto', 'punti')} su ${plural(i.bp.rallies, 'scambio', 'scambi')} (${percent(i.bp.won, i.bp.rallies)}), in fase CP ${i.cp.won} su ${i.cp.rallies} (${percent(i.cp.won, i.cp.rallies)}).`)
+  sentences.push(`In fase BP ${plural(i.bp.won, 'punto', 'punti')} su ${i.bp.rallies} rally (${percent(i.bp.won, i.bp.rallies)}), in fase CP ${i.cp.won} su ${i.cp.rallies} (${percent(i.cp.won, i.cp.rallies)}).`)
 
   const final = finalPhase(flow)
   if (final && flow.points.length > flow.points.indexOf(final.at) + 1) {
@@ -161,7 +161,7 @@ export function describeMatch(indicatorsList, flows, context = {}) {
 
   const bp = indicatorsList.reduce((acc, i) => ({ won: acc.won + i.bp.won, rallies: acc.rallies + i.bp.rallies }), { won: 0, rallies: 0 })
   const cp = indicatorsList.reduce((acc, i) => ({ won: acc.won + i.cp.won, rallies: acc.rallies + i.cp.rallies }), { won: 0, rallies: 0 })
-  let phaseText = `Nella gara: in fase BP ${bp.won} punti su ${bp.rallies} scambi (${percent(bp.won, bp.rallies)}), in fase CP ${cp.won} su ${cp.rallies} (${percent(cp.won, cp.rallies)}).`
+  let phaseText = `Nella gara: in fase BP ${bp.won} punti su ${bp.rallies} rally (${percent(bp.won, bp.rallies)}), in fase CP ${cp.won} su ${cp.rallies} (${percent(cp.won, cp.rallies)}).`
   if (indicatorsList.length > 1) {
     const cpRate = i => (i.cp.rallies ? i.cp.won / i.cp.rallies : 0)
     const sorted = [...indicatorsList].sort((a, b) => cpRate(b) - cpRate(a))

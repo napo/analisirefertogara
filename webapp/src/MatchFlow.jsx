@@ -70,7 +70,7 @@ function FlowChart({ flow, layers, filters = DEFAULT_FILTERS, context, compact =
     chartRef.current?.resize()
   }, [option, height])
 
-  return <div ref={ref} className="vs-flow-chart" style={{ height }} role="img" aria-label={`Andamento del ${flow.set}° set: differenza di punteggio punto per punto`} />
+  return <div ref={ref} className="vs-flow-chart" style={{ height }} role="img" aria-label={`Andamento del ${flow.set}° set: differenza di punteggio rally per rally`} />
 }
 
 function EventKey({ flows, layers, team }) {
@@ -103,7 +103,7 @@ function AllSets({ flows, context, match, highlight }) {
             Set {flow.set} <span className={`tabular-nums ${flow.won ? 'won' : 'lost'}`}>{flow.scoreOwn}-{flow.scoreOther}</span>
           </h3>
           {!flow.complete && (
-            <p className="vs-flow-notice">Sequenza dei punti incompleta: controlla la griglia dei turni di questo set.</p>
+            <p className="vs-flow-notice">Sequenza dei rally incompleta: controlla la griglia dei turni di questo set.</p>
           )}
           <FlowChart flow={flow} layers={layersFor(flow)} context={context} compact yRange={yRange} />
         </article>
@@ -199,7 +199,7 @@ function InteractiveView({ flows, context, match, state }) {
       </details>
 
       {!flow.complete && (
-        <p className="vs-flow-notice">La sequenza dei punti ricostruita dai turni di servizio non arriva al punteggio finale del set: controlla la griglia dei turni.</p>
+        <p className="vs-flow-notice">La sequenza dei rally ricostruita dai turni di servizio non arriva al punteggio finale del set: controlla la griglia dei turni.</p>
       )}
       {!flow.rotationKnown && effectiveLayers.rotation && (
         <p className="vs-flow-notice">P non indicate per questo set: segna il palleggiatore nell&apos;elenco atleti (colonna &quot;p&quot;) per vedere P1-P6.</p>

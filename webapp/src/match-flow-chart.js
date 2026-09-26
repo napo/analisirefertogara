@@ -69,6 +69,7 @@ export function tooltipHtml(flow, x, context) {
   const point = flow.points[x - 1]
   if (!point) return ''
   const rows = [
+    `<span style="color:#7D7D7D">Rally ${point.index}</span>`,
     `<strong>Punteggio: ${point.own}-${point.other}</strong>`,
     `Differenza: ${signed(point.diff)}`,
     `Fase: ${swatch(PHASE_COLORS[point.phase])}${point.phase}`,
@@ -205,7 +206,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
 
   if (filtering) {
     series.push({
-      name: 'Punti filtrati', type: 'scatter', symbolSize: 8, z: 6,
+      name: 'Rally filtrati', type: 'scatter', symbolSize: 8, z: 6,
       data: flow.points.filter(point => matchesFilters(point, filters)).map(point => ({
         value: [point.index, point.diff],
         itemStyle: { color: point.winner === 'own' ? TREND_COLORS.positive : TREND_COLORS.negative, borderColor: '#FFFFFF', borderWidth: 1.5 },

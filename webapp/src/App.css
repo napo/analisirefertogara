@@ -1675,3 +1675,191 @@
     overflow-x: auto;
   }
 }
+
+/* Glossary */
+.vs-glossary-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+  margin: 0.75rem 0 0;
+}
+
+.vs-glossary-item {
+  display: grid;
+  grid-template-columns: minmax(9rem, 14rem) 1fr;
+  gap: 0.25rem 1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--vs-border);
+}
+
+.vs-glossary-item dt {
+  font-weight: 700;
+  color: var(--vs-heading);
+}
+
+.vs-glossary-item dd {
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .vs-glossary-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vs-glossary-details {
+  margin: 0 0 0.9rem;
+  font-size: 0.8rem;
+}
+
+.vs-glossary-details summary {
+  cursor: pointer;
+  color: var(--vs-muted);
+  font-weight: 600;
+  display: inline-block;
+}
+
+.vs-glossary-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.35rem 1.2rem;
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--vs-border);
+  border-radius: 0.4rem;
+  background: var(--vs-surface);
+}
+
+.vs-glossary-compact dt {
+  font-weight: 700;
+  color: var(--vs-heading);
+}
+
+.vs-glossary-compact dd {
+  margin: 0;
+  color: var(--vs-text);
+}
+
+/* Contextual help: hover, keyboard focus and tap (the definition is also in the glossary) */
+.vs-infotip {
+  position: relative;
+  display: inline-block;
+  margin-left: 0.2rem;
+  vertical-align: middle;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.vs-infotip-button {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--vs-muted);
+  background: var(--vs-surface);
+  color: var(--vs-muted);
+  font: italic 700 9px/12px Georgia, serif;
+  padding: 0;
+  cursor: help;
+}
+
+.vs-infotip-button:focus-visible {
+  outline: 2px solid var(--vs-accent);
+  outline-offset: 1px;
+}
+
+.vs-infotip-text {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: -0.5rem;
+  width: 15rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.35rem;
+  background: var(--vs-accent);
+  color: var(--vs-accent-contrast);
+  font-size: 0.74rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 4px 14px rgba(1, 22, 39, 0.2);
+}
+
+.vs-infotip:hover .vs-infotip-text,
+.vs-infotip:focus-within .vs-infotip-text,
+.vs-infotip.open .vs-infotip-text {
+  display: block;
+}
+
+/* PDF glossary: hidden on screen, last block of the report, compact two-column table */
+.vs-glossary-print {
+  display: none;
+}
+
+.vs-pdf-export .vs-glossary-print {
+  display: block;
+  margin-top: 1rem;
+  font-size: 0.66rem;
+  color: #263238;
+}
+
+.vs-glossary-print h2 {
+  font-size: 0.82rem;
+  margin: 0 0 0.3rem;
+  color: var(--vs-heading);
+}
+
+.vs-glossary-print table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.vs-glossary-print th,
+.vs-glossary-print td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.16rem 0.45rem;
+  border-bottom: 1px solid #E3E7EB;
+  line-height: 1.3;
+}
+
+.vs-glossary-print thead th {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #546E7A;
+  border-bottom: 1px solid #B0BEC5;
+}
+
+.vs-glossary-print tbody th {
+  width: 11rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vs-glossary-print tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Interactive helpers never go into the report */
+.vs-pdf-export .vs-glossary-details,
+.vs-pdf-export .vs-infotip {
+  display: none;
+}
+
+@media print {
+  .vs-glossary-details,
+  .vs-infotip {
+    display: none !important;
+  }
+  .vs-glossary-print {
+    display: block;
+    font-size: 7.5pt;
+  }
+  .vs-glossary-print h2 {
+    break-after: avoid;
+  }
+}

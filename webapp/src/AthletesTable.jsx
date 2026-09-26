@@ -1,6 +1,7 @@
 import React, { Fragment, useMemo, useState } from 'react'
 import { ATHLETE_INDICATORS, TREND_INDICATOR, athleteRows, extremes, indicatorValue } from './athlete-indicators'
 import { PHASE_COLORS } from './theme'
+import { InfoTip } from './Glossary'
 
 const formatNumber = (value, decimals) => Number(value).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: decimals })
 const trendIndicator = ATHLETE_INDICATORS.find(indicator => indicator.key === TREND_INDICATOR)
@@ -95,7 +96,10 @@ export default function AthletesTable({ matches, female = false, printing = fals
             <tr>
               <th>Atleta</th>
               {ATHLETE_INDICATORS.map(indicator => (
-                <th key={indicator.key} className="num-cell-header" title={indicator.label}>{indicator.short}</th>
+                <th key={indicator.key} className="num-cell-header">
+                  <span title={indicator.label}>{indicator.short}</span>
+                  {indicator.glossary && <InfoTip id={indicator.glossary} />}
+                </th>
               ))}
               {withSets && <th className="vs-ath-trend-head" title={`${trendIndicator.label}, set per set`}>Nei set · MP BP</th>}
             </tr>

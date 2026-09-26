@@ -9,8 +9,10 @@ import { athleteStats } from './athletes.js'
 export const ATHLETE_INDICATORS = [
   {
     key: 'pointsPlayed',
-    label: 'Punti nei set di presenza',
-    short: 'Punti nei set',
+    // count of the rallies of the sets where the athlete appears (not "rally in campo")
+    label: 'Rally nei set di presenza',
+    short: 'Rally nei set',
+    glossary: 'rally-set-presenza',
     direction: null,
     decimals: 0,
     applicable: () => true,
@@ -19,6 +21,7 @@ export const ATHLETE_INDICATORS = [
     key: 'services',
     label: 'Servizi stimati',
     short: 'Servizi',
+    glossary: 'servizi-stimati',
     direction: null,
     decimals: 0,
     applicable: () => true,
@@ -27,6 +30,7 @@ export const ATHLETE_INDICATORS = [
     key: 'averageConsecutive',
     label: 'Media servizi consecutivi stimati',
     short: 'Media serv. consecutivi',
+    glossary: 'media-servizi',
     direction: 'higher',
     decimals: 2,
     applicable: stat => stat.serviceTurns > 0,
@@ -35,6 +39,7 @@ export const ATHLETE_INDICATORS = [
     key: 'averagePointsAtServe',
     label: 'MP BP con atleta al servizio',
     short: 'MP BP al servizio',
+    glossary: 'mp-bp-atleta',
     direction: 'higher',
     decimals: 2,
     applicable: stat => stat.serviceTurns > 0,
