@@ -76,3 +76,11 @@ test('version 2 reimport refreshes participation while preserving scores and rot
     assert.deepEqual(updated.sets[0].libero,reversed?m.sets[0].opponentLibero:m.sets[0].libero)
   }
 })
+
+test('NEWBIT 11605 fifth set: time-outs copied in the court-change panel are merged, new ones added', () => {
+  const m = parse()
+  assert.deepEqual(m.sets[4].timeouts, ['7:4', '13:11'])
+  assert.deepEqual(m.sets[4].opponentTimeouts, ['0:6', ''])
+  assert.deepEqual(m.sets[4].opponentSubstitutions[0], { in: '2', scoreIn: '0:4', scoreOut: '7:11' })
+  assert.deepEqual(m.importWarnings, [])
+})

@@ -126,8 +126,47 @@ export function duplicateLineupNumbers(lineup) {
   return duplicates
 }
 
-// checkLineups: disabled when restoring backups, so matches saved before this check still load
-export function validateMatch(m, requireRotations = false, { checkLineups = true } = {}) {
+// "12:16" -> [12, 16]; null when malformed
+const scorePair = text => {
+  const match = String(text ?? '').match(/^\s*(\d+)\s*:\s*(\d+)\s*$/)
+  return match ? [Number(match[1]), Number(match[2])] : null
+}
+
+// Substitutions and time-outs of one team in one set. Scores are written like the scoresheet box:
+// points of that team first. Returns readable errors.
+function substitutionIssues(prefix, team, { lineup, substitutions, timeouts, own, other }) {
+  const errors = []
+  const fits = pair => pair[0] <= own && pair[1] <= other
+  ;(substitutions || []).forEach((cell, column) => {
+    if (!cell) return
+    const position = ['I', 'II', 'III', 'IV', 'V', 'VI'][column]
+    const scores = [['scoreIn', 'entrata'], ['scoreOut', 'rientro']].map(([field, label]) => {
+      if (!String(cell[field] ?? '').trim()) return null
+      const pair = scorePair(cell[field])
+      if (!pair) errors.push(`${prefix}: punteggio di ${label} non valido in posizione ${position} (${team}), usa il formato 12:16.`)
+      else if (!fits(pair)) errors.push(`${prefix}: punteggio di ${label} ${cell[field]} oltre il risultato del set in posizione ${position} (${team}).`)
+      return pair
+    })
+    if ((scores[0] || scores[1]) && !String(cell.in ?? '').trim()) errors.push(`${prefix}: indica il numero della riserva entrata in posizione ${position} (${team}).`)
+    if (scores[1] && !scores[0]) errors.push(`${prefix}: rientro senza punteggio di entrata in posizione ${position} (${team}).`)
+    if (scores[0] && scores[1] && (scores[1][0] < scores[0][0] || scores[1][1] < scores[0][1])) errors.push(`${prefix}: il rientro in posizione ${position} precede l'entrata (${team}).`)
+    const number = String(cell.in ?? '').trim()
+    if (number && (lineup || []).some(starter => String(starter).trim() !== '' && Number(starter) === Number(number))) {
+      errors.push(`${prefix}: il numero ${number} è tra i titolari e non può entrare come riserva in posizione ${position} (${team}).`)
+    }
+  })
+  ;(timeouts || []).forEach((value, i) => {
+    if (!String(value ?? '').trim()) return
+    const pair = scorePair(value)
+    if (!pair) errors.push(`${prefix}: punteggio del ${i + 1}° time-out non valido (${team}), usa il formato 12:16.`)
+    else if (!fits(pair)) errors.push(`${prefix}: ${i + 1}° time-out ${value} oltre il risultato del set (${team}).`)
+  })
+  return errors
+}
+
+// strict: lineup, substitution and time-out checks. Disabled when restoring backups, so matches saved
+// before these checks existed still load.
+export function validateMatch(m, requireRotations = false, { strict = true } = {}) {
   const errors = []
   if (!m.team?.trim() || !m.opponent?.trim() || m.team === m.opponent) errors.push('Indica due squadre diverse.')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || '') || Number.isNaN(Date.parse(m.date))) errors.push('Data gara non valida.')
@@ -148,8 +187,12 @@ export function validateMatch(m, requireRotations = false, { checkLineups = true
       }
       if (cells[last] !== score) errors.push(`${prefix}: ultimo progressivo diverso dal punteggio finale (${side === 'own' ? m.team : m.opponent}).`)
     }
-    for (const [key, team] of checkLineups ? [['lineup', m.team], ['opponentLineup', m.opponent]] : []) {
+    for (const [key, team] of strict ? [['lineup', m.team], ['opponentLineup', m.opponent]] : []) {
       for (const number of duplicateLineupNumbers(s[key])) errors.push(`${prefix}: il numero ${number} è ripetuto tra i titolari (${team}).`)
+    }
+    if (strict) {
+      errors.push(...substitutionIssues(prefix, m.team || 'squadra analizzata', { lineup: s.lineup, substitutions: s.substitutions, timeouts: s.timeouts, own: s.scoreOwn, other: s.scoreOther }))
+      errors.push(...substitutionIssues(prefix, m.opponent || 'squadra avversaria', { lineup: s.opponentLineup, substitutions: s.opponentSubstitutions, timeouts: s.opponentTimeouts, own: s.scoreOther, other: s.scoreOwn }))
     }
     if (s.scoreOwn === s.scoreOther || Math.max(s.scoreOwn, s.scoreOther) < (i >= 4 ? 15 : 25) || Math.abs(s.scoreOwn - s.scoreOther) < 2) errors.push(`${prefix}: risultato non concluso.`)
   })

@@ -7,7 +7,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { MatchStoreProvider, useMatchStore } from './store'
-import { applySetter } from './pdf-parser'
+import { applySetter, emptySubstitutions, emptyTimeouts, normalizeScore, supportedSoftwareList } from './pdf-parser'
 import { duplicateLineupNumbers, validateMatch } from './analysis'
 import { formatDuration, formatWins, matchDuration } from './format'
 import { emptyFilters, matchHeading } from './match-filters'
@@ -672,7 +672,7 @@ function MainApp() {
                   </button>
                 </div>
                 <div style={{ marginTop: '1rem', fontSize: '0.82rem', color: 'var(--vs-muted)' }}>
-                  <span>Sono supportati i modelli PDF dei software prodotti da SNUG e NEWBIT</span>
+                  <span>Sono supportati i modelli PDF dei software prodotti da {supportedSoftwareList()}</span>
                 </div>
               </div>
             )}
@@ -783,6 +783,10 @@ function MainApp() {
                                         opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                                         liberoReplacements: s.opponentLiberoReplacements || [],
                                         opponentLiberoReplacements: s.liberoReplacements || [],
+                                        substitutions: s.opponentSubstitutions || emptySubstitutions(),
+                                        opponentSubstitutions: s.substitutions || emptySubstitutions(),
+                                        timeouts: s.opponentTimeouts || emptyTimeouts(),
+                                        opponentTimeouts: s.timeouts || emptyTimeouts(),
                                         rotation: '',
                                       })),
                                     })
@@ -1131,6 +1135,10 @@ function MainApp() {
                               opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                               liberoReplacements: s.opponentLiberoReplacements || [],
                               opponentLiberoReplacements: s.liberoReplacements || [],
+                              substitutions: s.opponentSubstitutions || emptySubstitutions(),
+                              opponentSubstitutions: s.substitutions || emptySubstitutions(),
+                              timeouts: s.opponentTimeouts || emptyTimeouts(),
+                              opponentTimeouts: s.timeouts || emptyTimeouts(),
                               rotation: '',
                             })),
                           }
@@ -1594,6 +1602,10 @@ function MainApp() {
                                           opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                                           liberoReplacements: s.opponentLiberoReplacements || [],
                                           opponentLiberoReplacements: s.liberoReplacements || [],
+                                          substitutions: s.opponentSubstitutions || emptySubstitutions(),
+                                          opponentSubstitutions: s.substitutions || emptySubstitutions(),
+                                          timeouts: s.opponentTimeouts || emptyTimeouts(),
+                                          opponentTimeouts: s.timeouts || emptyTimeouts(),
                                           rotation: '',
                                         })),
                                       })
@@ -1914,6 +1926,10 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                         opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                         liberoReplacements: s.opponentLiberoReplacements || [],
                         opponentLiberoReplacements: s.liberoReplacements || [],
+                        substitutions: s.opponentSubstitutions || emptySubstitutions(),
+                        opponentSubstitutions: s.substitutions || emptySubstitutions(),
+                        timeouts: s.opponentTimeouts || emptyTimeouts(),
+                        opponentTimeouts: s.timeouts || emptyTimeouts(),
                         rotation: '',
                       })),
                     }))
@@ -1952,6 +1968,10 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                     opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
                     liberoReplacements: s.opponentLiberoReplacements || [],
                     opponentLiberoReplacements: s.liberoReplacements || [],
+                    substitutions: s.opponentSubstitutions || emptySubstitutions(),
+                    opponentSubstitutions: s.substitutions || emptySubstitutions(),
+                    timeouts: s.opponentTimeouts || emptyTimeouts(),
+                    opponentTimeouts: s.timeouts || emptyTimeouts(),
                     rotation: '',
                   })),
                 }))
@@ -2355,6 +2375,20 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         </span>
       </div>
 
+      {draft.importWarnings?.length > 0 && (
+        <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '0.5rem', color: '#6D4C00', fontSize: '0.85rem' }}>
+          <strong>Dati del PDF da controllare:</strong> il referto contiene valori tra loro incompatibili. Non sono stati corretti automaticamente: confrontali con il PDF originale.
+          <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.25rem' }}>
+            {draft.importWarnings.map((warning, i) => (
+              <li key={i}>
+                Set {warning.set}{warning.team ? ` · ${warning.team}` : ''}: {warning.message} Atteso: {String(warning.expected)}; trovato: {String(warning.found)}.
+                <span style={{ display: 'block', fontSize: '0.76rem', opacity: 0.8 }}>Zona del PDF: {warning.zone}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {validationErrors.length > 0 && (
         <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFEBEE', borderRadius: '0.5rem', color: '#B71C1C', fontSize: '0.85rem' }}>
           <strong>Verifica i seguenti punti prima di salvare:</strong>
@@ -2411,6 +2445,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 // Subcomponent: Set Details & 6x6 Turns Grid
 const LINEUP_HINT = 'Giocatori titolari: numeri di maglia della formazione iniziale del set nelle posizioni I–VI, come nella riga "Giocatori titolari N°" del referto'
 
+const SUBSTITUTION_HINT = 'Sostituzioni: nella colonna della posizione I–VI il numero di chi entra al posto del titolare (riga "Riserve N°" del referto) e i punteggi di entrata e di rientro del titolare ("Punteggio al cambio")'
+
 function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
   const isGoldenSet = index === 5
   const isTieBreak = index === 4
@@ -2462,12 +2498,39 @@ function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
         <div className="vs-set-data-layout">
           <div className="vs-turn-grid">
             {[
-              { key: 'own', liberoKey: 'libero', lineupKey: 'lineup', name: team },
-              { key: 'other', liberoKey: 'opponentLibero', lineupKey: 'opponentLineup', name: opponent },
-            ].map(({ key, liberoKey, lineupKey, name }) => {
+              { key: 'own', liberoKey: 'libero', lineupKey: 'lineup', subsKey: 'substitutions', subNumbersKey: 'substituteNumbers', timeoutsKey: 'timeouts', name: team },
+              { key: 'other', liberoKey: 'opponentLibero', lineupKey: 'opponentLineup', subsKey: 'opponentSubstitutions', subNumbersKey: 'opponentSubstituteNumbers', timeoutsKey: 'opponentTimeouts', name: opponent },
+            ].map(({ key, liberoKey, lineupKey, subsKey, subNumbersKey, timeoutsKey, name }) => {
               const libero = s[liberoKey] || {}
               const duplicates = duplicateLineupNumbers(s[lineupKey])
               const isDuplicate = value => duplicates.has(String(Number(String(value ?? '').trim() || NaN)))
+              const substitutions = Array.from({ length: 6 }, (_, c) => ({ in: '', scoreIn: '', scoreOut: '', ...(s[subsKey]?.[c] || {}) }))
+              const timeouts = [0, 1].map(i => s[timeoutsKey]?.[i] ?? '')
+              const updateSubstitution = (c, field, value) => {
+                const next = substitutions.map((cell, i) => i === c ? { ...cell, [field]: value } : cell)
+                const patch = { [subsKey]: next }
+                if (field === 'in') {
+                  // Keep the participation list used by the statistics in sync with the "Riserve" row
+                  const previous = substitutions[c].in
+                  const numbers = (s[subNumbersKey] || []).filter(number => number !== previous || next.some(cell => cell.in === previous))
+                  patch[subNumbersKey] = value && !numbers.includes(value) ? [...numbers, value] : numbers
+                }
+                update(patch)
+              }
+              const scoreHint = `Punteggio come sul referto: prima i punti di ${name}, poi quelli dell'avversaria (es. 12:16)`
+              const scoreInput = (label, value, onChange) => (
+                <input
+                  className="vs-score-input"
+                  aria-label={label}
+                  title={scoreHint}
+                  placeholder="–:–"
+                  value={value}
+                  maxLength={5}
+                  aria-invalid={(value !== '' && !normalizeScore(value)) || undefined}
+                  onChange={e => { if (/^[\d:\s]*$/.test(e.target.value)) onChange(e.target.value) }}
+                  onBlur={e => { const normalized = normalizeScore(e.target.value); if (normalized && normalized !== e.target.value) onChange(normalized) }}
+                />
+              )
               const liberoFields = {
                 onCourt: liberoValues(libero, 'onCourt'),
                 entered: liberoValues(libero, 'entered'),
@@ -2512,6 +2575,38 @@ function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
                       ))}
                       <td colSpan="3" className="vs-lineup-note">formazione iniziale</td>
                     </tr>
+                    <tr className="vs-sub-row" title={SUBSTITUTION_HINT}>
+                      <th scope="row">Riserve N°</th>
+                      {substitutions.map((cell, c) => (
+                        <td key={c}>
+                          <input
+                            aria-label={`Set ${index + 1}, ${name}, riserva entrata in posizione ${['I', 'II', 'III', 'IV', 'V', 'VI'][c]}`}
+                            title={SUBSTITUTION_HINT}
+                            placeholder="N°"
+                            inputMode="numeric"
+                            value={cell.in}
+                            maxLength={3}
+                            onChange={e => {
+                              const text = e.target.value.trim()
+                              if (text === '' || /^\d+$/.test(text)) updateSubstitution(c, 'in', text)
+                            }}
+                            onBlur={e => { if (lineupKey === 'lineup') onLineupCommit?.(e.target.value) }}
+                          />
+                        </td>
+                      ))}
+                      <td colSpan="3" className="vs-sub-note">sostituzioni</td>
+                    </tr>
+                    {[['scoreIn', 'Entrata', 'punteggio quando entra la riserva'], ['scoreOut', 'Rientro', 'punteggio quando rientra il titolare']].map(([field, label, description]) => (
+                      <tr key={field} className="vs-sub-row vs-sub-score-row" title={`${label}: ${description}. ${scoreHint}`}>
+                        <th scope="row">{label}</th>
+                        {substitutions.map((cell, c) => (
+                          <td key={c}>
+                            {scoreInput(`Set ${index + 1}, ${name}, posizione ${['I', 'II', 'III', 'IV', 'V', 'VI'][c]}, ${description}`, cell[field], value => updateSubstitution(c, field, value))}
+                          </td>
+                        ))}
+                        <td colSpan="3" className="vs-sub-note">{description}</td>
+                      </tr>
+                    ))}
                   </thead>
                   <tbody>
                     {Array.from({ length: 6 }, (_, r) => (
@@ -2557,6 +2652,19 @@ function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
                   </tbody>
                 </table>
               </div>
+                  <div className="vs-timeouts" title={`Time-out richiesti da ${name}. ${scoreHint}`}>
+                    <span className="vs-timeouts-label">Time-out "T"</span>
+                    {timeouts.map((value, i) => (
+                      <label key={i}>
+                        {i + 1}°
+                        {scoreInput(`Set ${index + 1}, ${name}, ${i + 1}° time-out`, value, next => {
+                          const list = [...timeouts]
+                          list[i] = next
+                          update({ [timeoutsKey]: list })
+                        })}
+                      </label>
+                    ))}
+                  </div>
                   {duplicates.size > 0 && (
                     <p className="vs-lineup-error" role="alert">
                       {duplicates.size === 1 ? 'Numero ripetuto' : 'Numeri ripetuti'} tra i titolari di {name}: {[...duplicates].join(', ')}.

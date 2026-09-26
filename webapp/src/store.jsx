@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany, backup as dbBackup } from './storage'
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
-import { applySetter, refreshImportedMatch } from './pdf-parser'
+import { applySetter, emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
 import { emptyFilters, filterMatches } from './match-filters'
 
 export function createBlankSet(number) {
@@ -14,6 +14,12 @@ export function createBlankSet(number) {
     durationMinutes: '',
     lineup: ['', '', '', '', '', ''],
     opponentLineup: ['', '', '', '', '', ''],
+    substituteNumbers: [],
+    opponentSubstituteNumbers: [],
+    substitutions: emptySubstitutions(),
+    opponentSubstitutions: emptySubstitutions(),
+    timeouts: emptyTimeouts(),
+    opponentTimeouts: emptyTimeouts(),
     libero: { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
     opponentLibero: { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
     own: Array(36).fill(''),
@@ -361,7 +367,7 @@ export function MatchStoreProvider({ children }) {
       }
       const incoming = []
       for (const m of b.matches) {
-        if (!m || typeof m.id !== 'string' || !/^[a-f0-9]{64}$/.test(m.id) || validateMatch(m, false, { checkLineups: false }).length) {
+        if (!m || typeof m.id !== 'string' || !/^[a-f0-9]{64}$/.test(m.id) || validateMatch(m, false, { strict: false }).length) {
           throw Error('Il backup contiene gare non valide.')
         }
         analyze([m])

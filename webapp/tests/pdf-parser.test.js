@@ -37,6 +37,36 @@ test('sample PDF imports valid sets and distinct complete named rosters, includi
   assert.ok([...match.roster, ...match.opponentRoster].every(p => p.name))
 })
 
+test('SNUG: substitutions and time-outs are read per position', () => {
+  const match = parse()
+  const subs = list => list.map((cell, i) => cell.in ? `${['I', 'II', 'III', 'IV', 'V', 'VI'][i]}:${cell.in} ${cell.scoreIn}/${cell.scoreOut}` : '').filter(Boolean)
+  assert.deepEqual(subs(match.sets[0].substitutions), ['II:5 3:11/', 'IV:26 3:14/'])
+  assert.deepEqual(match.sets[0].timeouts, ['3:10', '5:20'])
+  assert.deepEqual(match.sets[0].opponentTimeouts, ['', ''])
+  assert.deepEqual(subs(match.sets[1].substitutions), ['II:12 18:18/', 'V:5 17:18/22:23'])
+  assert.deepEqual(subs(match.sets[1].opponentSubstitutions), ['II:43 22:21/', 'V:39 14:13/'])
+  assert.deepEqual(match.sets[1].opponentTimeouts, ['9:7', ''])
+  assert.deepEqual(subs(match.sets[2].substitutions), ['I:11 8:9/14:18', 'IV:17 15:21/'])
+  // substitutes now count as having played
+  assert.deepEqual(match.sets[0].substituteNumbers, ['5', '26'])
+  assert.deepEqual(match.sets[2].substituteNumbers, ['11', '17'])
+})
+
+test('substitutions and time-outs are validated', () => {
+  const match = applySetter(parse())
+  const withSet = patch => ({ ...match, sets: [{ ...match.sets[0], ...patch }, ...match.sets.slice(1)] })
+  const cells = (column, cell) => Array.from({ length: 6 }, (_, i) => i === column ? cell : { in: '', scoreIn: '', scoreOut: '' })
+  const starter = match.sets[0].lineup[0]
+  assert.deepEqual(validateMatch(withSet({ timeouts: ['3:10', '5:20'] })), [])
+  assert.ok(validateMatch(withSet({ timeouts: ['3-10x', ''] })).some(e => /1° time-out non valido/.test(e)))
+  assert.ok(validateMatch(withSet({ timeouts: ['', '7:20'] })).some(e => /2° time-out 7:20 oltre il risultato/.test(e)))
+  assert.ok(validateMatch(withSet({ substitutions: cells(1, { in: '', scoreIn: '3:11', scoreOut: '' }) })).some(e => /indica il numero della riserva entrata in posizione II/.test(e)))
+  assert.ok(validateMatch(withSet({ substitutions: cells(1, { in: '5', scoreIn: '4:12', scoreOut: '3:11' }) })).some(e => /rientro in posizione II precede l'entrata/.test(e)))
+  assert.ok(validateMatch(withSet({ substitutions: cells(1, { in: starter, scoreIn: '3:11', scoreOut: '' }) })).some(e => new RegExp(`numero ${starter} è tra i titolari`).test(e)))
+  // backups saved before these checks still restore
+  assert.deepEqual(validateMatch(withSet({ timeouts: ['3-10x', ''] }), false, { strict: false }), [])
+})
+
 test('starting lineup numbers must be unique within each team', () => {
   const match = applySetter(parse())
   const set = match.sets[0]
@@ -74,7 +104,7 @@ test('reimport respects the selected team after swapping sides', () => {
 })
 
 test('unsupported documents give an explicit error', () => {
-  assert.throws(() => parse([]), /Formato non riconosciuto/)
+  assert.throws(() => parse([]), /^Error: Formato non riconosciuto. Attualmente sono supportati i formati dei software di NEWBIT e SNUG.$/)
 })
 
 

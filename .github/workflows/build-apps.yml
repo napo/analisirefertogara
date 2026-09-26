@@ -121,11 +121,6 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       - name: APK debug installabile senza firma obbligatoria
         run: npm run android:build -- --debug --apk --target aarch64 armv7 x86_64 --ci -- --locked
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Referto-Volley-Android-debug-APK
-          if-no-files-found: error
-          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
       - name: APK e AAB release (se firmati o generati)
         continue-on-error: true
         run: npm run android:build -- --apk --aab --target aarch64 armv7 x86_64 --ci -- --locked
@@ -133,13 +128,32 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Nomi dei pacchetti Android come le altre build
+        env:
+          SIGNED: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          base="Referto.Volley_${version}_android-universal"
+          out=src-tauri/gen/android/app/build/outputs
+          mkdir -p android-dist
+          release_apk=$(find "$out/apk" -path '*/release/*' -name '*.apk' | head -n 1)
+          release_aab=$(find "$out/bundle" -name '*.aab' 2>/dev/null | head -n 1)
+          debug_apk=$(find "$out/apk" -path '*/debug/*' -name '*.apk' | head -n 1)
+          if [ "$SIGNED" = "true" ] && [ -n "$release_apk" ]; then
+            # Signed release APK is installable: no need to publish the debug one
+            cp "$release_apk" "android-dist/${base}.apk"
+            [ -n "$release_aab" ] && cp "$release_aab" "android-dist/${base}.aab"
+          else
+            cp "$debug_apk" "android-dist/${base}-debug.apk"
+            [ -n "$release_apk" ] && cp "$release_apk" "android-dist/${base}-unsigned.apk"
+            [ -n "$release_aab" ] && cp "$release_aab" "android-dist/${base}-unsigned.aab"
+          fi
+          ls -lah android-dist
       - uses: actions/upload-artifact@v4
         with:
-          name: Referto-Volley-Android-release
-          if-no-files-found: warn
-          path: |
-            src-tauri/gen/android/app/build/outputs/apk/**/release/*.apk
-            src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
+          name: Referto-Volley-Android
+          if-no-files-found: error
+          path: android-dist/*
       - name: Rimuovi chiave temporanea
         if: always()
         run: rm -f src-tauri/gen/android/release.jks

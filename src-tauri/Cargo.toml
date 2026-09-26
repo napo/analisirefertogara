@@ -1,6 +1,6 @@
 [package]
 name = "referto-volley"
-version = "0.2.0"
+version = "0.3.0"
 description = "Analisi locale dei referti di gara della pallavolo"
 authors = ["Maurizio Napolitano"]
 license = "WTFPL"

@@ -740,6 +740,76 @@
   color: #C62828;
 }
 
+/* Substitutions ("Riserve N°" and "Punteggio al cambio" on the scoresheet) */
+.vs-grid-table .vs-sub-row th,
+.vs-grid-table .vs-sub-row td {
+  background: #E0F2F1;
+}
+
+.vs-grid-table .vs-sub-row th {
+  color: #00695C;
+  font-weight: 700;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.vs-grid-table .vs-sub-row:last-child th,
+.vs-grid-table .vs-sub-row:last-child td {
+  border-bottom: 2px solid #00897B;
+}
+
+.vs-grid-table .vs-sub-row input {
+  border-color: #80CBC4;
+}
+
+.vs-grid-table .vs-sub-note {
+  color: #00695C;
+  font-size: 0.72rem;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.vs-grid-table input.vs-score-input,
+.vs-timeouts input.vs-score-input {
+  width: 44px;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.vs-grid-table input[aria-invalid="true"],
+.vs-timeouts input[aria-invalid="true"] {
+  border: 2px solid #C62828;
+  background: #FFEBEE;
+}
+
+.vs-timeouts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--vs-heading);
+}
+
+.vs-timeouts-label {
+  font-weight: 700;
+}
+
+.vs-timeouts label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.vs-timeouts input {
+  padding: 4px 2px;
+  text-align: center;
+  border: 1px solid #D0D7DE;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
 .vs-lineup-error {
   margin: 0.4rem 0 0;
   color: #C62828;

@@ -35,9 +35,9 @@ Il workflow GitHub Actions `Build applicazioni Tauri` (`.github/workflows/build-
   - `.AppImage`: assegnare i permessi di esecuzione (`chmod +x Referto-Volley_*.AppImage`) ed eseguire direttamente.
 
 ### Android (Smartphones e Tablet)
-- **File generati**:
-  - `app-*-debug.apk` (APK di debug, multipiattaforma arm64/armv7/x86_64)
-  - `app-*-release.apk` e `app-*.aab` (generati se configurata la chiave di release)
+- **File generati** (multipiattaforma arm64/armv7/x86_64, nominati come le altre build):
+  - con la chiave di release configurata: `Referto.Volley_X.Z.0_android-universal.apk` (APK firmato, installabile) e `Referto.Volley_X.Z.0_android-universal.aab` (per Google Play);
+  - senza chiave: `Referto.Volley_X.Z.0_android-universal-debug.apk` (installabile) più APK/AAB release con suffisso `-unsigned`.
 - **Uso senza firma**: l'APK debug è **immediatamente installabile** su qualsiasi smartphone o tablet Android: è sufficiente scaricare il file `.apk` sul dispositivo, abilitare l'installazione da origini sconosciute nelle impostazioni del browser o del gestore file e installare.
 - **Firma di produzione (opzionale)**: per pubblicare su Google Play Store o firmare con chiave privata propria, impostare i 4 secret di repository:
   - `ANDROID_KEYSTORE_BASE64`

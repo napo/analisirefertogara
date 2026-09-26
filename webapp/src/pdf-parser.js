@@ -1,3 +1,38 @@
+// Scoresheet software whose PDF format can be imported; add new importers here
+export const SUPPORTED_SOFTWARE = ['NEWBIT', 'SNUG']
+
+// "NEWBIT e SNUG", "NEWBIT, SNUG e X" ("o" instead of "e" with type 'disjunction')
+export const supportedSoftwareList = (type = 'conjunction') =>
+  new Intl.ListFormat('it', { style: 'long', type }).format(SUPPORTED_SOFTWARE)
+
+// Substitutions are stored per position I–VI, as on the scoresheet: who entered for the starter of that
+// position and the score when they entered / when the starter came back. Time-outs: up to two per set.
+// Scores are written like the scoresheet box: points of the team owning the box first ("15:11").
+export const emptySubstitutions = () => Array.from({ length: 6 }, () => ({ in: '', scoreIn: '', scoreOut: '' }))
+export const emptyTimeouts = () => ['', '']
+export const normalizeScore = text => {
+  const match = String(text ?? '').match(/^\s*(\d+)\s*[:\s.-]\s*(\d+)\s*$/)
+  return match ? `${Number(match[1])}:${Number(match[2])}` : ''
+}
+// Merge the fifth-set court-change copy into the main panel: same value = same event, empty = new
+// event, different value = conflict (kept as in the main panel and reported through onConflict).
+function mergeCourtChange(main, extra, onConflict) {
+  const merged = main.map(value => (typeof value === 'object' ? { ...value } : value))
+  extra.forEach((value, index) => {
+    if (typeof value === 'object') {
+      for (const field of Object.keys(value)) {
+        if (!value[field]) continue
+        if (!merged[index][field]) merged[index][field] = value[field]
+        else if (merged[index][field] !== value[field]) onConflict(index, field, merged[index][field], value[field])
+      }
+    } else if (value) {
+      if (!merged[index]) merged[index] = value
+      else if (merged[index] !== value) onConflict(index, null, merged[index], value)
+    }
+  })
+  return merged
+}
+
 function cleanJerseyNumber(text) {
   if (!text) return null
   const code = String(text).charCodeAt(0)
@@ -31,7 +66,8 @@ const liberoFields = replacements => {
 
 // SNUG electronic scoresheet, reference geometry normalized to A3 landscape.
 // Values are located by geometry AND font size to exclude printed turn counters.
-export function parseItems(items, width, height, operatorList = null) {
+// options.debug: attach intermediate structures (e.g. the reconstructed fifth set) as match.debug
+export function parseItems(items, width, height, operatorList = null, options = {}) {
   const sx = 1190.55 / width, sy = 841.89 / height
 
   const words = items
@@ -57,8 +93,10 @@ export function parseItems(items, width, height, operatorList = null) {
       .map(v => v.text)
       .join(' ')
 
-  if (words.some(w => /NEWBIT|Referto Elettronico/i.test(w.text))) {
-    return parseFipav(words, width, height, operatorList)
+  // FIPAV grid printed by NEWBIT; older exports (e.g. 2022, iText) lack the NEWBIT footer but carry the
+  // "GaraConCambioCampo=" field and use the same layout
+  if (words.some(w => /NEWBIT|Referto Elettronico|GaraConCambioCampo=/i.test(w.text))) {
+    return parseFipav(words, width, height, operatorList, options)
   }
 
   if (
@@ -66,7 +104,7 @@ export function parseItems(items, width, height, operatorList = null) {
     !words.some(w => w.text.includes('RISULTATO'))
   ) {
     throw Error(
-      'Formato non riconosciuto. È supportato il referto elettronico SNUG come il PDF di esempio; scansioni e altri modelli richiedono un importatore dedicato.',
+      `Formato non riconosciuto. Attualmente sono supportati i formati dei software di ${supportedSoftwareList()}.`,
     )
   }
 
@@ -292,11 +330,44 @@ export function parseItems(items, width, height, operatorList = null) {
         grid[0] = 'X'
       }
 
+      // Substitutions: entrant in the "Riserve" row, scores in/out below it ("3 11": SNUG draws the
+      // colon separately), in the column of the position. Time-outs: "T" box right of the grid.
+      // SNUG redraws struck-out text repeatedly: the first reading of each box is kept.
+      const panelSubstitutions = shift => {
+        const start = 111.4 + offsetX + offset + shift
+        const cells = emptySubstitutions()
+        const columnOf = x => Math.round((x - start) / 28.346)
+        for (const w of words.filter(w => Math.abs(w.y - (187.4 + offsetY)) <= 2.5 && w.size >= 9 && /^\d{1,2}$/.test(w.text))) {
+          const column = columnOf(w.x + 2.8)
+          if (column >= 0 && column < 6 && !cells[column].in) cells[column].in = w.text
+        }
+        for (const [field, y] of [['scoreIn', 200 + offsetY], ['scoreOut', 212.5 + offsetY]]) {
+          for (const w of words.filter(w => Math.abs(w.y - y) <= 2.5 && w.size >= 9 && /^\d+\s+\d+$/.test(w.text))) {
+            const column = columnOf(w.x)
+            if (column >= 0 && column < 6 && !cells[column][field]) cells[column][field] = normalizeScore(w.text)
+          }
+        }
+        return cells
+      }
+      const panelTimeouts = shift => [0, 1].map(row => normalizeScore(words.find(w =>
+        Math.abs(w.x - (281.9 + offsetX + offset + shift)) <= 8 &&
+        Math.abs(w.y - (250.4 + offsetY + row * 12.4)) <= 2.5 && /^\d+\s*:\s*\d+$/.test(w.text))?.text))
+      let substitutions = panelSubstitutions(0)
+      let timeouts = panelTimeouts(0)
+      if (i === 4 && side === 0) {
+        // Fifth set: the court-change panel continues this team (same rules as the turns above)
+        const conflict = () => { throw Error('Quinto set: sostituzione o time-out ambiguo dopo il cambio campo.') }
+        substitutions = mergeCourtChange(substitutions, panelSubstitutions(538.58), conflict)
+        timeouts = mergeCourtChange(timeouts, panelTimeouts(538.58), conflict)
+      }
+
       return {
         name,
         lineup,
         liberoReplacements,
         grid,
+        substitutions,
+        timeouts,
       }
     })
 
@@ -332,6 +403,12 @@ export function parseItems(items, width, height, operatorList = null) {
       opponentLibero: liberoFields(other.liberoReplacements),
       liberoReplacements: own.liberoReplacements,
       opponentLiberoReplacements: other.liberoReplacements,
+      substitutions: own.substitutions,
+      opponentSubstitutions: other.substitutions,
+      substituteNumbers: own.substitutions.map(cell => cell.in).filter(Boolean),
+      opponentSubstituteNumbers: other.substitutions.map(cell => cell.in).filter(Boolean),
+      timeouts: own.timeouts,
+      opponentTimeouts: other.timeouts,
 
       scoreOwn: +scores[0],
       scoreOther: +scores[1],
@@ -475,7 +552,9 @@ export function parseItems(items, width, height, operatorList = null) {
   }
 }
 
-function parseFipav(words, width, height, operatorList) {
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI']
+
+function parseFipav(words, width, height, operatorList, { debug = false } = {}) {
   const text = (x, y, dx = 3, dy = 4) => words
     .filter(w => Math.abs(w.x - x) <= dx && Math.abs(w.y - y) <= dy)
     .sort((a, b) => a.x - b.x)
@@ -578,6 +657,29 @@ function parseFipav(words, width, height, operatorList) {
     const sides = lineupStarts[pair].map(start => readLineup(y + 14, start).filter(Boolean))
     return { own: sides[ownSide], other: sides[1 - ownSide] }
   })
+  // Substitutions: entrant in the "Riserve" row (y+14), scores in and out below it (y+26.7, y+40.7),
+  // in the column of the position. Time-outs: "T" box right of the grid (y+82.8, y+96.9).
+  const scoreWords = words.filter(w => /^\d+\s*:\s*\d+$/.test(w.text))
+  const readSubstitutions = (panelY, start) => {
+    const entrants = readLineup(panelY + 14, start)
+    const cells = entrants.map(number => ({ in: number, scoreIn: '', scoreOut: '' }))
+    for (const [field, dy] of [['scoreIn', 26.7], ['scoreOut', 40.7]]) {
+      for (const w of scoreWords.filter(w => Math.abs(w.y - (panelY + dy)) <= 3 && w.x >= start - 9.5 && w.x < start - 9.5 + 174)) {
+        cells[Math.floor((w.x - (start - 9.5)) / 29)][field] = normalizeScore(w.text)
+      }
+    }
+    return cells
+  }
+  const readTimeouts = (panelY, start) => [0, 1].map(row => normalizeScore(scoreWords.find(w =>
+    Math.abs(w.y - (panelY + 82.8 + row * 14.05)) <= 3 && w.x >= start + 158 && w.x < start + 182)?.text))
+  const substitutions = panelRows.map(({ y, pair, ownSide }) => {
+    const sides = lineupStarts[pair].map(start => readSubstitutions(y, start))
+    return { own: sides[ownSide], other: sides[1 - ownSide] }
+  })
+  const timeouts = panelRows.map(({ y, pair, ownSide }) => {
+    const sides = lineupStarts[pair].map(start => readTimeouts(y, start))
+    return { own: sides[ownSide], other: sides[1 - ownSide] }
+  })
   const liberoStarts = [[305.7, 566.3], [855.9, 1116.5]]
   const liberoSequences = panelRows.map(({ y, pair, ownSide }) => {
     const fields = [
@@ -603,47 +705,162 @@ function parseFipav(words, width, height, operatorList) {
     }
     return { own: fields[ownSide], other: fields[1 - ownSide] }
   })
+  // Service-turn grids. Each column I–VI is 29pt wide and split in two halves (rounds 1–4 left,
+  // rounds 5–8 right, 14.5pt apart); rows are 14pt apart. Values are placed by position, never by
+  // reading order, so the two halves of the fifth set can be merged cell by cell.
   const progressionStarts = [[102.5, 365.4], [652.8, 913.4]]
-  const progressions = panelRows.map(({ y, pair, ownSide }) => {
-    const sides = progressionStarts[pair].map(start => words
-      .filter(w =>
-        w.x > start - 15 && w.x < start + 165 &&
-        w.y > y + 45 && w.y < y + 145 &&
-        w.size >= 7.5 && w.size <= 8.2 && /^\d+$/.test(w.text),
-      )
-      .sort((a, b) => a.y - b.y || a.x - b.x)
-      .map(w => Number(w.text)))
-    return { own: sides[ownSide], other: sides[1 - ownSide] }
-  })
-  const fifthSetContinuation = words
-    .filter(w =>
-      w.x > progressionStarts[1][0] - 15 && w.x < progressionStarts[1][0] + 165 &&
-      w.y > panelRows[4].y + 45 && w.y < panelRows[4].y + 145 &&
+  const warnings = []
+  const warn = (set, team, expected, found, zone, message) =>
+    warnings.push({ set, team, expected, found, zone, message })
+  const teamOfSide = (panel, side) => teams[side === panel.ownSide ? 0 : 1]
+  const readTurnGrid = (panelY, startX) => {
+    const cells = Array(36).fill('')
+    const zones = Array(36).fill(null)
+    const overflow = []
+    for (const w of words.filter(w =>
+      w.x > startX - 15 && w.x < startX + 165 &&
+      w.y > panelY + 45 && w.y < panelY + 145 &&
       w.size >= 7.5 && w.size <= 8.2 && /^\d+$/.test(w.text),
-    )
-    .sort((a, b) => a.y - b.y || a.x - b.x)
-    .map(w => Number(w.text))
-  progressions[4][panelRows[4].ownSide === 0 ? 'own' : 'other'].push(...fifthSetContinuation)
-
-  const sets = scores.map((score, index) => {
-    const own = Array(36).fill('')
-    const other = Array(36).fill('')
-    for (const [target, values] of [[own, progressions[index]?.own], [other, progressions[index]?.other]]) {
-      for (const [cell, value] of (values || []).slice(0, 36).entries()) target[cell] = value
+    )) {
+      const slot = Math.max(0, Math.round((w.x - startX) / 14.475))
+      const column = Math.min(5, Math.floor(slot / 2))
+      const round = Math.round((w.y - (panelY + 56.2)) / 14) + 1 + (slot % 2) * 4
+      const zone = { x: Math.round(w.x * 10) / 10, y: Math.round(w.y * 10) / 10 }
+      const cell = (round - 1) * 6 + column
+      if (round < 1 || cell >= 36) { overflow.push({ value: Number(w.text), zone }); continue }
+      cells[cell] = Number(w.text)
+      zones[cell] = zone
     }
-    // A receiving team's first service slot is crossed out, not a zero turn.
-    // Preserve that slot so subsequent turns stay aligned with the lineup.
-    const panel = panelRows[index]
-    for (const [side, target] of [[panel.ownSide, own], [1 - panel.ownSide, other]]) {
-      const firstX = progressionStarts[panel.pair][side]
-      const firstY = panel.y + 56.2
-      const firstNumber = words.some(w => Math.abs(w.x - firstX) < 6 && Math.abs(w.y - firstY) < 3 && w.size >= 7.5 && w.size <= 8.2 && /^\d+$/.test(w.text))
-      if (!firstNumber && target.some(v => v !== '')) {
-        if (target[35] !== '') throw Error('Troppi turni di servizio nel referto FIPAV.')
-        target.pop()
-        target.unshift('X')
+    return { cells, zones, overflow }
+  }
+  const grids = panelRows.slice(0, scores.length).map(panel =>
+    progressionStarts[panel.pair].map(startX => readTurnGrid(panel.y, startX)))
+
+  // Fifth set court change ("CAMBIO CAMPO" panel, right of set 5): the team named in its header keeps
+  // serving in that grid after the change. Its values continue the same set: merge, never duplicate.
+  let fifthSet = null
+  if (scores.length >= 5) {
+    const panel = panelRows[4]
+    const changeLetter = around(663.3, 429.4, 5, 3).find(w => /^[AB]$/.test(w.text))?.text
+    const changeZone = { x: 663.3, y: 429.4 }
+    const pointsWord = around(803.7, 428.7, 5, 3).find(w => /^\d+$/.test(w.text))
+    const pointsAtChange = pointsWord ? Number(pointsWord.text) : null
+    const continuation = readTurnGrid(panel.y, progressionStarts[1][0])
+    const hasContinuation = continuation.cells.some(v => v !== '')
+    const changingSide = changeLetter ? (changeLetter === teamLetters[panel.ownSide] ? 0 : changeLetter === teamLetters[1 - panel.ownSide] ? 1 : -1) : -1
+    const changingTeam = changingSide >= 0 ? teamOfSide(panel, changingSide) : ''
+    if (hasContinuation && changingSide < 0) {
+      warn(5, '', 'lettera A/B della squadra che cambia campo', changeLetter || 'nessuna', `Set 5 · riquadro CAMBIO CAMPO · intestazione (x≈${changeZone.x}, y≈${changeZone.y})`,
+        'Turni presenti nel riquadro del cambio campo, ma la squadra non è riconoscibile: non vengono uniti al set 5.')
+    }
+    if (hasContinuation && pointsAtChange === null) {
+      warn(5, changingTeam, 'punti al cambio', 'nessun valore', 'Set 5 · riquadro CAMBIO CAMPO · PUNTI AL CAMBIO (x≈803.7, y≈428.7)',
+        'Punteggio al cambio campo non leggibile: i controlli di continuità sono parziali.')
+    }
+    if (changingSide >= 0 && hasContinuation) {
+      const before = grids[4][changingSide]
+      const lastBefore = before.cells.findLastIndex(v => v !== '')
+      const firstAfter = continuation.cells.findIndex(v => v !== '')
+      for (const [cell, value] of continuation.cells.entries()) {
+        if (value === '') continue
+        const where = `Set 5 · CAMBIO CAMPO · turni, giro ${Math.floor(cell / 6) + 1} pos. ${ROMAN[cell % 6]} (x≈${continuation.zones[cell].x}, y≈${continuation.zones[cell].y})`
+        if (before.cells[cell] !== '') {
+          warn(5, changingTeam, 'casella vuota prima del cambio campo', before.cells[cell], where,
+            `Il turno ${value} dopo il cambio campo occupa una casella già usata prima del cambio: valore non unito.`)
+          continue
+        }
+        before.cells[cell] = value
+        before.zones[cell] = { ...continuation.zones[cell], afterCourtChange: true }
+      }
+      // The court-change panel repeats the starting lineup (not a new formation) and may record
+      // substitutions made after the change: keep the set-5 lineup, add those entrants once.
+      const key = changingSide === panel.ownSide ? 'own' : 'other'
+      const repeatedLineup = readLineup(panel.y, lineupStarts[1][0])
+      if (repeatedLineup.some(Boolean) && repeatedLineup.join(' ') !== lineups[4][key].join(' ')) {
+        warn(5, changingTeam, lineups[4][key].join(' '), repeatedLineup.join(' '), `Set 5 · CAMBIO CAMPO · giocatori titolari (x≈${lineupStarts[1][0]}, y≈${panel.y})`,
+          'La formazione riportata nel riquadro del cambio campo è diversa da quella di inizio set: vale quella di inizio set.')
+      }
+      for (const number of readLineup(panel.y + 14, lineupStarts[1][0]).filter(Boolean)) {
+        if (!substitutes[4][key].includes(number)) substitutes[4][key].push(number)
+      }
+      // NEWBIT copies earlier substitutions/time-outs into the court-change panel and adds new ones
+      const fields = { in: 'numero entrato', scoreIn: 'punteggio entrata', scoreOut: 'punteggio rientro' }
+      substitutions[4][key] = mergeCourtChange(substitutions[4][key], readSubstitutions(panel.y, lineupStarts[1][0]),
+        (column, field, kept, found) => warn(5, changingTeam, kept, found, `Set 5 · CAMBIO CAMPO · sostituzioni, pos. ${ROMAN[column]}`,
+          `Sostituzione (${fields[field]}) diversa da quella del pannello del set: vale quella del pannello del set.`))
+      timeouts[4][key] = mergeCourtChange(timeouts[4][key], readTimeouts(panel.y, lineupStarts[1][0]),
+        (row, _field, kept, found) => warn(5, changingTeam, kept, found, `Set 5 · CAMBIO CAMPO · time-out, riga ${row + 1}`,
+          'Time-out diverso da quello del pannello del set: vale quello del pannello del set.'))
+      if (lastBefore >= 0 && firstAfter >= 0 && firstAfter <= lastBefore) {
+        warn(5, changingTeam, `primo turno dopo il cambio oltre giro ${Math.floor(lastBefore / 6) + 1} pos. ${ROMAN[lastBefore % 6]}`,
+          `giro ${Math.floor(firstAfter / 6) + 1} pos. ${ROMAN[firstAfter % 6]}`, 'Set 5 · CAMBIO CAMPO · turni',
+          'La prosecuzione dopo il cambio campo non segue l\'ultimo turno prima del cambio.')
+      }
+      if (pointsAtChange !== null && lastBefore >= 0 && Number(before.cells[lastBefore]) > pointsAtChange) {
+        warn(5, changingTeam, `≤ ${pointsAtChange} (punti al cambio)`, before.cells[lastBefore], 'Set 5 · turni prima del cambio campo',
+          'Un turno prima del cambio campo supera i punti al cambio.')
+      }
+      if (pointsAtChange !== null && firstAfter >= 0 && continuation.cells[firstAfter] < pointsAtChange) {
+        warn(5, changingTeam, `≥ ${pointsAtChange} (punti al cambio)`, continuation.cells[firstAfter], 'Set 5 · CAMBIO CAMPO · primo turno',
+          'Il primo turno dopo il cambio campo è inferiore ai punti al cambio.')
       }
     }
+    fifthSet = { panel, changingSide, changingTeam, changeLetter, pointsAtChange, hasContinuation }
+  }
+
+  // A receiving team's first service slot is crossed out ("X"), not a zero turn.
+  const progressions = grids.map((sides, index) => {
+    const panel = panelRows[index]
+    return sides.map(({ cells }) => {
+      const out = [...cells]
+      if (out[0] === '' && out.some(v => v !== '')) out[0] = 'X'
+      return out
+    }).reduce((acc, cells, side) => ({ ...acc, [side === panel.ownSide ? 'own' : 'other']: cells }), {})
+  })
+
+  // Consistency checks on the reconstructed sequences: report, never repair.
+  progressions.forEach((sides, index) => {
+    const panel = panelRows[index]
+    for (const side of [0, 1]) {
+      const key = side === panel.ownSide ? 'own' : 'other'
+      const cells = sides[key]
+      const team = teamOfSide(panel, side)
+      const final = key === 'own' ? scores[index].own : scores[index].other
+      const zone = `Set ${index + 1} · turni di servizio ${team}`
+      const last = cells.findLastIndex(v => v !== '')
+      for (const { value, zone: z } of grids[index][side].overflow) {
+        warn(index + 1, team, 'massimo 6 giri di servizio', value, `${zone} (x≈${z.x}, y≈${z.y})`, 'Turno oltre il 6° giro: non importato.')
+      }
+      let previous = -1
+      for (let cell = 0; cell <= last; cell++) {
+        const value = cells[cell]
+        if (value === 'X' && cell === 0) continue
+        if (value === '') {
+          warn(index + 1, team, 'turno compilato', 'casella vuota', `${zone}, giro ${Math.floor(cell / 6) + 1} pos. ${ROMAN[cell % 6]}`,
+            'Casella vuota in mezzo alla sequenza dei turni.')
+          continue
+        }
+        if (value <= previous) {
+          warn(index + 1, team, `> ${previous}`, value, `${zone}, giro ${Math.floor(cell / 6) + 1} pos. ${ROMAN[cell % 6]}`,
+            'I progressivi dei turni devono crescere.')
+        }
+        previous = value
+      }
+      if (last >= 0 && cells[last] !== final) {
+        warn(index + 1, team, final, cells[last], `${zone}, ultimo turno · confronto con RISULTATO FINALE`,
+          'L\'ultimo progressivo non coincide con il punteggio del set.')
+      }
+    }
+    const servers = [0, 1].filter(side => (sides[side === panel.ownSide ? 'own' : 'other'])[0] !== 'X')
+    if (servers.length !== 1) {
+      warn(index + 1, '', 'una sola squadra al servizio per prima (una sola "X")', servers.length === 2 ? 'nessuna X' : 'due X',
+        `Set ${index + 1} · prima casella dei turni`, 'Squadra al servizio a inizio set non determinabile.')
+    }
+  })
+
+  const sets = scores.map((score, index) => {
+    const own = progressions[index]?.own || Array(36).fill('')
+    const other = progressions[index]?.other || Array(36).fill('')
     return {
       number: index + 1,
       rotation: '',
@@ -651,6 +868,10 @@ function parseFipav(words, width, height, operatorList) {
       other,
       substituteNumbers: substitutes[index]?.own || [],
       opponentSubstituteNumbers: substitutes[index]?.other || [],
+      substitutions: substitutions[index]?.own || emptySubstitutions(),
+      opponentSubstitutions: substitutions[index]?.other || emptySubstitutions(),
+      timeouts: timeouts[index]?.own || emptyTimeouts(),
+      opponentTimeouts: timeouts[index]?.other || emptyTimeouts(),
       lineup: lineups[index]?.own || ['', '', '', '', '', ''],
       opponentLineup: lineups[index]?.other || ['', '', '', '', '', ''],
       libero: liberoSequences[index]?.own || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
@@ -681,6 +902,48 @@ function parseFipav(words, width, height, operatorList) {
     referees: { first: '', firstCity: '', second: '', scorer: '', scorerCity: '' },
     roster: roster[0].sort((a, b) => a.number - b.number),
     opponentRoster: roster[1].sort((a, b) => a.number - b.number),
+    importWarnings: warnings,
+    ...(debug && fifthSet ? { debug: { fifthSet: fifthSetDebug(fifthSet, sets[4], teams, teamLetters, grids[4]) } } : {}),
+  }
+}
+
+// Readable intermediate structure of the fifth set, for debugging and tests.
+// Chronological order follows the scoresheet rule: the serving team's turn k precedes the
+// receiving team's turn k+1 ("X" marks the receiving team's first box).
+function fifthSetDebug(fifth, set, teams, teamLetters, grids) {
+  const byLetter = letter => teams[teamLetters.indexOf(letter)]
+  const lineupOf = name => name === teams[0] ? set.lineup : set.opponentLineup
+  const cellsOf = name => name === teams[0] ? set.own : set.other
+  const serverName = [teams[0], teams[1]].find(name => cellsOf(name)[0] !== 'X') || ''
+  const turns = []
+  for (const name of teams) {
+    const side = name === teams[0] ? fifth.panel.ownSide : 1 - fifth.panel.ownSide
+    for (const [cell, value] of cellsOf(name).entries()) {
+      if (value === '' || value === 'X') continue
+      const zone = grids[side].zones[cell]
+      turns.push({
+        team: name,
+        round: Math.floor(cell / 6) + 1,
+        position: ROMAN[cell % 6],
+        cell,
+        score: value,
+        afterCourtChange: Boolean(zone?.afterCourtChange),
+        order: name === serverName ? cell * 2 : cell * 2 - 1,
+      })
+    }
+  }
+  return {
+    set: 5,
+    teamA: byLetter('A'),
+    teamB: byLetter('B'),
+    startingServer: serverName,
+    lineupA: lineupOf(byLetter('A')),
+    lineupB: lineupOf(byLetter('B')),
+    courtChange: fifth.hasContinuation ? { team: fifth.changingTeam, letter: fifth.changeLetter } : null,
+    // Only the value printed on the scoresheet ("PUNTI AL CAMBIO") for the team that changes court
+    scoreAtCourtChange: fifth.pointsAtChange !== null && fifth.changingTeam ? { [fifth.changingTeam]: fifth.pointsAtChange } : {},
+    serviceTurns: turns.sort((a, b) => a.order - b.order),
+    finalScore: { [teams[0]]: set.scoreOwn, [teams[1]]: set.scoreOther },
   }
 }
 
@@ -756,10 +1019,15 @@ export function refreshImportedMatch(existing, parsed) {
       libero: (!repairParticipation && set.libero) || (reversed ? parsed.sets[index]?.opponentLibero : parsed.sets[index]?.libero) || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
       opponentLibero: (!repairParticipation && set.opponentLibero) || (reversed ? parsed.sets[index]?.libero : parsed.sets[index]?.opponentLibero) || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
       durationMinutes: Number(set.durationMinutes) > 0 ? set.durationMinutes : parsed.sets[index]?.durationMinutes ?? '',
+      substitutions: set.substitutions?.some(cell => cell.in || cell.scoreIn || cell.scoreOut) ? set.substitutions : (reversed ? parsed.sets[index]?.opponentSubstitutions : parsed.sets[index]?.substitutions) ?? emptySubstitutions(),
+      opponentSubstitutions: set.opponentSubstitutions?.some(cell => cell.in || cell.scoreIn || cell.scoreOut) ? set.opponentSubstitutions : (reversed ? parsed.sets[index]?.substitutions : parsed.sets[index]?.opponentSubstitutions) ?? emptySubstitutions(),
+      timeouts: set.timeouts?.some(Boolean) ? set.timeouts : (reversed ? parsed.sets[index]?.opponentTimeouts : parsed.sets[index]?.timeouts) ?? emptyTimeouts(),
+      opponentTimeouts: set.opponentTimeouts?.some(Boolean) ? set.opponentTimeouts : (reversed ? parsed.sets[index]?.timeouts : parsed.sets[index]?.opponentTimeouts) ?? emptyTimeouts(),
       liberoReplacements: (repairTeams ? null : set.liberoReplacements) ?? (reversed ? parsed.sets[index]?.opponentLiberoReplacements : parsed.sets[index]?.liberoReplacements) ?? [],
       opponentLiberoReplacements: (repairTeams ? null : set.opponentLiberoReplacements) ?? (reversed ? parsed.sets[index]?.liberoReplacements : parsed.sets[index]?.opponentLiberoReplacements) ?? [],
     })),
     roster: merge(reversed ? parsed.opponentRoster : parsed.roster, existing.roster),
     opponentRoster: merge(reversed ? parsed.roster : parsed.opponentRoster, existing.opponentRoster),
+    importWarnings: parsed.importWarnings || [],
   }
 }
