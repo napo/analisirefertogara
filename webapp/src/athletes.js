@@ -1,5 +1,7 @@
-const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '', setterRole: '' }
-const isSetter = player => Boolean(player.isSetter || player.setterRole === 'P1' || player.setterRole === 'P2')
+export const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '', setterRole: '' }
+export const isSetter = player => Boolean(player.isSetter || player.setterRole === 'P1' || player.setterRole === 'P2')
+// Player at the service for a service-grid cell, estimated from the starting lineup (substitutions not applied)
+export const servingNumber = (lineup, cell) => lineup?.[cell % 6]
 const liberoValues = (libero, key) => Array.isArray(libero?.[key])
   ? [...libero[key], '', '', '', '', '', ''].slice(0, 6)
   : Array(6).fill(libero?.[key] || '')
@@ -81,7 +83,7 @@ const matchAthleteStats = matches => {
         if (value === '' || value === null || value === undefined) continue
         if (value === 'X' || value === 'x') { previous = 0; continue }
         if (!Number.isInteger(value)) continue
-        const playerNumber = set.lineup?.[index % 6]
+        const playerNumber = servingNumber(set.lineup, index)
         if (playerNumber === '' || playerNumber === undefined) { previous = value; continue }
         const number = norm(playerNumber)
         if (!stats.has(number)) {

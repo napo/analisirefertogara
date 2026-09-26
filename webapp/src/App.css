@@ -365,18 +365,26 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
+/* Long match names must not widen the page on phones */
 .vs-select-wrap {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
   font-size: 0.9rem;
   color: var(--vs-text);
   font-family: var(--vs-font-nav);
 }
 
 .vs-select-wrap select {
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
   background: var(--vs-bg);
   border: 1px solid var(--vs-border);
   border-radius: 0.4rem;
@@ -425,6 +433,15 @@
 
 .vs-metric-card.accent-teal {
   border-top: 3px solid var(--vs-teal);
+}
+
+/* Phase cards: same BP/CP colors as the charts */
+.vs-metric-card.accent-bp {
+  border-top: 3px solid var(--vs-bp);
+}
+
+.vs-metric-card.accent-cp {
+  border-top: 3px solid var(--vs-cp);
 }
 
 .vs-metric-card.accent-neutral {
@@ -738,6 +755,351 @@
   border: 2px solid #C62828;
   background: #FFEBEE;
   color: #C62828;
+}
+
+/* Andamento della gara */
+.vs-flow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.vs-flow-head .vs-card-title {
+  margin: 0;
+}
+
+.vs-flow-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.vs-flow-tab {
+  border: 1px solid var(--vs-border);
+  background: var(--vs-surface);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--vs-heading);
+  cursor: pointer;
+}
+
+.vs-flow-tab span {
+  color: var(--vs-muted);
+  font-weight: 500;
+}
+
+.vs-flow-tab.active {
+  background: var(--vs-accent);
+  border-color: var(--vs-accent);
+  color: var(--vs-accent-contrast);
+}
+
+.vs-flow-tab.active span {
+  color: inherit;
+}
+
+.vs-flow-views {
+  display: inline-flex;
+  border: 1px solid var(--vs-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.vs-flow-view {
+  border: 0;
+  background: var(--vs-surface);
+  padding: 0.3rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--vs-muted);
+  cursor: pointer;
+}
+
+.vs-flow-view + .vs-flow-view {
+  border-left: 1px solid var(--vs-border);
+}
+
+.vs-flow-view.active {
+  background: var(--vs-accent);
+  color: var(--vs-accent-contrast);
+}
+
+.vs-flow-interactive .vs-flow-tabs {
+  margin-bottom: 0.5rem;
+}
+
+/* "Tutti i set": one block per set, one under the other, never side by side */
+.vs-flow-set {
+  padding: 0.6rem 0 0.8rem;
+  border-top: 1px solid var(--vs-border);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.vs-flow-set-title {
+  font-size: 0.9rem;
+  margin: 0;
+  color: var(--vs-heading);
+}
+
+.vs-flow-set-title span {
+  margin-left: 0.35rem;
+}
+
+.vs-flow-set-title .won { color: #2E7D32; }
+.vs-flow-set-title .lost { color: #C62828; }
+
+.vs-flow-set-reading {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--vs-heading);
+}
+
+.vs-flow-scale-note {
+  margin-bottom: 0.4rem;
+}
+
+/* Controls: compact and collapsible, secondary to the chart */
+.vs-flow-options {
+  font-size: 0.76rem;
+  margin-bottom: 0.4rem;
+  color: var(--vs-text);
+}
+
+.vs-flow-options summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--vs-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vs-flow-active {
+  background: var(--vs-orange-soft);
+  color: var(--vs-heading);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-weight: 600;
+}
+
+.vs-flow-options-body {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--vs-border);
+  border-radius: 0.4rem;
+}
+
+.vs-flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.35rem;
+}
+
+.vs-flow-row-label {
+  width: 3.4rem;
+  font-weight: 700;
+  color: var(--vs-heading);
+  text-transform: uppercase;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+}
+
+.vs-flow-filter-name {
+  font-weight: 600;
+  margin-right: 0.15rem;
+  min-width: 2.8rem;
+}
+
+.vs-flow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.45rem 0.05rem 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--vs-border);
+  cursor: pointer;
+  color: var(--vs-muted);
+}
+
+.vs-flow-chip.on {
+  color: var(--vs-heading);
+  border-color: var(--vs-border-hover);
+}
+
+.vs-flow-chip input {
+  margin: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.vs-flow-chip.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.vs-flow-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--vs-border);
+  background: var(--vs-surface);
+  border-radius: 0.3rem;
+  padding: 0.05rem 0.4rem;
+  font: inherit;
+  cursor: pointer;
+  color: var(--vs-text);
+}
+
+.vs-flow-seg i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.vs-flow-seg.active {
+  border-color: var(--vs-accent);
+  color: var(--vs-heading);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--vs-accent);
+}
+
+.vs-flow-seg:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.vs-flow-chart {
+  width: 100%;
+}
+
+.vs-flow-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
+  font-size: 0.72rem;
+  color: var(--vs-muted);
+  margin: 0.1rem 0 0;
+}
+
+.vs-flow-notice {
+  background: #FFF8E1;
+  border: 1px solid #FFB300;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.76rem;
+  color: #6D4C00;
+  margin: 0 0 0.4rem;
+}
+
+.vs-flow-footnote {
+  font-size: 0.72rem;
+  color: var(--vs-muted);
+  margin: 0.3rem 0 0;
+}
+
+.vs-flow-reading {
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--vs-border);
+}
+
+.vs-flow-reading h3 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vs-heading);
+  margin: 0 0 0.3rem;
+}
+
+.vs-flow-reading p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--vs-heading);
+}
+
+/* PDF export and print: always "Tutti i set" (see MatchFlow), no interactive controls */
+.vs-pdf-export .vs-flow-views,
+.vs-pdf-export .vs-flow-tabs,
+.vs-pdf-export .vs-flow-options,
+.vs-flow-printing .vs-flow-views {
+  display: none;
+}
+
+.vs-flow-match-reading {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+@media print {
+  .vs-flow-views,
+  .vs-flow-tabs,
+  .vs-flow-options {
+    display: none !important;
+  }
+  .vs-flow-set,
+  .vs-flow-match-reading {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Observations ("OSSERVAZIONI" box of the scoresheet) */
+.vs-notes-field {
+  margin-bottom: 1.25rem;
+}
+
+.vs-notes-field textarea {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--vs-border);
+  border-radius: 0.4rem;
+  box-sizing: border-box;
+}
+
+.vs-notes-box {
+  background: var(--vs-orange-soft);
+  border: 1px solid var(--vs-border);
+  border-left: 4px solid var(--vs-orange);
+  border-radius: var(--vs-radius);
+  padding: 0.75rem 1.1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.86rem;
+  color: var(--vs-heading);
+}
+
+.vs-notes-box p {
+  margin: 0.3rem 0 0;
+  white-space: pre-line;
+}
+
+.vs-notes-match {
+  font-weight: 600;
+}
+
+.vs-notes-preview {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--vs-muted);
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Substitutions ("Riserve N°" and "Punteggio al cambio" on the scoresheet) */

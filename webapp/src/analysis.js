@@ -55,6 +55,10 @@ function calculateGridPoints(grid) {
  * - Statistiche cambio palla (CP) e ricezione
  * - Atleti coinvolti, punti fatti, punti subiti, vittorie
  */
+// P1..P6 (as index 0..5) of the analyzed team for a service-grid column, given the starting rotation.
+// Used by the rotation statistics and by the match flow, so both read the same P.
+export const rotationIndexForColumn = (startRotation, column) => ((Number(startRotation) || 1) - column - 1 + 12) % 6
+
 export function analyze(matches) {
   const rotTurns = [0, 0, 0, 0, 0, 0]
   const rotPoints = [0, 0, 0, 0, 0, 0]
@@ -63,13 +67,12 @@ export function analyze(matches) {
 
   for (const m of matches) {
     for (const s of (m.sets || []).slice(0, 5)) {
-      const startRot = Number(s.rotation) || 1
       const ownRes = calculateGridPoints(s.own || [])
       const otherRes = calculateGridPoints(s.other || [])
 
       for (let c = 0; c < 6; c++) {
-        // La rotazione P1..P6 per la colonna c in base alla rotazione iniziale startRot
-        const rot = (startRot - c - 1 + 12) % 6 // indice 0..5 per P1..P6
+        // La rotazione P1..P6 per la colonna c in base alla rotazione iniziale del set
+        const rot = rotationIndexForColumn(s.rotation, c) // indice 0..5 per P1..P6
         rotTurns[rot] += ownRes.turns[c]
         rotPoints[rot] += ownRes.points[c]
         rotConcededTurns[rot] += otherRes.turns[c]

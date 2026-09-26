@@ -38,6 +38,8 @@ test('tie-break match: teams, 3-2 result and all partials', () => {
   assert.deepEqual([m.sets.filter(s => s.scoreOwn > s.scoreOther).length, m.sets.filter(s => s.scoreOther > s.scoreOwn).length], [3, 2])
   assert.deepEqual(validateMatch(m), [])
   assert.deepEqual(m.importWarnings, [])
+  // "OSSERVAZIONI" box (anonymized in the fixture: the original note reports an injury)
+  assert.equal(m.notes, 'OSSERVAZIONE')
 })
 
 test('fifth set is one continuous set across the court change', () => {

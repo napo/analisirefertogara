@@ -1,12 +1,14 @@
-// Each opponent service turn is a reception phase for the analyzed team.
-// Remove the opponent's point that won service; it was played on our serve.
+// Points won on own serve (break points) from a service grid.
+// Every turn starts with the side-out point won in reception: it is removed (-1). The first box (I, 1st
+// round) of the team serving first has no side-out, the set starts on its serve: counted in full, as in
+// the Excel model (cell U9 = D9, while V9 = E9-D9-1).
 export function servicePoints(progressions = []) {
   let previous = 0
   let points = 0
-  for (const value of progressions) {
+  for (const [index, value] of progressions.entries()) {
     if (value === 'X') continue
     if (!Number.isInteger(value)) continue
-    points += Math.max(0, value - previous - 1)
+    points += Math.max(0, value - previous - (index === 0 ? 0 : 1))
     previous = value
   }
   return points

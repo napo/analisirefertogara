@@ -52,6 +52,14 @@ test('SNUG: substitutions and time-outs are read per position', () => {
   assert.deepEqual(match.sets[2].substituteNumbers, ['11', '17'])
 })
 
+test('observations box is kept, also after re-import when edited by hand', () => {
+  const match = parse()
+  assert.equal(match.notes, 'Alle ore 17.30 si osserva un minuto di silenzio -')
+  const edited = { ...applySetter(match), notes: 'Nota corretta a mano' }
+  assert.equal(refreshImportedMatch(edited, parse()).notes, 'Nota corretta a mano')
+  assert.equal(refreshImportedMatch({ ...edited, notes: '' }, parse()).notes, match.notes)
+})
+
 test('substitutions and time-outs are validated', () => {
   const match = applySetter(parse())
   const withSet = patch => ({ ...match, sets: [{ ...match.sets[0], ...patch }, ...match.sets.slice(1)] })

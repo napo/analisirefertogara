@@ -33,6 +33,22 @@ function mergeCourtChange(main, extra, onConflict) {
   return merged
 }
 
+// Free text of the "OSSERVAZIONI" box, line by line (words on the same baseline joined by spaces).
+// SNUG redraws text repeatedly: identical lines are kept once.
+function readNotes(words, { xMin, xMax, yMin, yMax }) {
+  const lines = []
+  for (const word of words
+    .filter(w => w.x >= xMin && w.x < xMax && w.y > yMin && w.y < yMax && !/^OSSERVAZIONI$/i.test(w.text))
+    .sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const line = lines.find(entry => Math.abs(entry.y - word.y) <= 2)
+    if (line) line.words.push(word)
+    else lines.push({ y: word.y, words: [word] })
+  }
+  return [...new Set(lines.map(line => line.words.sort((a, b) => a.x - b.x).map(w => w.text).join(' ').replace(/\s+/g, ' ').trim()))]
+    .filter(Boolean)
+    .join('\n')
+}
+
 function cleanJerseyNumber(text) {
   if (!text) return null
   const code = String(text).charCodeAt(0)
@@ -547,6 +563,7 @@ export function parseItems(items, width, height, operatorList = null, options = 
       scorerCity: scorerCity || '',
     },
 
+    notes: readNotes(words, { xMin: 195, xMax: 660, yMin: 566, yMax: 662 }),
     roster: [...rosters[0].values()].sort((a, b) => a.number - b.number),
     opponentRoster: [...rosters[1].values()].sort((a, b) => a.number - b.number),
   }
@@ -900,6 +917,7 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
     number: text(284.9, 50.5, 35),
     sets,
     referees: { first: '', firstCity: '', second: '', scorer: '', scorerCity: '' },
+    notes: readNotes(words, { xMin: 195, xMax: 560, yMin: 585, yMax: 695 }),
     roster: roster[0].sort((a, b) => a.number - b.number),
     opponentRoster: roster[1].sort((a, b) => a.number - b.number),
     importWarnings: warnings,
@@ -1029,5 +1047,6 @@ export function refreshImportedMatch(existing, parsed) {
     roster: merge(reversed ? parsed.opponentRoster : parsed.roster, existing.roster),
     opponentRoster: merge(reversed ? parsed.roster : parsed.opponentRoster, existing.opponentRoster),
     importWarnings: parsed.importWarnings || [],
+    notes: existing.notes?.trim() ? existing.notes : parsed.notes || '',
   }
 }

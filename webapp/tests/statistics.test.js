@@ -3,9 +3,12 @@ import { test } from 'node:test'
 import { formatDuration, formatWins, matchDuration } from '../src/format.js'
 import { receptionStats, servicePoints } from '../src/reception.js'
 
-test('service points subtract one point from every service turn', () => {
-  assert.equal(servicePoints([2, 3, 6]), 3)
+test('service points subtract the side-out point from every turn except the set\'s first serve', () => {
+  // Serving first: 0-0 -> 2 on own serve (2), then side-out + 0 (0), side-out + 2 (2), as Excel U9 = D9
+  assert.equal(servicePoints([2, 3, 6]), 4)
+  // Receiving first (box I crossed out): every turn starts with a side-out
   assert.equal(servicePoints(['X', 2, 3, 6]), 3)
+  assert.equal(servicePoints([0, 3]), 2)
 })
 
 test('durations are readable with correct singulars and missing values', () => {

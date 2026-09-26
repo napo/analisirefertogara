@@ -12,6 +12,8 @@ import { duplicateLineupNumbers, validateMatch } from './analysis'
 import { formatDuration, formatWins, matchDuration } from './format'
 import { emptyFilters, matchHeading } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
+import MatchFlow from './MatchFlow'
+import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
 import './App.css'
 
@@ -152,14 +154,15 @@ function MainApp() {
 
       // Fixed desktop layout during capture, independent of the current window size
       el.classList.add('vs-pdf-export')
-      await new Promise(resolve => setTimeout(resolve, 350)) // let charts resize via ResizeObserver
+      // let charts resize via ResizeObserver and "Andamento della gara" switch to "Tutti i set"
+      await new Promise(resolve => setTimeout(resolve, 700))
 
       const containerTop = el.getBoundingClientRect().top
       const cssWidth = el.offsetWidth
       // Page breaks: after blocks, or inside a table body keeping at least 3 rows before and 2 after the cut
       const tableRows = [...el.querySelectorAll('tbody')].flatMap(tbody => [...tbody.rows].slice(2, -2))
       const breakPoints = [...new Set(
-        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid'), ...tableRows]
+        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, .vs-flow-set, .vs-flow-match-reading'), ...tableRows]
           .map(node => Math.round(node.getBoundingClientRect().bottom - containerTop))
       )].sort((a, b) => a - b)
 
@@ -296,7 +299,7 @@ function MainApp() {
 
   // ECharts default styling for Referto Volley
   const baseChart = useMemo(() => ({
-    color: ['#011627', '#E65100', '#028090'],
+    color: CHART_SERIES_COLORS,
     aria: { enabled: true },
     tooltip: {
       trigger: 'axis',
@@ -733,6 +736,11 @@ function MainApp() {
                               {m.referees?.first && (
                                 <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--vs-muted)' }}>
                                   1° Arb: {m.referees.first} {m.referees.scorer ? `· Segn: ${m.referees.scorer}` : ''}
+                                </span>
+                              )}
+                              {m.notes?.trim() && (
+                                <span className="vs-notes-preview" title={m.notes.trim()}>
+                                  📝 {m.notes.trim().split('\n')[0]}
                                 </span>
                               )}
                             </td>
@@ -1184,6 +1192,18 @@ function MainApp() {
                   </div>
                 )}
 
+                {visibleMatches.some(m => m.notes?.trim()) && (
+                  <div className="vs-notes-box">
+                    <strong>Osservazioni dal referto</strong>
+                    {visibleMatches.filter(m => m.notes?.trim()).map(m => (
+                      <p key={m.id}>
+                        {!isSingleMatch && <span className="vs-notes-match">{m.team} vs {m.opponent} · {m.date.split('-').reverse().join('/')}: </span>}
+                        {m.notes.trim()}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
                 {/* Metric Cards */}
                 <div className="vs-metrics-grid">
                   {isSingleMatch && (
@@ -1230,19 +1250,19 @@ function MainApp() {
                     <span className="vs-metric-detail">indica la differenza fra i punti fatti e quelli subiti</span>
                   </div>
 
-                  <div className="vs-metric-card accent-orange">
+                  <div className="vs-metric-card accent-bp">
                     <span className="vs-metric-label">Punti in fase break point (BP)</span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.breakPoints ?? '–'}</strong>
                     <span className="vs-metric-detail">punti conquistati dalla squadra mentre è al servizio</span>
                   </div>
 
-                  <div className="vs-metric-card accent-teal">
+                  <div className="vs-metric-card accent-cp">
                     <span className="vs-metric-label">Punti conquistati in fase cambio palla (CP)</span>
                     <strong className="vs-metric-value">{aggregatedAnalysis.reception.pointsInReception}</strong>
                     <span className="vs-metric-detail">punti conquistati dalla squadra mentre è in ricezione</span>
                   </div>
 
-                  <div className="vs-metric-card accent-teal">
+                  <div className="vs-metric-card accent-cp">
                     <span className="vs-metric-label">Scambi in ricezione per cambio palla</span>
                     <strong className="vs-metric-value">
                       {aggregatedAnalysis.reception.meanRallies === null ? '–' : fmt(aggregatedAnalysis.reception.meanRallies)}
@@ -1273,6 +1293,11 @@ function MainApp() {
                     option={trendOption}
                   />
                 </div>
+
+                {/* Andamento della gara: only for a single match */}
+                {isSingleMatch && visibleMatches[0] && (
+                  <MatchFlow match={visibleMatches[0]} female={isFemaleAnalysis} printing={exportingPdf} />
+                )}
 
                 {/* Rotations Table */}
                 <div className="vs-card">
@@ -1555,6 +1580,11 @@ function MainApp() {
                                 {m.referees?.first && (
                                   <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--vs-muted)' }}>
                                     👨‍⚖️ 1° Arb: {m.referees.first} {m.referees.scorer ? `· Segn: ${m.referees.scorer}` : ''}
+                                  </span>
+                                )}
+                                {m.notes?.trim() && (
+                                  <span className="vs-notes-preview" title={m.notes.trim()}>
+                                    📝 {m.notes.trim().split('\n')[0]}
                                   </span>
                                 )}
                               </td>
@@ -2315,6 +2345,18 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           </div>
         </div>
       </details>
+
+      {/* Osservazioni del referto */}
+      <div className="vs-field vs-notes-field">
+        <label htmlFor="draft-notes">Osservazioni</label>
+        <textarea
+          id="draft-notes"
+          rows={3}
+          placeholder="Note riportate nel riquadro OSSERVAZIONI del referto (es. infortuni, ritardi, minuti di silenzio)"
+          value={draft.notes || ''}
+          onChange={e => setDraft({ ...draft, notes: e.target.value })}
+        />
+      </div>
 
       {/* Set by set editor */}
       {draft.sets.map((setObj, index) => (

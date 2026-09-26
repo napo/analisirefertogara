@@ -42,6 +42,7 @@ export function createBlankMatch() {
     gender: '',
     roster: [],
     opponentRoster: [],
+    notes: '',
     fileName: 'Compilazione manuale',
     isManual: true,
     referees: {
