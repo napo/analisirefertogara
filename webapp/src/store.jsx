@@ -247,7 +247,12 @@ export function MatchStoreProvider({ children }) {
     setBusy(true)
     setError('')
     try {
-      const singleAnalysis = analyze([customDraft])
+      let singleAnalysis = null
+      try {
+        singleAnalysis = analyze([customDraft])
+      } catch (calcErr) {
+        console.warn('Avviso calcolo analisi per gara:', calcErr)
+      }
       const persistedMatch = { ...customDraft }
       delete persistedMatch.analysis
       await dbSaveMatch(persistedMatch)
@@ -265,6 +270,7 @@ export function MatchStoreProvider({ children }) {
       setMessage(`Gara ${customDraft.team} vs ${customDraft.opponent} salvata nell’archivio locale del browser.`)
       return true
     } catch (e) {
+      console.error(e)
       setError(`Salvataggio non riuscito: ${e.message}`)
       return false
     } finally {

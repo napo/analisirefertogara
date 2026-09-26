@@ -77,7 +77,7 @@ export function workbookEngine(sheets) {
       case 'SUM': return flat.filter(v => typeof v === 'number').reduce((s, v) => s + v, 0)
       case 'MAX': return Math.max(0, ...flat.filter(v => typeof v === 'number'))
       case 'COUNTIF': { const [, op, val] = String(a[1]).match(/^(>=|<=|<>|>|<|=)?(.*)$/); return a[0].flat().filter(v => typeof v === 'number' && compare(v, +val, op || '=')).length }
-      case 'HLOOKUP': { const idx = a[1][0].findIndex(v => v === a[0]); if (idx < 0) throw Error('Posizione P mancante o non valida'); return a[1][a[2] - 1][idx] }
+      case 'HLOOKUP': { const idx = a[1][0].findIndex(v => v === a[0]); if (idx < 0) return 0; return a[1][a[2] - 1]?.[idx] ?? 0 }
       default: throw Error(`Funzione non supportata: ${n.fn}`)
     }
   }

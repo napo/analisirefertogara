@@ -1,3 +1,13 @@
+function cleanJerseyNumber(text) {
+  if (!text) return null
+  const code = String(text).charCodeAt(0)
+  if (code >= 0x2460 && code <= 0x2473) return code - 0x2460 + 1
+  if (code >= 0x24ea && code <= 0x24ff) return code - 0x24ea
+  const digits = String(text).replace(/[^0-9]/g, '')
+  if (digits && digits.length <= 2) return Number(digits)
+  return null
+}
+
 const emptyLibero = () => ({
   onCourt: Array(6).fill(''),
   entered: Array(6).fill(''),
@@ -80,21 +90,57 @@ export function parseItems(items, width, height, operatorList = null) {
   const date = dateText.split('/').reverse().join('-')
 
   const sets = []
-  // The printed roster columns can have the opposite order to the result table.
-  const rosters = teams.map(team => {
-    const header = words.find(w => w.text === team && Math.abs(w.y - 425.36) <= 3 && w.x > 930)
-    if (!header) return new Map()
-    const left = header.x < 1030 ? 908 : 1032
-    const right = left + 123
-    const players = words.filter(w =>
-      w.x >= left && w.x < left + 18 && w.y > 445 && w.y < 638 && /^\d{1,2}$/.test(w.text),
-    ).map(w => ({
-      number: Number(w.text),
-      name: words.filter(n => n.x >= left + 20 && n.x < right && Math.abs(n.y - w.y) <= 2)
-        .sort((a, b) => a.x - b.x).map(n => n.text).join(' ').trim(),
-    }))
-    return new Map(players.map(player => [player.number, player]))
+  // Extract players from both printed roster columns (normalized geometry x: 900..1180, y: 445..640)
+  // Left column: x ~ 905..1030. Right column: x ~ 1030..1180.
+  // The circled numbers in the scoresheet denote the captains; cleanJerseyNumber extracts the jersey number.
+  const colBounds = [
+    { left: 905, right: 1030, numMaxX: 928, nameMinX: 928 },
+    { left: 1030, right: 1180, numMaxX: 1052, nameMinX: 1052 },
+  ]
+  const extractedColumns = colBounds.map(col => {
+    const numberWords = words.filter(w =>
+      w.x >= col.left && w.x < col.numMaxX && w.y >= 445 && w.y <= 638 &&
+      cleanJerseyNumber(w.text) !== null,
+    )
+    const players = numberWords.map(nw => {
+      const num = cleanJerseyNumber(nw.text)
+      const name = words.filter(n =>
+        n.x >= col.nameMinX && n.x < col.right &&
+        Math.abs(n.y - nw.y) <= 3.2 &&
+        !/^(LIBERO|N°|Cognome e Nome)$/i.test(n.text) &&
+        !/^\d+$/.test(n.text),
+      ).sort((a, b) => a.x - b.x).map(n => n.text).join(' ').trim()
+      return { number: num, name }
+    }).filter(p => p.number !== null)
+    return new Map(players.map(p => [p.number, p]))
   })
+
+  // Determine which column corresponds to teams[0] and teams[1].
+  // Check header letters (A or B) near y=425 in each column.
+  const leftHeaderWords = words.filter(w => w.x >= 905 && w.x < 1030 && Math.abs(w.y - 425.4) <= 6)
+  const leftHasB = leftHeaderWords.some(w => w.text === 'B' && w.size >= 8)
+  const leftHasA = leftHeaderWords.some(w => w.text === 'A' && w.size >= 8)
+
+  let team0Column = 0
+  let team1Column = 1
+  if (leftHasB) {
+    team0Column = 1
+    team1Column = 0
+  } else if (leftHasA) {
+    team0Column = 0
+    team1Column = 1
+  } else {
+    const leftText = leftHeaderWords.map(w => w.text).join(' ')
+    if (teams[1] && leftText.includes(teams[1])) {
+      team0Column = 1
+      team1Column = 0
+    }
+  }
+
+  const rosters = [
+    new Map(extractedColumns[team0Column] || []),
+    new Map(extractedColumns[team1Column] || []),
+  ]
 
   for (let i = 0; i < 5; i++) {
     const summaryY = 620.95 + i * 18.99
@@ -457,7 +503,7 @@ function parseFipav(words, width, height, operatorList) {
   const rosterWords = words.filter(w => w.y > 450 && w.y < 665 && w.x > 900)
   for (const word of rosterWords) {
     const side = word.x < 1030 ? 0 : 1
-    const number = word.text.match(/^\d+$/)?.[0]
+    const number = cleanJerseyNumber(word.text)
     if (!number) continue
     const nameWords = rosterWords.filter(n =>
       Math.abs(n.y - word.y) <= 2 &&
@@ -466,8 +512,8 @@ function parseFipav(words, width, height, operatorList) {
     )
     const name = nameWords.sort((a, b) => a.x - b.x).map(n => n.text).join(' ').trim()
     const libero = rosterWords.find(n => Math.abs(n.y - word.y) <= 2 && /^L[12]?$/.test(n.text))?.text
-    if (name && !roster[side].some(player => player.number === Number(number))) {
-      roster[side].push({ number: Number(number), name: libero ? `${name} - ${libero}` : name })
+    if (name && !roster[side].some(player => player.number === number)) {
+      roster[side].push({ number, name: libero ? `${name} - ${libero}` : name })
     }
   }
 

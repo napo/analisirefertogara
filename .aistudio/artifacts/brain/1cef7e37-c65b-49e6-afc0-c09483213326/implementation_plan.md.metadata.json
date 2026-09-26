@@ -1,0 +1,6 @@
+{
+  "summary":  "Piano di implementazione per la configurazione completa della pipeline CI/CD GitHub Actions su tutte le piattaforme (Windows, macOS Intel & Apple Silicon, Linux deb/AppImage, Android APK/AAB e iOS/iPadOS), con generazione di artefatti e pubblicazione automatica delle Release sui tag.",
+  "updatedAt":  "2026-09-25T16:54:39.446086444Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

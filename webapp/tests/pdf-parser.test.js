@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { applySetter, parseItems, refreshImportedMatch } from '../src/pdf-parser.js'
-import { validateMatch } from '../src/analysis.js'
+import { analyze, validateMatch } from '../src/analysis.js'
 
 const task = getDocument({
   data: new Uint8Array(readFileSync(new URL('../../Referto gara Ritorno Volley Life vs Anguillara.pdf', import.meta.url))),
@@ -78,4 +78,17 @@ test('reimport preserves manually corrected durations', () => {
   const updated = refreshImportedMatch(existing, parsed)
   assert.equal(updated.durationMinutes, 90)
   assert.deepEqual(updated.sets.map(set => set.durationMinutes), [30, 30, 30])
+})
+
+test('analyze runs successfully on parsed match', () => {
+  const match = applySetter(parse())
+  const result = analyze([match])
+  assert.equal(result.scored, 43)
+  assert.equal(result.conceded, 75)
+})
+
+test('analyze runs on parsed match even without setter rotation', () => {
+  const match = parse()
+  const result = analyze([match])
+  assert.equal(result.scored, 43)
 })

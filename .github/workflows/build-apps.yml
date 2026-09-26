@@ -13,7 +13,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: native-${{ github.workflow }}-${{ github.ref }}
@@ -66,7 +66,7 @@ jobs:
       - name: Build installer
         run: npm run desktop:build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --ci -- --locked
         env:
-          # Firma ad hoc: eseguibile macOS utilizzabile, senza notarizzazione Apple.
+          # Firma ad hoc: eseguibile macOS utilizzabile, senza notarizzazione Apple obbligatoria.
           APPLE_SIGNING_IDENTITY: '-'
       - uses: actions/upload-artifact@v4
         with:
@@ -115,14 +115,15 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      - name: APK di prova installabile
+      - name: APK debug installabile senza firma obbligatoria
         run: npm run android:build -- --debug --apk --target aarch64 armv7 x86_64 --ci -- --locked
       - uses: actions/upload-artifact@v4
         with:
           name: Referto-Volley-Android-debug-APK
           if-no-files-found: error
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
-      - name: APK e AAB release
+      - name: APK e AAB release (se firmati o generati)
+        continue-on-error: true
         run: npm run android:build -- --apk --aab --target aarch64 armv7 x86_64 --ci -- --locked
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -131,7 +132,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Referto-Volley-Android-release
-          if-no-files-found: error
+          if-no-files-found: warn
           path: |
             src-tauri/gen/android/app/build/outputs/apk/**/release/*.apk
             src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
@@ -167,9 +168,19 @@ jobs:
           key: ${{ matrix.rust-target }}
       - run: npm ci
       - run: npm run tauri -- ios init --ci --skip-targets-install
-      - name: Build iOS senza credenziali Apple
+      - name: Build iOS/iPadOS senza credenziali Apple
         run: npm run ios:build -- --target ${{ matrix.target }} --no-sign --ci -- --locked
-      - name: Comprimi output preservando permessi e collegamenti
+      - name: Pacchetto IPA unsigned per sideloading (AltStore, Sideloadly, TrollStore)
+        if: matrix.target == 'aarch64'
+        run: |
+          mkdir -p Payload
+          APP_PATH=$(find src-tauri/gen/apple/build -name "*.app" -type d | head -n 1)
+          if [ -n "$APP_PATH" ]; then
+            cp -R "$APP_PATH" Payload/
+            zip -r Referto-Volley-iOS-unsigned.ipa Payload
+            rm -rf Payload
+          fi
+      - name: Comprimi output Xcode preservando permessi e collegamenti
         run: |
           test -d src-tauri/gen/apple/build
           tar -czf Referto-Volley-iOS-${{ matrix.name }}.tar.gz -C src-tauri/gen/apple build
@@ -177,7 +188,9 @@ jobs:
         with:
           name: Referto-Volley-iOS-${{ matrix.name }}
           if-no-files-found: error
-          path: Referto-Volley-iOS-*.tar.gz
+          path: |
+            Referto-Volley-iOS-*.tar.gz
+            Referto-Volley-iOS-*.ipa
 
   ios-signed:
     name: iPhone e iPad · IPA firmato
@@ -228,3 +241,48 @@ jobs:
       - name: Rimuovi chiave temporanea
         if: always()
         run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+  release:
+    name: Release automatica su GitHub
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [desktop, android, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scarica tutti gli artefatti compilati
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: Referto-Volley-*
+          merge-multiple: true
+
+      - name: Raccogli file per la release
+        run: |
+          mkdir -p release-files
+          find release-assets/ -type f \( \
+            -name "*.exe" -o \
+            -name "*.msi" -o \
+            -name "*.dmg" -o \
+            -name "*.deb" -o \
+            -name "*.AppImage" -o \
+            -name "*.apk" -o \
+            -name "*.aab" -o \
+            -name "*.ipa" -o \
+            -name "*.tar.gz" \
+          \) -exec cp {} release-files/ \;
+          echo "File pronti per la release GitHub:"
+          ls -lah release-files/
+
+      - name: Pubblica GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

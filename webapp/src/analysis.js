@@ -1,58 +1,141 @@
-import source from './data/workbook.json' with { type: 'json' }
-import { column, workbookEngine } from './formulas.js'
 import { receptionStats, servicePoints } from './reception.js'
-export const template = source.Gara_1
+
 export const sum = a => a.reduce((s, v) => s + v, 0)
-export function matchSheet(match) {
-  const sheet = { ...template, A1: `${match.team} - ${match.opponent}`, D7: match.team, L7: match.opponent }
-  match.sets.slice(0, 5).forEach((s, i) => {
-    sheet[`B${8 + i * 12}`] = Number(s.rotation) || ''
-    for (const [side, start] of [['own', 4], ['other', 12]]) {
-      for (let j = 0; j < 36; j++) sheet[`${column(start + j % 6)}${9 + i * 12 + Math.floor(j / 6)}`] = s[side][j] ?? ''
+
+/**
+ * Calcola i punti vinti in battuta (Break Point) e i turni per ciascuna delle 6 colonne
+ * della griglia dei set (6 righe x 6 colonne di turni servizio).
+ */
+function calculateGridPoints(grid) {
+  const points = [0, 0, 0, 0, 0, 0]
+  const turns = [0, 0, 0, 0, 0, 0]
+
+  if (!Array.isArray(grid)) return { turns, points }
+
+  for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 6; c++) {
+      const idx = r * 6 + c
+      const val = grid[idx]
+
+      if (val === '' || val === null || val === undefined) continue
+      // 'X' nella prima casella indica che la squadra avversaria ha servito per prima nel set
+      if (r === 0 && c === 0 && (val === 'X' || val === 'x')) continue
+
+      let prevVal = 0
+      if (idx > 0) {
+        const prev = grid[idx - 1]
+        prevVal = (prev === 'X' || prev === 'x' || prev === '' || prev == null) ? 0 : Number(prev)
+      }
+
+      const numVal = Number(val)
+      if (!Number.isFinite(numVal)) continue
+
+      const isFirstTurnOfMatch = (r === 0 && c === 0)
+      // Se è il primo turno del set, tutti i punti sono di battuta.
+      // Nei turni successivi, il primo punto è il cambio palla (sideout) ottenuto in ricezione,
+      // quindi i punti break realizzati in battuta sono (progressivo attuale - progressivo precedente - 1).
+      const pts = isFirstTurnOfMatch ? numVal : (numVal - prevVal - 1)
+
+      if (pts >= 0) {
+        turns[c] += 1
+        points[c] += pts
+      }
     }
-  })
-  return sheet
+  }
+
+  return { turns, points }
 }
 
 function involvedNumbers(match) {
   const numbers = new Set()
   for (const set of match.sets || []) {
     for (const number of set.lineup || []) {
-      if (number !== '' && number !== null && number !== undefined) numbers.add(String(number))
+      if (number !== '' && number !== null && number !== undefined) {
+        numbers.add(String(number).trim().replace(/^0+/, '') || '0')
+      }
     }
     for (const entry of set.liberoReplacements || []) {
-      numbers.add(String(entry.player))
-      numbers.add(String(entry.libero))
+      if (entry.player) numbers.add(String(entry.player).trim().replace(/^0+/, '') || '0')
+      if (entry.libero) numbers.add(String(entry.libero).trim().replace(/^0+/, '') || '0')
     }
     for (const key of ['onCourt', 'entered', 'otherEntered']) {
       const list = Array.isArray(set.libero?.[key]) ? set.libero[key] : [set.libero?.[key]]
       for (const number of list) {
-        if (number !== '' && number !== null && number !== undefined) numbers.add(String(number))
+        if (number !== '' && number !== null && number !== undefined) {
+          numbers.add(String(number).trim().replace(/^0+/, '') || '0')
+        }
       }
     }
   }
   return numbers
 }
 
+/**
+ * Motore di calcolo statistiche completamente nativo JavaScript (senza emulatore di formule Excel).
+ * Calcola esattamente:
+ * - Le 6 rotazioni (P1-P6): turni totali (TT), punti vinti (BP), media punti per turno, quota %,
+ *   turni in ricezione (CP), punti subiti e media subita.
+ * - Statistiche cambio palla (CP) e ricezione
+ * - Atleti coinvolti, punti fatti, punti subiti, vittorie
+ */
 export function analyze(matches) {
-  const sheets = Object.fromEntries(matches.map((m, i) => [`Gara_${i + 1}`, matchSheet(m)]))
-  for (let i = matches.length + 1; i <= 15; i++) sheets['Gara_' + i] = { ...template }
-  const count = Math.max(1, matches.length)
-  sheets.Totali = Object.fromEntries(Object.entries(source.Totali).map(([key, value]) => [key,
-    typeof value === 'string' && value.startsWith('=') ? value.replace(/Gara_1!([A-Z]+\d+)(?:\+Gara_\d+![A-Z]+\d+){14}/g,
-      (_, ref) => Array.from({ length: count }, (_, i) => `Gara_${i + 1}!${ref}`).join('+')) : value]))
-  const engine = workbookEngine(sheets)
-  const get = ref => engine.cell('Totali', ref)
-  const rows = Array.from({ length: 6 }, (_, i) => ({
-    rotation: i + 1, turns: get(`${column(2 + i)}7`), points: get(`${column(2 + i)}8`), mean: get(`${column(2 + i)}9`),
-    share: get(`${column(2 + i)}10`), concededTurns: get(`${column(17 + i)}7`), conceded: get(`${column(17 + i)}8`), concededMean: get(`${column(17 + i)}9`),
-  }))
+  const rotTurns = [0, 0, 0, 0, 0, 0]
+  const rotPoints = [0, 0, 0, 0, 0, 0]
+  const rotConcededTurns = [0, 0, 0, 0, 0, 0]
+  const rotConceded = [0, 0, 0, 0, 0, 0]
+
+  for (const m of matches) {
+    for (const s of (m.sets || []).slice(0, 5)) {
+      const startRot = Number(s.rotation) || 1
+      const ownRes = calculateGridPoints(s.own || [])
+      const otherRes = calculateGridPoints(s.other || [])
+
+      for (let c = 0; c < 6; c++) {
+        // La rotazione P1..P6 per la colonna c in base alla rotazione iniziale startRot
+        const rot = (startRot - c - 1 + 12) % 6 // indice 0..5 per P1..P6
+        rotTurns[rot] += ownRes.turns[c]
+        rotPoints[rot] += ownRes.points[c]
+        rotConcededTurns[rot] += otherRes.turns[c]
+        rotConceded[rot] += otherRes.points[c]
+      }
+    }
+  }
+
+  const totalBreakPoints = sum(rotPoints)
+  const opponentBreakPoints = sum(rotConceded)
+
+  const rows = Array.from({ length: 6 }, (_, i) => {
+    const turns = rotTurns[i]
+    const points = rotPoints[i]
+    const concededTurns = rotConcededTurns[i]
+    const conceded = rotConceded[i]
+    return {
+      rotation: i + 1,
+      turns,
+      points,
+      mean: turns === 0 ? 0 : points / turns,
+      share: totalBreakPoints === 0 ? 0 : (points / totalBreakPoints) * 100,
+      concededTurns,
+      conceded,
+      concededMean: concededTurns === 0 ? 0 : conceded / concededTurns,
+    }
+  })
+
   const athletesInvolved = new Set(matches.flatMap(match => [...involvedNumbers(match)]))
-  const breakPoints = matches.reduce((total, match) => total + match.sets.reduce((sum, set) => sum + servicePoints(set.own), 0), 0)
-  return { rows, engine, sheets, reception: receptionStats(matches), athletesInvolved: athletesInvolved.size, breakPoints, opponentBreakPoints: get('R5'),
-    scored: sum(matches.flatMap(m => m.sets.map(s => s.scoreOwn))), conceded: sum(matches.flatMap(m => m.sets.map(s => s.scoreOther))),
-    wins: matches.filter(m => m.sets.filter(s => s.scoreOwn > s.scoreOther).length > m.sets.filter(s => s.scoreOther > s.scoreOwn).length).length }
+  const breakPoints = matches.reduce((total, match) => total + match.sets.reduce((acc, set) => acc + servicePoints(set.own), 0), 0)
+
+  return {
+    rows,
+    reception: receptionStats(matches),
+    athletesInvolved: athletesInvolved.size,
+    breakPoints,
+    opponentBreakPoints,
+    scored: sum(matches.flatMap(m => m.sets.map(s => s.scoreOwn))),
+    conceded: sum(matches.flatMap(m => m.sets.map(s => s.scoreOther))),
+    wins: matches.filter(m => m.sets.filter(s => s.scoreOwn > s.scoreOther).length > m.sets.filter(s => s.scoreOther > s.scoreOwn).length).length,
+  }
 }
+
 export function validateMatch(m, requireRotations = false) {
   const errors = []
   if (!m.team?.trim() || !m.opponent?.trim() || m.team === m.opponent) errors.push('Indica due squadre diverse.')
