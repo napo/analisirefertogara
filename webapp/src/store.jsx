@@ -241,8 +241,12 @@ export function MatchStoreProvider({ children }) {
   }, [])
 
   // Save the verified draft into IndexedDB and local React store
-  const saveDraft = useCallback(async (customDraft = draft) => {
-    if (!customDraft) return false
+  const saveDraft = useCallback(async (inputDraft = draft) => {
+    if (!inputDraft) return false
+    // Manual entry may leave athlete rows without a jersey number: drop them
+    const customDraft = inputDraft.roster
+      ? { ...inputDraft, roster: inputDraft.roster.filter(player => String(typeof player === 'object' ? player.number : player ?? '').trim() !== '') }
+      : inputDraft
     const issues = validateMatch(customDraft)
     if (issues.length) {
       setError(issues.join(' '))
@@ -357,7 +361,7 @@ export function MatchStoreProvider({ children }) {
       }
       const incoming = []
       for (const m of b.matches) {
-        if (!m || typeof m.id !== 'string' || !/^[a-f0-9]{64}$/.test(m.id) || validateMatch(m).length) {
+        if (!m || typeof m.id !== 'string' || !/^[a-f0-9]{64}$/.test(m.id) || validateMatch(m, false, { checkLineups: false }).length) {
           throw Error('Il backup contiene gare non valide.')
         }
         analyze([m])

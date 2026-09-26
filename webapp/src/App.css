@@ -711,6 +711,49 @@
   font-weight: 600;
 }
 
+/* Starting lineup row ("Giocatori titolari N°" on the scoresheet) */
+.vs-grid-table .vs-lineup-row th,
+.vs-grid-table .vs-lineup-row td {
+  background: var(--vs-orange-soft);
+  border-bottom: 2px solid var(--vs-orange);
+}
+
+.vs-grid-table .vs-lineup-row th {
+  color: var(--vs-orange);
+  font-weight: 700;
+  cursor: help;
+}
+
+.vs-grid-table .vs-lineup-row input {
+  border-color: var(--vs-orange);
+  font-weight: 800;
+}
+
+.vs-grid-table .vs-lineup-row input::placeholder {
+  color: rgba(230, 81, 0, 0.45);
+  font-weight: 600;
+}
+
+.vs-grid-table .vs-lineup-row input.vs-lineup-duplicate {
+  border: 2px solid #C62828;
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.vs-lineup-error {
+  margin: 0.4rem 0 0;
+  color: #C62828;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.vs-grid-table .vs-lineup-note {
+  color: var(--vs-orange);
+  font-size: 0.72rem;
+  font-style: italic;
+  white-space: nowrap;
+}
+
 /* FOOTER */
 .vs-footer {
   margin-top: 3.5rem;

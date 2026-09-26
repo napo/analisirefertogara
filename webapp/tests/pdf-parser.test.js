@@ -37,6 +37,16 @@ test('sample PDF imports valid sets and distinct complete named rosters, includi
   assert.ok([...match.roster, ...match.opponentRoster].every(p => p.name))
 })
 
+test('starting lineup numbers must be unique within each team', () => {
+  const match = applySetter(parse())
+  const set = match.sets[0]
+  // The same number for both teams is allowed
+  const shared = { ...match, sets: [{ ...set, opponentLineup: [set.lineup[0], ...set.opponentLineup.slice(1)] }, ...match.sets.slice(1)] }
+  assert.deepEqual(validateMatch(shared), [])
+  const repeated = { ...match, sets: [{ ...set, lineup: [set.lineup[0], ...set.lineup.slice(1, 5), set.lineup[0]] }, ...match.sets.slice(1)] }
+  assert.deepEqual(validateMatch(repeated), [`Set 1: il numero ${Number(set.lineup[0])} è ripetuto tra i titolari (${match.team}).`])
+})
+
 test('without roster table, fallback numbers follow the team across court changes', () => {
   const match = parse(items.filter(t => !(t.transform[4] > 905 && viewport.height - t.transform[5] > 410 && viewport.height - t.transform[5] < 640)))
   assert.ok(match.roster.some(p => p.number === 7))

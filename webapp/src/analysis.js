@@ -113,7 +113,21 @@ export function analyze(matches) {
   }
 }
 
-export function validateMatch(m, requireRotations = false) {
+// Jersey numbers repeated within one team's starting lineup (I–VI)
+export function duplicateLineupNumbers(lineup) {
+  const seen = new Set(), duplicates = new Set()
+  for (const value of lineup || []) {
+    const text = String(value ?? '').trim()
+    if (!/^\d+$/.test(text)) continue
+    const number = String(Number(text))
+    if (seen.has(number)) duplicates.add(number)
+    seen.add(number)
+  }
+  return duplicates
+}
+
+// checkLineups: disabled when restoring backups, so matches saved before this check still load
+export function validateMatch(m, requireRotations = false, { checkLineups = true } = {}) {
   const errors = []
   if (!m.team?.trim() || !m.opponent?.trim() || m.team === m.opponent) errors.push('Indica due squadre diverse.')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || '') || Number.isNaN(Date.parse(m.date))) errors.push('Data gara non valida.')
@@ -133,6 +147,9 @@ export function validateMatch(m, requireRotations = false) {
         if (j > 0 && v <= (cells[j - 1] === 'X' ? 0 : cells[j - 1])) { errors.push(`${prefix}: i progressivi devono crescere.`); break }
       }
       if (cells[last] !== score) errors.push(`${prefix}: ultimo progressivo diverso dal punteggio finale (${side === 'own' ? m.team : m.opponent}).`)
+    }
+    for (const [key, team] of checkLineups ? [['lineup', m.team], ['opponentLineup', m.opponent]] : []) {
+      for (const number of duplicateLineupNumbers(s[key])) errors.push(`${prefix}: il numero ${number} è ripetuto tra i titolari (${team}).`)
     }
     if (s.scoreOwn === s.scoreOther || Math.max(s.scoreOwn, s.scoreOther) < (i >= 4 ? 15 : 25) || Math.abs(s.scoreOwn - s.scoreOther) < 2) errors.push(`${prefix}: risultato non concluso.`)
   })

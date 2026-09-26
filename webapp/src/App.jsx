@@ -8,7 +8,7 @@ import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { MatchStoreProvider, useMatchStore } from './store'
 import { applySetter } from './pdf-parser'
-import { validateMatch } from './analysis'
+import { duplicateLineupNumbers, validateMatch } from './analysis'
 import { formatDuration, formatWins, matchDuration } from './format'
 import { emptyFilters, matchHeading } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
@@ -39,7 +39,7 @@ const resultStr = m => `${m.sets.filter(s => s.scoreOwn > s.scoreOther).length} 
 const updateSetterRotations = match => {
   if (!match) return match
   const setters = (match.roster || []).map(rosterPlayer)
-    .filter(isSetter)
+    .filter(player => isSetter(player) && String(player.number ?? '').trim() !== '')
   const primarySetter = setters[0]
   return {
     ...match,
@@ -1838,7 +1838,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 
   // Quando viene caricato un PDF o una gara, scorri verso l'alto fino all'elenco atleti / atlete
   useEffect(() => {
-    if (draft && draft.roster?.length > 0 && scrolledForDraftIdRef.current !== draft.id) {
+    if (draft && !draft.isManual && draft.roster?.length > 0 && scrolledForDraftIdRef.current !== draft.id) {
       scrolledForDraftIdRef.current = draft.id
       const timer = setTimeout(() => {
         rosterSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -2026,7 +2026,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         )}
       </div>
 
-      {draft.roster?.length > 0 && (
+      {(draft.isManual || draft.roster?.length > 0) && (
         <div
           ref={rosterSectionRef}
           id="elenco-atleti-sezione"
@@ -2042,6 +2042,12 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
             const rosterKey = 'roster'
             const isFemale = isFemaleTeamOrMatch(draft, draft.team)
             const hasSetter = roster.map(rosterPlayer).some(isSetter)
+            const editable = Boolean(draft.isManual)
+            const rosterColumns = editable ? '4rem minmax(0, 1fr) 2.4rem 2rem' : '3.5rem minmax(0, 1fr) 2.4rem'
+            const updateRoster = change => setDraft(draftValue => updateSetterRotations({
+              ...draftValue,
+              [rosterKey]: change((draftValue[rosterKey] || []).map(rosterPlayer)),
+            }))
             return (
             <div
               key={name}
@@ -2056,7 +2062,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                 {isFemale ? 'Elenco atlete' : 'Elenco atleti'} — {name}
               </strong>
               <span style={{ fontSize: '0.82rem', color: 'var(--vs-muted)' }}>
-                Nomi e numeri letti dal referto. Puoi correggere o completare i nomi prima di salvare.
+                {editable
+                  ? 'I numeri di maglia inseriti nella riga "Titolari" e nelle colonne "Libero" dei set vengono aggiunti qui automaticamente. Puoi correggere numeri e nomi, aggiungere o eliminare righe.'
+                  : 'Nomi e numeri letti dal referto. Puoi correggere o completare i nomi prima di salvare.'}
               </span>
 
               {/* Indicazione evidente per i palleggiatori */}
@@ -2089,7 +2097,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '3.5rem minmax(0, 1fr) 2.4rem',
+                    gridTemplateColumns: rosterColumns,
                     alignItems: 'center',
                     gap: '0.5rem',
                     color: 'var(--vs-muted)',
@@ -2100,7 +2108,13 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                   <span />
                   <span style={{ textAlign: 'left' }}>{isFemale ? 'Atleta' : 'Atleta'}</span>
                   <strong title="Imposta chi gioca al palleggio">p</strong>
+                  {editable && <span />}
                 </div>
+                {editable && roster.length === 0 && (
+                  <span style={{ fontSize: '0.82rem', color: 'var(--vs-muted)', fontStyle: 'italic' }}>
+                    Nessun{isFemale ? 'a atleta' : ' atleta'} ancora: compila la riga "Titolari" di un set oppure usa "Aggiungi".
+                  </span>
+                )}
                 {roster.map((entry, index) => {
                   const player = rosterPlayer(entry)
                   return (
@@ -2108,12 +2122,31 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                     key={`${player.number}-${index}`}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '3.5rem minmax(0, 1fr) 2.4rem',
+                      gridTemplateColumns: rosterColumns,
                       alignItems: 'center',
                       gap: '0.5rem',
                     }}
                   >
-                    <strong style={{ fontVariantNumeric: 'tabular-nums' }}>#{player.number}</strong>
+                    {editable ? (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={3}
+                        placeholder="N°"
+                        aria-label={`Numero di maglia, riga ${index + 1}`}
+                        value={player.number ?? ''}
+                        style={{ textAlign: 'center', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}
+                        onChange={event => {
+                          const text = event.target.value.trim()
+                          if (text !== '' && !/^\d+$/.test(text)) return
+                          updateRoster(players => players.map((current, currentIndex) =>
+                            currentIndex === index ? { ...current, number: text === '' ? '' : Number(text) } : current,
+                          ))
+                        }}
+                      />
+                    ) : (
+                      <strong style={{ fontVariantNumeric: 'tabular-nums' }}>#{player.number}</strong>
+                    )}
                     <input
                       type="text"
                       placeholder={isFemale ? 'Nome atleta' : 'Nome atleta'}
@@ -2145,9 +2178,32 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                         return rosterKey === 'roster' ? updateSetterRotations(nextDraft) : nextDraft
                       })}
                     />
+                    {editable && (
+                      <button
+                        type="button"
+                        className="vs-btn vs-btn-sm vs-btn-secondary"
+                        style={{ padding: '0.2rem 0.45rem' }}
+                        aria-label={`Elimina ${player.name || `maglia ${player.number}`}`}
+                        title="Elimina dall'elenco"
+                        onClick={() => updateRoster(players => players.filter((_, currentIndex) => currentIndex !== index))}
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                   )
                 })}
+                {editable && (
+                  <div>
+                    <button
+                      type="button"
+                      className="vs-btn vs-btn-sm vs-btn-secondary"
+                      onClick={() => updateRoster(players => [...players, { number: '', name: '', setterRole: '' }])}
+                    >
+                      + Aggiungi {isFemale ? 'atleta' : 'atleta'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Bottone evidente dopo aver scelto almeno un palleggiatore */}
@@ -2249,10 +2305,25 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           team={draft.team || 'Squadra analizzata'}
           opponent={draft.opponent || 'Squadra avversaria'}
           update={(patch) => {
-            setDraft(d => ({
-              ...d,
-              sets: d.sets.map((s, i) => i === index ? { ...s, ...patch } : s),
-            }))
+            setDraft(d => {
+              const next = { ...d, sets: d.sets.map((s, i) => i === index ? { ...s, ...patch } : s) }
+              return patch.lineup ? updateSetterRotations(next) : next
+            })
+          }}
+          onLineupCommit={text => {
+            // Manual entry: jersey numbers typed in the starting lineup or libero columns populate the athlete list,
+            // in entry order (a libero cell may hold several numbers, e.g. "18-22")
+            const numbers = String(text).match(/\d+/g)?.map(Number) || []
+            if (!draft.isManual || !numbers.length) return
+            setDraft(d => {
+              const roster = [...(d.roster || [])]
+              for (const number of numbers) {
+                if (!roster.some(player => String(rosterPlayer(player).number) === String(number))) {
+                  roster.push({ number, name: '', setterRole: '' })
+                }
+              }
+              return roster.length === (d.roster || []).length ? d : { ...d, roster }
+            })
           }}
         />
       ))}
@@ -2338,7 +2409,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 }
 
 // Subcomponent: Set Details & 6x6 Turns Grid
-function SetEditor({ set: s, index, team, opponent, update }) {
+const LINEUP_HINT = 'Giocatori titolari: numeri di maglia della formazione iniziale del set nelle posizioni I–VI, come nella riga "Giocatori titolari N°" del referto'
+
+function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
   const isGoldenSet = index === 5
   const isTieBreak = index === 4
   const setLabel = isGoldenSet ? 'Set 6 — Golden Set (a 15 punti)' : isTieBreak ? 'Set 5 — Tie-break (a 15 punti)' : `Set ${index + 1}`
@@ -2389,10 +2462,12 @@ function SetEditor({ set: s, index, team, opponent, update }) {
         <div className="vs-set-data-layout">
           <div className="vs-turn-grid">
             {[
-              { key: 'own', liberoKey: 'libero', name: team },
-              { key: 'other', liberoKey: 'opponentLibero', name: opponent },
-            ].map(({ key, liberoKey, name }) => {
+              { key: 'own', liberoKey: 'libero', lineupKey: 'lineup', name: team },
+              { key: 'other', liberoKey: 'opponentLibero', lineupKey: 'opponentLineup', name: opponent },
+            ].map(({ key, liberoKey, lineupKey, name }) => {
               const libero = s[liberoKey] || {}
+              const duplicates = duplicateLineupNumbers(s[lineupKey])
+              const isDuplicate = value => duplicates.has(String(Number(String(value ?? '').trim() || NaN)))
               const liberoFields = {
                 onCourt: liberoValues(libero, 'onCourt'),
                 entered: liberoValues(libero, 'entered'),
@@ -2410,6 +2485,32 @@ function SetEditor({ set: s, index, team, opponent, update }) {
                       <th>Giro</th>
                       {['I', 'II', 'III', 'IV', 'V', 'VI'].map(v => <th key={v}>{v}</th>)}
                       <th colSpan="3">Libero</th>
+                    </tr>
+                    <tr className="vs-lineup-row" title={LINEUP_HINT}>
+                      <th scope="row">Titolari</th>
+                      {Array.from({ length: 6 }, (_, c) => (
+                        <td key={c}>
+                          <input
+                            aria-label={`Set ${index + 1}, ${name}, giocatore titolare in posizione ${['I', 'II', 'III', 'IV', 'V', 'VI'][c]}`}
+                            className={isDuplicate(s[lineupKey]?.[c]) ? 'vs-lineup-duplicate' : undefined}
+                            aria-invalid={isDuplicate(s[lineupKey]?.[c]) || undefined}
+                            title={isDuplicate(s[lineupKey]?.[c]) ? `Il numero ${s[lineupKey][c]} è già tra i titolari di ${name}` : LINEUP_HINT}
+                            placeholder="N°"
+                            inputMode="numeric"
+                            value={s[lineupKey]?.[c] ?? ''}
+                            maxLength={3}
+                            onChange={(e) => {
+                              const text = e.target.value.trim()
+                              if (text !== '' && !/^\d+$/.test(text)) return
+                              const lineup = Array.from({ length: 6 }, (_, i) => s[lineupKey]?.[i] ?? '')
+                              lineup[c] = text
+                              update({ [lineupKey]: lineup })
+                            }}
+                            onBlur={(e) => { if (lineupKey === 'lineup') onLineupCommit?.(e.target.value) }}
+                          />
+                        </td>
+                      ))}
+                      <td colSpan="3" className="vs-lineup-note">formazione iniziale</td>
                     </tr>
                   </thead>
                   <tbody>
@@ -2447,6 +2548,7 @@ function SetEditor({ set: s, index, team, opponent, update }) {
                                 values[r] = event.target.value
                                 update({ [liberoKey]: { ...libero, [field]: values } })
                               }}
+                              onBlur={event => { if (liberoKey === 'libero') onLineupCommit?.(event.target.value) }}
                             />
                           </td>
                         ))}
@@ -2455,6 +2557,12 @@ function SetEditor({ set: s, index, team, opponent, update }) {
                   </tbody>
                 </table>
               </div>
+                  {duplicates.size > 0 && (
+                    <p className="vs-lineup-error" role="alert">
+                      {duplicates.size === 1 ? 'Numero ripetuto' : 'Numeri ripetuti'} tra i titolari di {name}: {[...duplicates].join(', ')}.
+                      Ogni posizione I–VI deve avere un giocatore diverso.
+                    </p>
+                  )}
                 </div>
               )
             })}
