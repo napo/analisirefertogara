@@ -128,37 +128,75 @@ function MainApp() {
     }
   }, [activeTab])
 
-  // Export report area to PDF
+  // Export report area to PDF: fit to A4 width and paginate at block boundaries (like spreadsheet "fit to width")
   const exportToPdf = async () => {
     if (!reportExportRef.current) return
     setExportingPdf(true)
+    const el = reportExportRef.current
     try {
-      const el = reportExportRef.current
+      // Fixed desktop layout during capture, independent of the current window size
+      el.classList.add('vs-pdf-export')
+      await new Promise(resolve => setTimeout(resolve, 350)) // let charts resize via ResizeObserver
+
+      const containerTop = el.getBoundingClientRect().top
+      const cssWidth = el.offsetWidth
+      const breakPoints = [...new Set(
+        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, tr')]
+          .map(node => Math.round(node.getBoundingClientRect().bottom - containerTop))
+      )].sort((a, b) => a - b)
+
       const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
       })
-      const imgData = canvas.toDataURL('image/png')
+      const pxRatio = canvas.width / cssWidth
+
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = 210
       const pageHeight = 297
-      const margin = 10
+      const margin = 6
+      const footerSpace = 6
       const printWidth = pageWidth - margin * 2
-      const footerSpace = 8
       const availableHeight = pageHeight - margin * 2 - footerSpace
-      const scale = Math.min(printWidth / canvas.width, availableHeight / canvas.height)
-      const renderWidth = canvas.width * scale
-      const renderHeight = canvas.height * scale
-      const positionX = (pageWidth - renderWidth) / 2
-      const positionY = margin + (availableHeight - renderHeight) / 2
+      const mmPerCssPx = printWidth / cssWidth
+      const pageCssHeight = Math.floor(availableHeight / mmPerCssPx)
+      const totalCssHeight = canvas.height / pxRatio
 
-      pdf.addImage(imgData, 'PNG', positionX, positionY, renderWidth, renderHeight)
+      // Split into pages, cutting at the last block/row boundary that fits
+      const slices = []
+      let start = 0
+      while (start < totalCssHeight - 1) {
+        const limit = start + pageCssHeight
+        let end = Math.min(limit, totalCssHeight)
+        if (limit < totalCssHeight) {
+          const candidate = breakPoints.filter(y => y > start + pageCssHeight * 0.3 && y <= limit).pop()
+          if (candidate) end = candidate
+        }
+        slices.push([start, end])
+        start = end
+      }
+      // Drop a trailing sliver that only holds a card's bottom padding/border
+      if (slices.length > 1 && slices.at(-1)[1] - slices.at(-1)[0] < 40) slices.pop()
 
-      pdf.setFontSize(8)
-      pdf.setTextColor(100, 100, 100)
-      pdf.text('Referto Volley - Maurizio Napolitano - modello Excel delle rotazioni di Andrea Fortunati', pageWidth / 2, pageHeight - 5, { align: 'center' })
+      const footer = 'Referto Volley - Maurizio Napolitano - modello Excel delle rotazioni di Andrea Fortunati'
+      slices.forEach(([from, to], index) => {
+        const sliceCanvas = document.createElement('canvas')
+        sliceCanvas.width = canvas.width
+        sliceCanvas.height = Math.round((to - from) * pxRatio)
+        const ctx = sliceCanvas.getContext('2d')
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height)
+        ctx.drawImage(canvas, 0, Math.round(from * pxRatio), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height)
+
+        if (index > 0) pdf.addPage()
+        pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, printWidth, (to - from) * mmPerCssPx)
+        pdf.setFontSize(8)
+        pdf.setTextColor(100, 100, 100)
+        pdf.text(footer, margin, pageHeight - margin + 1)
+        if (slices.length > 1) pdf.text(`${index + 1} / ${slices.length}`, pageWidth - margin, pageHeight - margin + 1, { align: 'right' })
+      })
 
       const matchLabel = visibleMatches.length === 1 && visibleMatches[0]
         ? `${visibleMatches[0].team}_vs_${visibleMatches[0].opponent}_${visibleMatches[0].date}`
@@ -170,6 +208,7 @@ function MainApp() {
       console.error('Errore esportazione PDF:', err)
       setError(`Errore durante l'esportazione del PDF: ${err.message}`)
     } finally {
+      el.classList.remove('vs-pdf-export')
       setExportingPdf(false)
     }
   }
@@ -183,10 +222,11 @@ function MainApp() {
       textStyle: { fontFamily: 'Roboto, sans-serif' },
     },
     legend: {
-      bottom: 0,
+      top: 0,
       textStyle: { fontFamily: 'Rubik, sans-serif', color: '#505050' },
     },
-    grid: { left: 45, right: 20, top: 25, bottom: 50 },
+    // Room for a legend wrapped on two lines at narrow widths (e.g. PDF export)
+    grid: { left: 45, right: 20, top: 55, bottom: 30 },
     yAxis: {
       type: 'value',
       minInterval: 1,
@@ -806,7 +846,8 @@ function MainApp() {
                     onClick={exportToPdf}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
                   >
-                    {exportingPdf ? 'Esportazione in corso…' : '📄 Esporta report PDF'}
+                    <PdfIcon size={18} />
+                    {exportingPdf ? 'Esportazione in corso…' : 'Esporta report PDF'}
                   </button>
                 </div>
               </div>
@@ -2337,6 +2378,18 @@ function SetEditor({ set: s, index, team, opponent, update }) {
         </div>
       </div>
     </details>
+  )
+}
+
+// Subcomponent: PDF file icon
+function PdfIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#FFFFFF" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M14 2v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <rect x="1.5" y="11" width="16" height="7.5" rx="1.5" fill="#D32F2F" />
+      <text x="9.5" y="16.9" textAnchor="middle" fontSize="5.6" fontWeight="800" fontFamily="Arial, Helvetica, sans-serif" fill="#FFFFFF">PDF</text>
+    </svg>
   )
 }
 

@@ -785,6 +785,34 @@
   border-bottom: 2px solid var(--vs-orange);
 }
 
+/* Fixed desktop layout applied only while capturing the report for the PDF */
+.vs-report-export-container.vs-pdf-export {
+  width: 1000px;
+  max-width: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.vs-pdf-export .vs-metrics-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.vs-pdf-export .vs-charts-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.vs-pdf-export .vs-card {
+  box-shadow: none;
+}
+.vs-pdf-export .vs-btn {
+  display: none;
+}
+.vs-pdf-export .vs-table-wrap {
+  overflow: visible;
+}
+.vs-pdf-export .vs-table thead th {
+  white-space: normal;
+}
+
 @media print {
   body {
     background: #FFFFFF !important;
