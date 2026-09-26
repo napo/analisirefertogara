@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join, sep } from 'node:path'
 import { test } from 'node:test'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { applySetter, parseItems, refreshImportedMatch } from '../src/pdf-parser.js'
@@ -7,7 +9,7 @@ import { analyze, validateMatch } from '../src/analysis.js'
 
 const task = getDocument({
   data: new Uint8Array(readFileSync(new URL('../../Referto gara Ritorno Volley Life vs Anguillara.pdf', import.meta.url))),
-  standardFontDataUrl: new URL('../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).pathname,
+  standardFontDataUrl: join(dirname(fileURLToPath(import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs'))), '../../standard_fonts') + sep,
 })
 let items, viewport
 try {

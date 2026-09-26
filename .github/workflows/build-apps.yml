@@ -49,6 +49,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -61,7 +62,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - run: npm ci
+      - run: npm ci --include=optional
       - run: npm test
       - name: Build installer
         run: npm run desktop:build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --ci -- --locked
@@ -90,11 +91,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
@@ -106,7 +110,7 @@ jobs:
         run: |
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;$NDK_VERSION"
           echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-      - run: npm ci
+      - run: npm ci --include=optional
       - run: npm run tauri -- android init --ci --skip-targets-install
       - name: Configura firma release opzionale
         run: python3 scripts/android-signing.py
@@ -159,6 +163,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust-target }}
@@ -166,7 +171,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
           key: ${{ matrix.rust-target }}
-      - run: npm ci
+      - run: npm ci --include=optional
       - run: npm run tauri -- ios init --ci --skip-targets-install
       - name: Build iOS/iPadOS senza credenziali Apple
         run: npm run ios:build -- --target ${{ matrix.target }} --no-sign --ci -- --locked
@@ -206,6 +211,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios
@@ -230,7 +236,7 @@ jobs:
           with open(os.environ['GITHUB_ENV'], 'a') as env:
               env.write(f'APPLE_API_KEY_PATH={key}\n')
           PY
-      - run: npm ci
+      - run: npm ci --include=optional
       - run: npm run tauri -- ios init --ci --skip-targets-install
       - run: npm run ios:build -- --target aarch64 --export-method app-store-connect --build-number ${{ github.run_number }} --ci -- --locked
       - uses: actions/upload-artifact@v4
