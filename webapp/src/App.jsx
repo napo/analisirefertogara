@@ -1794,7 +1794,12 @@ function MainApp() {
                 Il credito ad Andrea Fortunati riguarda il modello di analisi delle rotazioni nel foglio Excel.
                 L’importazione PDF, l’interfaccia, l’archivio locale e le altre funzionalità dell’applicazione sono sviluppi del progetto software.
               </p>
-              <p>Il software è distribuito con licenza <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">WTFPL — Do What The Fuck You Want To Public License, Version 2</a>.</p>
+              <p>
+                Il software è distribuito con licenza <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">GNU Affero General Public License, versione 3 o successive</a> (AGPL-3.0-or-later),
+                senza alcuna garanzia. Chi usa l’applicazione, anche via web, può ottenerne il{' '}
+                <a href="https://github.com/napo/analisirefertogara" target="_blank" rel="noopener noreferrer">codice sorgente</a>;
+                le versioni modificate vanno rilasciate con la stessa licenza.
+              </p>
             </div>
           </section>
         )}
@@ -1810,7 +1815,9 @@ function MainApp() {
           <div className="vs-footer-meta">
             <span>Analisi dei PDF nel browser · Archivio locale tramite IndexedDB</span>
             <span style={{ display: 'block', fontSize: '0.8rem', marginTop: '0.2rem' }}>
-              <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">WTFPL — Do What The Fuck You Want To Public License, Version 2</a>
+              <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Licenza AGPL-3.0-or-later</a>
+              {' · '}
+              <a href="https://github.com/napo/analisirefertogara" target="_blank" rel="noopener noreferrer">Codice sorgente</a>
             </span>
             <span className="vs-footer-version">
               <a href={`https://github.com/napo/analisirefertogara/releases/tag/v${APP_VERSION}`} target="_blank" rel="noopener noreferrer">ver {APP_VERSION}</a>

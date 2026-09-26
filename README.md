@@ -111,4 +111,6 @@ Referto Volley è un progetto di Maurizio Napolitano, basato sul modello di anal
 
 Il credito ad Andrea Fortunati riguarda il modello nel foglio Excel. Importazione PDF, interfaccia, archivio locale e altre funzionalità dell’applicazione sono sviluppi del progetto software.
 
-Il software è distribuito con licenza [WTFPL — Do What The Fuck You Want To Public License, Version 2](LICENSE). Le licenze dei font PDF distribuiti sono conservate separatamente in `webapp/public/standard_fonts` e `webapp/public/fonts`.
+Copyright © 2026 Maurizio Napolitano.
+
+Il software è distribuito con licenza [GNU Affero General Public License, versione 3 o successive](LICENSE) (AGPL-3.0-or-later): puoi usarlo, studiarlo, modificarlo e ridistribuirlo, anche in versione modificata, a condizione di rilasciare con la stessa licenza il codice sorgente delle modifiche. La condizione vale anche quando una versione modificata viene resa disponibile agli utenti attraverso una rete, per esempio come sito web: in quel caso gli utenti devono poter ottenere il codice sorgente. Il software è fornito senza alcuna garanzia. Le licenze dei font PDF distribuiti sono conservate separatamente in `webapp/public/standard_fonts` e `webapp/public/fonts`.

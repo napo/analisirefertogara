@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Referto Volley",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "identifier": "it.napolitano.refertovolley",
   "build": {
     "frontendDist": "../webapp/dist",
@@ -39,7 +39,7 @@
     },
     "category": "Sports",
     "shortDescription": "Analisi dei referti di pallavolo",
-    "license": "WTFPL",
+    "license": "AGPL-3.0-or-later",
     "licenseFile": "../LICENSE"
   }
 }
