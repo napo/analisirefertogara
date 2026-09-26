@@ -43,6 +43,7 @@ Dalla radice del repository, con Node.js 22 compatibile con Vite e npm:
 
 ```sh
 npm ci
+npm run setup-hooks   # versione X.Z e tag vX.Z automatici a ogni commit (vedi docs/builds.md)
 npm run dev
 ```
 

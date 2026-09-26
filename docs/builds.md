@@ -60,12 +60,10 @@ Il workflow GitHub Actions `Build applicazioni Tauri` (`.github/workflows/build-
 ## 3. Gestione versioni e identificativo
 
 - **Identificativo applicazione**: `it.napolitano.refertovolley` (definito in `src-tauri/tauri.conf.json`).
-- **Versione**: definita in `src-tauri/tauri.conf.json` e in `src-tauri/Cargo.toml`.
-- **Nuova release**:
-  1. Aggiornare la versione in `src-tauri/tauri.conf.json` e `src-tauri/Cargo.toml`.
-  2. Creare e inviare il tag Git:
-     ```bash
-     git tag v0.1.0
-     git push origin v0.1.0
-     ```
-  3. GitHub Actions avvierà la compilazione multipiattaforma e pubblicherà la Release completa su GitHub.
+- **Versione**: unica sorgente è il campo `version` del `package.json` nella radice (semver `X.Z.0`, mostrata come `X.Z` nel footer dell'app e nei PDF). `scripts/bump-version.mjs` la sincronizza in `webapp/package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` e `src-tauri/Cargo.lock`.
+- **Aggiornamento automatico**: gli hook in `.githooks/` incrementano `Z` a ogni commit (`pre-commit`), partendo dal valore più alto fra `package.json` e l'ultimo tag `vX.Z` su GitHub, e creano il tag annotato `vX.Z` (`post-commit`). Con `push.followTags` il tag parte con la normale `git push` e avvia la Release. Attivazione, una volta per clone:
+  ```bash
+  npm run setup-hooks
+  ```
+- **Nuova versione major** (`X+1.0`): `npm run version:major`, poi commit dei file modificati (l'hook non incrementa di nuovo).
+- **Commit senza nuova versione**: `SKIP_VERSION_BUMP=1 git commit ...`; con `git commit --amend` la versione non viene incrementata.

@@ -1,0 +1,17 @@
+#!/bin/sh
+# Bump the app version on every commit and stage the updated manifests.
+# Skip with: SKIP_VERSION_BUMP=1 git commit ...
+[ -n "$SKIP_VERSION_BUMP" ] && exit 0
+# Don't bump again when amending a commit
+ps -o args= -p "$PPID" 2>/dev/null | grep -q -- '--amend' && exit 0
+
+version_of() {
+  git show "$1:package.json" 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).version||'')}catch{console.log('')}})"
+}
+# Version already changed in this commit (e.g. npm run version:major): keep it
+[ "$(version_of HEAD)" != "$(version_of '')" ] && exit 0
+
+root=$(git rev-parse --show-toplevel)
+version=$(node "$root/scripts/bump-version.mjs") || exit 1
+git add package.json package-lock.json webapp/package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+echo "Versione aggiornata a $version"

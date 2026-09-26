@@ -1,6 +1,7 @@
 {
   "name": "analisirefertogara",
   "private": true,
+  "version": "0.1.0",
   "type": "module",
   "workspaces": [
     "webapp"
@@ -15,7 +16,9 @@
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "android:build": "tauri android build",
-    "ios:build": "tauri ios build"
+    "ios:build": "tauri ios build",
+    "setup-hooks": "git config core.hooksPath .githooks && git config push.followTags true",
+    "version:major": "node scripts/bump-version.mjs --major"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",

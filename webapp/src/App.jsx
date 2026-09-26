@@ -12,9 +12,22 @@ import { validateMatch } from './analysis'
 import { formatDuration, formatWins, matchDuration } from './format'
 import { emptyFilters, matchHeading } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
+import { APP_VERSION } from './version'
 import './App.css'
 
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, CanvasRenderer])
+
+// Rasterize an inline SVG (e.g. the logo) to a PNG data URL for jsPDF
+async function svgToPng(svg, size) {
+  const image = new Image()
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`
+  await image.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  canvas.getContext('2d').drawImage(image, 0, 0, size, size)
+  return canvas.toDataURL('image/png')
+}
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
 const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '', setterRole: '' }
@@ -128,20 +141,25 @@ function MainApp() {
     }
   }, [activeTab])
 
-  // Export report area to PDF: fit to A4 width and paginate at block boundaries (like spreadsheet "fit to width")
+  // Export report area to PDF: fit to A4 width and paginate at block boundaries (like spreadsheet "fit to width"),
+  // with header and footer repeated on every page
   const exportToPdf = async () => {
     if (!reportExportRef.current) return
     setExportingPdf(true)
     const el = reportExportRef.current
     try {
+      const logoPng = await svgToPng(el.querySelector('.vs-export-header svg'), 160)
+
       // Fixed desktop layout during capture, independent of the current window size
       el.classList.add('vs-pdf-export')
       await new Promise(resolve => setTimeout(resolve, 350)) // let charts resize via ResizeObserver
 
       const containerTop = el.getBoundingClientRect().top
       const cssWidth = el.offsetWidth
+      // Page breaks: after blocks, or inside a table body keeping at least 3 rows before and 2 after the cut
+      const tableRows = [...el.querySelectorAll('tbody')].flatMap(tbody => [...tbody.rows].slice(2, -2))
       const breakPoints = [...new Set(
-        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, tr')]
+        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid'), ...tableRows]
           .map(node => Math.round(node.getBoundingClientRect().bottom - containerTop))
       )].sort((a, b) => a - b)
 
@@ -153,34 +171,99 @@ function MainApp() {
       })
       const pxRatio = canvas.width / cssWidth
 
-      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true })
       const pageWidth = 210
       const pageHeight = 297
       const margin = 6
-      const footerSpace = 6
+      const headerLineY = 15.5
+      const footerLineY = pageHeight - 11
+      const contentTop = headerLineY + 3
+      const contentBottom = footerLineY - 3
       const printWidth = pageWidth - margin * 2
-      const availableHeight = pageHeight - margin * 2 - footerSpace
-      const mmPerCssPx = printWidth / cssWidth
-      const pageCssHeight = Math.floor(availableHeight / mmPerCssPx)
+      const availableHeight = contentBottom - contentTop
       const totalCssHeight = canvas.height / pxRatio
 
       // Split into pages, cutting at the last block/row boundary that fits
-      const slices = []
-      let start = 0
-      while (start < totalCssHeight - 1) {
-        const limit = start + pageCssHeight
-        let end = Math.min(limit, totalCssHeight)
-        if (limit < totalCssHeight) {
-          const candidate = breakPoints.filter(y => y > start + pageCssHeight * 0.3 && y <= limit).pop()
-          if (candidate) end = candidate
+      const paginate = pageCssHeight => {
+        const slices = []
+        let start = 0
+        while (start < totalCssHeight - 1) {
+          const limit = start + pageCssHeight
+          let end = Math.min(limit, totalCssHeight)
+          if (limit < totalCssHeight) {
+            const candidate = breakPoints.filter(y => y > start + pageCssHeight * 0.3 && y <= limit).pop()
+            if (candidate) end = candidate
+          }
+          slices.push([start, end])
+          start = end
         }
-        slices.push([start, end])
-        start = end
+        // Drop a trailing sliver that only holds a card's bottom padding/border
+        if (slices.length > 1 && slices.at(-1)[1] - slices.at(-1)[0] < 40) slices.pop()
+        return slices
       }
-      // Drop a trailing sliver that only holds a card's bottom padding/border
-      if (slices.length > 1 && slices.at(-1)[1] - slices.at(-1)[0] < 40) slices.pop()
 
-      const footer = 'Referto Volley - Maurizio Napolitano - modello Excel delle rotazioni di Andrea Fortunati'
+      // Fit to page width; shrink slightly (max 8%) only if that saves a page
+      let contentWidth = printWidth
+      let slices = paginate(Math.floor(availableHeight / (printWidth / cssWidth)))
+      for (let shrink = 0.98; shrink >= 0.92; shrink -= 0.02) {
+        const candidate = paginate(Math.floor(availableHeight / (printWidth * shrink / cssWidth)))
+        if (candidate.length < slices.length) {
+          contentWidth = printWidth * shrink
+          slices = candidate
+          break
+        }
+      }
+      const mmPerCssPx = contentWidth / cssWidth
+      const contentX = (pageWidth - contentWidth) / 2
+
+      const now = new Date()
+      const pad = n => String(n).padStart(2, '0')
+      const createdAt = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+      const siteUrl = 'https://refertogara.volleyserve.it'
+      const repoUrl = 'https://github.com/napo/analisirefertogara'
+      const footerLeft = 'Analisi Referto Volley è un progetto open source di Maurizio Napolitano - '
+      const footerRight = `report prodotto in data ${createdAt} ver ${APP_VERSION}`
+
+      const drawHeaderFooter = (pageIndex, pageCount) => {
+        pdf.setDrawColor(230, 81, 0)
+        pdf.setLineWidth(0.5)
+
+        // Header: logo, title and site link, page number on the right
+        pdf.addImage(logoPng, 'PNG', margin, 5, 9, 9)
+        pdf.setTextColor(1, 22, 39)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(12)
+        const title = 'Analisi Referto Volley'
+        pdf.text(title, margin + 11, 11.6)
+        const titleWidth = pdf.getTextWidth(title)
+        pdf.setFont('helvetica', 'normal')
+        const siteX = margin + 11 + titleWidth + 1.5
+        const siteText = `- ${siteUrl}`
+        pdf.text(siteText, siteX, 11.6)
+        pdf.link(siteX + pdf.getTextWidth(siteText) - pdf.getTextWidth(siteUrl), 7.5, pdf.getTextWidth(siteUrl), 5.5, { url: siteUrl })
+        if (pageCount > 1) {
+          pdf.setFontSize(8)
+          pdf.setTextColor(100, 100, 100)
+          pdf.text(`Pagina ${pageIndex + 1} di ${pageCount}`, pageWidth - margin, 11.6, { align: 'right' })
+        }
+        pdf.line(margin, headerLineY, pageWidth - margin, headerLineY)
+
+        // Footer: credits and repository link on the left, creation date and version on the right
+        pdf.line(margin, footerLineY, pageWidth - margin, footerLineY)
+        pdf.setTextColor(100, 100, 100)
+        let fontSize = 7.5
+        pdf.setFontSize(fontSize)
+        while (fontSize > 5 && pdf.getTextWidth(footerLeft + repoUrl) + pdf.getTextWidth(footerRight) + 4 > printWidth) {
+          fontSize -= 0.25
+          pdf.setFontSize(fontSize)
+        }
+        const footerY = footerLineY + 4.5
+        pdf.text(footerLeft + repoUrl, margin, footerY)
+        const repoUrlWidth = pdf.getTextWidth(repoUrl)
+        pdf.link(margin + pdf.getTextWidth(footerLeft + repoUrl) - repoUrlWidth, footerY - 3, repoUrlWidth, 4, { url: repoUrl })
+        pdf.text(footerRight, pageWidth - margin, footerY, { align: 'right' })
+      }
+
       slices.forEach(([from, to], index) => {
         const sliceCanvas = document.createElement('canvas')
         sliceCanvas.width = canvas.width
@@ -191,11 +274,9 @@ function MainApp() {
         ctx.drawImage(canvas, 0, Math.round(from * pxRatio), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height)
 
         if (index > 0) pdf.addPage()
-        pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, margin, printWidth, (to - from) * mmPerCssPx)
-        pdf.setFontSize(8)
-        pdf.setTextColor(100, 100, 100)
-        pdf.text(footer, margin, pageHeight - margin + 1)
-        if (slices.length > 1) pdf.text(`${index + 1} / ${slices.length}`, pageWidth - margin, pageHeight - margin + 1, { align: 'right' })
+        // JPEG keeps the file small (PNG screenshots made reports of 20-30 MB)
+        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', contentX, contentTop, contentWidth, (to - from) * mmPerCssPx, undefined, 'FAST')
+        drawHeaderFooter(index, slices.length)
       })
 
       const matchLabel = visibleMatches.length === 1 && visibleMatches[0]
@@ -1721,10 +1802,13 @@ function MainApp() {
               Progetto di Maurizio Napolitano, basato sul modello di analisi delle rotazioni sviluppato da Andrea Fortunati in un foglio di calcolo Excel.
             </span>
           </div>
-          <div>
+          <div className="vs-footer-meta">
             <span>Analisi dei PDF nel browser · Archivio locale tramite IndexedDB</span>
             <span style={{ display: 'block', fontSize: '0.8rem', marginTop: '0.2rem' }}>
               <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">WTFPL — Do What The Fuck You Want To Public License, Version 2</a>
+            </span>
+            <span className="vs-footer-version">
+              <a href={`https://github.com/napo/analisirefertogara/releases/tag/v${APP_VERSION}`} target="_blank" rel="noopener noreferrer">ver {APP_VERSION}</a>
             </span>
           </div>
         </footer>

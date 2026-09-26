@@ -731,6 +731,17 @@
   text-underline-offset: 2px;
 }
 
+.vs-footer-meta {
+  margin-left: auto;
+  text-align: right;
+}
+
+.vs-footer-version {
+  display: block;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
 .vs-footer a:hover {
   color: var(--vs-accent);
 }
@@ -802,8 +813,16 @@
 }
 .vs-pdf-export .vs-card {
   box-shadow: none;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
 }
-.vs-pdf-export .vs-btn {
+.vs-pdf-export .vs-metrics-grid,
+.vs-pdf-export .vs-charts-grid {
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+.vs-pdf-export .vs-btn,
+.vs-pdf-export .vs-export-header {
   display: none;
 }
 .vs-pdf-export .vs-table-wrap {

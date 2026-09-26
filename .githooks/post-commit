@@ -1,0 +1,7 @@
+#!/bin/sh
+# Tag the new commit as vX.Z (pushed together with the commit thanks to push.followTags).
+[ -n "$SKIP_VERSION_BUMP" ] && exit 0
+root=$(git rev-parse --show-toplevel)
+version=$(node -p "require('$root/package.json').version.split('.').slice(0, 2).join('.')")
+tag="v$version"
+git rev-parse -q --verify "refs/tags/$tag" >/dev/null || git tag -a "$tag" -m "Analisi Referto Volley $tag"
