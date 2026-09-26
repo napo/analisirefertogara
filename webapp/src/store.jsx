@@ -193,7 +193,11 @@ export function MatchStoreProvider({ children }) {
       const parsed = await importPdf(file)
       const existing = matches.find(m => m.id === parsed.id)
       const prepared = existing ? refreshImportedMatch(existing, parsed) : applySetter(parsed)
-      if (existing) setMessage('Referto già presente: verifica i nomi e salva per aggiornare la gara esistente.')
+      if (existing) setMessage(parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 2
+        ? 'Corrette le associazioni delle squadre: rose, formazioni, liberi, punteggi e turni sono stati riletti dal PDF. Verifica i dati e reimposta le rotazioni del palleggiatore prima di salvare.'
+        : parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 3
+          ? 'Aggiornati gli ingressi del libero e le sostituzioni dal PDF. Verifica e salva per correggere il numero di atleti coinvolti.'
+          : 'Referto già presente: verifica i nomi e salva per aggiornare la gara esistente.')
       setDraft(prepared)
       setLatestMatchId(prepared.id)
       setActiveTab('reports')

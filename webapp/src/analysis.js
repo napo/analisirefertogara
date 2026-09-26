@@ -1,3 +1,4 @@
+import { athleteStats } from './athletes.js'
 import { receptionStats, servicePoints } from './reception.js'
 
 export const sum = a => a.reduce((s, v) => s + v, 0)
@@ -44,30 +45,6 @@ function calculateGridPoints(grid) {
   }
 
   return { turns, points }
-}
-
-function involvedNumbers(match) {
-  const numbers = new Set()
-  for (const set of match.sets || []) {
-    for (const number of set.lineup || []) {
-      if (number !== '' && number !== null && number !== undefined) {
-        numbers.add(String(number).trim().replace(/^0+/, '') || '0')
-      }
-    }
-    for (const entry of set.liberoReplacements || []) {
-      if (entry.player) numbers.add(String(entry.player).trim().replace(/^0+/, '') || '0')
-      if (entry.libero) numbers.add(String(entry.libero).trim().replace(/^0+/, '') || '0')
-    }
-    for (const key of ['onCourt', 'entered', 'otherEntered']) {
-      const list = Array.isArray(set.libero?.[key]) ? set.libero[key] : [set.libero?.[key]]
-      for (const number of list) {
-        if (number !== '' && number !== null && number !== undefined) {
-          numbers.add(String(number).trim().replace(/^0+/, '') || '0')
-        }
-      }
-    }
-  }
-  return numbers
 }
 
 /**
@@ -121,13 +98,13 @@ export function analyze(matches) {
     }
   })
 
-  const athletesInvolved = new Set(matches.flatMap(match => [...involvedNumbers(match)]))
+  const athletesInvolved = athleteStats(matches).filter(player => player.entered).length
   const breakPoints = matches.reduce((total, match) => total + match.sets.reduce((acc, set) => acc + servicePoints(set.own), 0), 0)
 
   return {
     rows,
     reception: receptionStats(matches),
-    athletesInvolved: athletesInvolved.size,
+    athletesInvolved,
     breakPoints,
     opponentBreakPoints,
     scored: sum(matches.flatMap(m => m.sets.map(s => s.scoreOwn))),

@@ -499,30 +499,35 @@ function parseFipav(words, width, height, operatorList) {
     throw Error('Formato FIPAV non riconosciuto: intestazione incompleta.')
   }
 
+  const teamLetters = [around(34, 94, 5, 3), around(597, 94, 5, 3)]
+    .map(list => list.find(w => /^[AB]$/.test(w.text))?.text)
+  if (!teamLetters[0] || !teamLetters[1] || teamLetters[0] === teamLetters[1]) {
+    throw Error('Associazione squadre A/B FIPAV non riconosciuta.')
+  }
   const roster = [[], []]
   const rosterWords = words.filter(w => w.y > 450 && w.y < 665 && w.x > 900)
-  for (const word of rosterWords) {
-    const side = word.x < 1030 ? 0 : 1
-    const number = cleanJerseyNumber(word.text)
-    if (!number) continue
-    const nameWords = rosterWords.filter(n =>
-      Math.abs(n.y - word.y) <= 2 &&
-      n.x > word.x + 8 && n.x < (side ? 1190 : 1030) &&
-      !/^\d+$/.test(n.text) && !/^[LM]\d?$/.test(n.text),
-    )
-    const name = nameWords.sort((a, b) => a.x - b.x).map(n => n.text).join(' ').trim()
-    const libero = rosterWords.find(n => Math.abs(n.y - word.y) <= 2 && /^L[12]?$/.test(n.text))?.text
-    if (name && !roster[side].some(player => player.number === number)) {
-      roster[side].push({ number, name: libero ? `${name} - ${libero}` : name })
+  for (const [column, bounds] of [{numberX: 926, nameX: 942.8, right: 1046}, {numberX: 1051, nameX: 1068.3, right: 1180}].entries()) {
+    const letter = around(column ? 1156.8 : 924.5, 429.4, 5, 3).find(w => /^[AB]$/.test(w.text))?.text
+    const side = teamLetters.indexOf(letter)
+    if (side < 0) throw Error('Squadra della rosa FIPAV non riconosciuta.')
+    for (const word of rosterWords.filter(w => Math.abs(w.x - bounds.numberX) < 5 && /^\d{1,2}$/.test(w.text))) {
+      const number = Number(word.text)
+      const row = rosterWords.filter(w => Math.abs(w.y - word.y) <= 2 && w.x >= bounds.nameX - 2 && w.x < bounds.right)
+      const name = row.filter(w => !/^L[12]?$/.test(w.text)).sort((a,b) => a.x-b.x).map(w => w.text).join(' ').trim()
+      const libero = row.find(w => /^L[12]?$/.test(w.text))?.text
+      if (name) roster[side].push({ number, name: libero ? `${name} - ${libero}` : name })
     }
   }
+  const summaryLetter = around(676.9, 606.2, 5, 3).find(w => /^[AB]$/.test(w.text))?.text
+  if (!teamLetters.includes(summaryLetter)) throw Error('Squadra del risultato FIPAV non riconosciuta.')
+  const summaryReversed = summaryLetter !== teamLetters[0]
 
   const summaryRows = [648.3, 669.3, 690.3, 711.4, 732.4]
   const scores = summaryRows.map(y => {
     const own = around(648.3, y, 3, 2).find(w => /^\d+$/.test(w.text))
     const other = around(723.9, y, 3, 2).find(w => /^\d+$/.test(w.text))
     const duration = around(699, y, 3, 2).find(w => /^\d+$/.test(w.text))
-    return own && other ? { own: Number(own.text), other: Number(other.text), durationMinutes: duration ? Number(duration.text) : '' } : null
+    return own && other ? { own: Number(summaryReversed ? other.text : own.text), other: Number(summaryReversed ? own.text : other.text), durationMinutes: duration ? Number(duration.text) : '' } : null
   }).filter(Boolean)
   if (!scores.length) throw Error('Risultato finale FIPAV non riconosciuto.')
 
@@ -543,25 +548,17 @@ function parseFipav(words, width, height, operatorList) {
       ? 'Femminile'
       : ''
 
-  const graphicXs = operatorList?.fnArray.flatMap((fn, index) => {
-    if (fn !== 91 || operatorList.argsArray[index][1][0].length !== 7) return []
-    const bounds = operatorList.argsArray[index][2]
-    const width = bounds[2] - bounds[0]
-    const boxHeight = bounds[3] - bounds[1]
-    if (width < 5 || boxHeight < 5 || Math.abs(width - boxHeight) >= 3) return []
-    return [{
-      x: ((bounds[0] + bounds[2]) / 2) * scaleX,
-      y: (height - (bounds[1] + bounds[3]) / 2) * scaleY,
-    }]
-  }) || []
-
   const panelRows = [
-    { y: 151.5, pair: 0, ownSide: 0 },
-    { y: 151.5, pair: 1, ownSide: 1 },
-    { y: 305.9, pair: 0, ownSide: 0 },
-    { y: 305.9, pair: 1, ownSide: 1 },
-    { y: 460.2, pair: 0, ownSide: 1 },
-  ]
+    { y: 151.5, pair: 0 }, { y: 151.5, pair: 1 },
+    { y: 305.9, pair: 0 }, { y: 305.9, pair: 1 },
+    { y: 460.2, pair: 0 },
+  ].map((panel, index) => {
+    if (index >= scores.length) return { ...panel, ownSide: 0 }
+    const letter = around(panel.pair ? 800.2 : 249.8, panel.y - 30.8, 5, 3)
+      .find(w => /^[AB]$/.test(w.text))?.text
+    if (!teamLetters.includes(letter)) throw Error('Squadra del set FIPAV non riconosciuta.')
+    return { ...panel, ownSide: letter === teamLetters[0] ? 0 : 1 }
+  })
   const lineupStarts = [[108.5, 369.1], [658.7, 922.2]]
   const readLineup = (y, start) => Array.from({ length: 6 }, (_, index) => {
     const expectedX = start + index * 29
@@ -577,6 +574,10 @@ function parseFipav(words, width, height, operatorList) {
     ]
     return { own: sides[ownSide], other: sides[1 - ownSide] }
   })
+  const substitutes = panelRows.map(({ y, pair, ownSide }) => {
+    const sides = lineupStarts[pair].map(start => readLineup(y + 14, start).filter(Boolean))
+    return { own: sides[ownSide], other: sides[1 - ownSide] }
+  })
   const liberoStarts = [[305.7, 566.3], [855.9, 1116.5]]
   const liberoSequences = panelRows.map(({ y, pair, ownSide }) => {
     const fields = [
@@ -586,13 +587,17 @@ function parseFipav(words, width, height, operatorList) {
     for (const side of [0, 1]) {
       const start = liberoStarts[pair][side]
       for (const word of words.filter(w =>
-        Math.abs(w.x - start) <= 4 && w.y >= y - 18 && w.y < y + 55 && /\d+\s*[-–/]\s*\d+/.test(w.text),
+        Math.abs(w.x - start) <= 4 && w.y >= y - 18 && w.y < y + 55 && /^\d+(?:\s*[-–/]\s*\d+)*$/.test(w.text),
       )) {
         const row = Math.round((word.y - (y - 15.4)) / 14.2)
         if (row < 0 || row >= 6) continue
         const numbers = word.text.match(/\d+/g) || []
         fields[side].onCourt[row] = numbers[0] || ''
-        fields[side].entered[row] = numbers[1] || ''
+        // NEWBIT may record only the replaced player when the team has one libero.
+        // With multiple liberos the annotation is ambiguous: never guess who entered.
+        const teamIndex = side === ownSide ? 0 : 1
+        const liberos = roster[teamIndex].filter(player => /\bL[12]?\b/.test(player.name))
+        fields[side].entered[row] = numbers[1] || (liberos.length === 1 ? String(liberos[0].number) : '')
         fields[side].otherEntered[row] = numbers[2] || ''
       }
     }
@@ -618,7 +623,7 @@ function parseFipav(words, width, height, operatorList) {
     )
     .sort((a, b) => a.y - b.y || a.x - b.x)
     .map(w => Number(w.text))
-  progressions[4].other.push(...fifthSetContinuation)
+  progressions[4][panelRows[4].ownSide === 0 ? 'own' : 'other'].push(...fifthSetContinuation)
 
   const sets = scores.map((score, index) => {
     const own = Array(36).fill('')
@@ -626,14 +631,26 @@ function parseFipav(words, width, height, operatorList) {
     for (const [target, values] of [[own, progressions[index]?.own], [other, progressions[index]?.other]]) {
       for (const [cell, value] of (values || []).slice(0, 36).entries()) target[cell] = value
     }
-    const expectedX = index % 2 === 0 ? 360 : 910
-    const expectedY = 208 + Math.floor(index / 2) * 154
-    if (graphicXs.some(mark => Math.abs(mark.x - expectedX) < 15 && Math.abs(mark.y - expectedY) < 15)) other[0] = 'X'
+    // A receiving team's first service slot is crossed out, not a zero turn.
+    // Preserve that slot so subsequent turns stay aligned with the lineup.
+    const panel = panelRows[index]
+    for (const [side, target] of [[panel.ownSide, own], [1 - panel.ownSide, other]]) {
+      const firstX = progressionStarts[panel.pair][side]
+      const firstY = panel.y + 56.2
+      const firstNumber = words.some(w => Math.abs(w.x - firstX) < 6 && Math.abs(w.y - firstY) < 3 && w.size >= 7.5 && w.size <= 8.2 && /^\d+$/.test(w.text))
+      if (!firstNumber && target.some(v => v !== '')) {
+        if (target[35] !== '') throw Error('Troppi turni di servizio nel referto FIPAV.')
+        target.pop()
+        target.unshift('X')
+      }
+    }
     return {
       number: index + 1,
       rotation: '',
       own,
       other,
+      substituteNumbers: substitutes[index]?.own || [],
+      opponentSubstituteNumbers: substitutes[index]?.other || [],
       lineup: lineups[index]?.own || ['', '', '', '', '', ''],
       opponentLineup: lineups[index]?.other || ['', '', '', '', '', ''],
       libero: liberoSequences[index]?.own || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
@@ -647,6 +664,8 @@ function parseFipav(words, width, height, operatorList) {
   })
 
   return {
+    parserVersion: 3,
+    sourceFormat: 'FIPAV',
     progressionsImported: true,
     durationMinutes: scores.reduce((total, score) => total + score.durationMinutes, 0),
     championship: text(115.8, 50.5, 70),
@@ -700,17 +719,21 @@ export function applySetter(match) {
 // Reimporting enriches the roster while retaining reviewed match data and names.
 export function refreshImportedMatch(existing, parsed) {
   const reversed = existing.team === parsed.opponent
+  const repairParticipation = parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 3
+  const repairTeams = parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 2
   const merge = (incoming, saved = []) => incoming.map(player => {
     const previous = saved.find(entry => Number(typeof entry === 'object' ? entry.number : entry) === player.number)
     return {
       ...player,
-      name: previous?.name?.trim() ? previous.name : player.name,
+      name: !repairTeams && previous?.name?.trim() ? previous.name : player.name,
       setterRole: previous?.setterRole || player.setterRole || '',
       isSetter: previous?.isSetter ?? player.isSetter ?? false,
     }
   })
   return {
     ...existing,
+    parserVersion: parsed.parserVersion,
+    sourceFormat: parsed.sourceFormat,
     durationMinutes: Number(existing.durationMinutes) > 0 ? existing.durationMinutes : parsed.durationMinutes,
     championship: existing.championship || parsed.championship,
     event: existing.event || parsed.event,
@@ -718,13 +741,23 @@ export function refreshImportedMatch(existing, parsed) {
     number: existing.number || parsed.number,
     sets: existing.sets.map((set, index) => ({
       ...set,
-      lineup: set.lineup?.some(Boolean) ? set.lineup : parsed.sets[index]?.lineup ?? set.lineup,
-      opponentLineup: set.opponentLineup?.some(Boolean) ? set.opponentLineup : parsed.sets[index]?.opponentLineup ?? set.opponentLineup,
-      libero: set.libero || parsed.sets[index]?.libero || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
-      opponentLibero: set.opponentLibero || parsed.sets[index]?.opponentLibero || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
+      ...(repairTeams && parsed.sets[index] ? {
+        ...parsed.sets[index],
+        rotation: '',
+        own: reversed ? parsed.sets[index].other : parsed.sets[index].own,
+        other: reversed ? parsed.sets[index].own : parsed.sets[index].other,
+        scoreOwn: reversed ? parsed.sets[index].scoreOther : parsed.sets[index].scoreOwn,
+        scoreOther: reversed ? parsed.sets[index].scoreOwn : parsed.sets[index].scoreOther,
+      } : {}),
+      substituteNumbers: (repairParticipation ? null : set.substituteNumbers) ?? (reversed ? parsed.sets[index]?.opponentSubstituteNumbers : parsed.sets[index]?.substituteNumbers) ?? [],
+      opponentSubstituteNumbers: (repairParticipation ? null : set.opponentSubstituteNumbers) ?? (reversed ? parsed.sets[index]?.substituteNumbers : parsed.sets[index]?.opponentSubstituteNumbers) ?? [],
+      lineup: !repairTeams && set.lineup?.some(Boolean) ? set.lineup : (reversed ? parsed.sets[index]?.opponentLineup : parsed.sets[index]?.lineup) ?? set.lineup,
+      opponentLineup: !repairTeams && set.opponentLineup?.some(Boolean) ? set.opponentLineup : (reversed ? parsed.sets[index]?.lineup : parsed.sets[index]?.opponentLineup) ?? set.opponentLineup,
+      libero: (!repairParticipation && set.libero) || (reversed ? parsed.sets[index]?.opponentLibero : parsed.sets[index]?.libero) || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
+      opponentLibero: (!repairParticipation && set.opponentLibero) || (reversed ? parsed.sets[index]?.libero : parsed.sets[index]?.opponentLibero) || { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
       durationMinutes: Number(set.durationMinutes) > 0 ? set.durationMinutes : parsed.sets[index]?.durationMinutes ?? '',
-      liberoReplacements: set.liberoReplacements ?? (reversed ? parsed.sets[index]?.opponentLiberoReplacements : parsed.sets[index]?.liberoReplacements) ?? [],
-      opponentLiberoReplacements: set.opponentLiberoReplacements ?? (reversed ? parsed.sets[index]?.liberoReplacements : parsed.sets[index]?.opponentLiberoReplacements) ?? [],
+      liberoReplacements: (repairTeams ? null : set.liberoReplacements) ?? (reversed ? parsed.sets[index]?.opponentLiberoReplacements : parsed.sets[index]?.liberoReplacements) ?? [],
+      opponentLiberoReplacements: (repairTeams ? null : set.opponentLiberoReplacements) ?? (reversed ? parsed.sets[index]?.liberoReplacements : parsed.sets[index]?.opponentLiberoReplacements) ?? [],
     })),
     roster: merge(reversed ? parsed.opponentRoster : parsed.roster, existing.roster),
     opponentRoster: merge(reversed ? parsed.roster : parsed.opponentRoster, existing.opponentRoster),
