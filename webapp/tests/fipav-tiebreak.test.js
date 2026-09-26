@@ -191,3 +191,20 @@ test('substitutions and time-outs are read per position, as on the scoresheet', 
   // participation list stays aligned with the "Riserve" row
   assert.deepEqual(m.sets[2].substituteNumbers, ['3', '15'])
 })
+
+test('edited PDFs: roster column without its A/B letter is matched by the team name, shifted names are read', () => {
+  const sx = 1190.55 / fixture.width, sy = 841.89 / fixture.height
+  const at = (item, x, y, d = 1.5) => Math.abs(item.transform[4] * sx - x) < d && Math.abs((fixture.height - item.transform[5]) * sy - y) < d
+  // the circled "B" of the roster header covered by a long team name
+  const withoutLetter = fixture.items.filter(item => !(item.str.trim() === 'B' && at(item, 1157, 429.4)))
+  assert.equal(withoutLetter.length, fixture.items.length - 1)
+  const m = parse(withoutLetter)
+  assert.equal(m.opponentRoster.length, 13)
+  assert.ok(m.importWarnings.some(w => w.set === null && w.team === STUDIO55 && /associata dal nome/.test(w.message)))
+  // names rewritten 4.4pt higher and smaller than the jersey numbers
+  const shifted = fixture.items.map(item => /^ATLETA /.test(item.str)
+    ? { ...item, transform: [item.transform[0] * 0.5, 0, 0, item.transform[3] * 0.5, item.transform[4], item.transform[5] + 4.4 / sy] }
+    : item)
+  const n = parse(shifted)
+  assert.deepEqual([n.roster.length, n.opponentRoster.length], [parse().roster.length, parse().opponentRoster.length])
+})

@@ -1,7 +1,7 @@
 import React, { Fragment, useMemo, useState } from 'react'
 import { ATHLETE_INDICATORS, TREND_INDICATOR, athleteRows, extremes, indicatorValue } from './athlete-indicators'
 import { PHASE_COLORS } from './theme'
-import { InfoTip } from './Glossary'
+import { InfoTip } from './GlossaryView'
 
 const formatNumber = (value, decimals) => Number(value).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: decimals })
 const trendIndicator = ATHLETE_INDICATORS.find(indicator => indicator.key === TREND_INDICATOR)

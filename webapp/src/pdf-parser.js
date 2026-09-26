@@ -602,13 +602,30 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
   }
   const roster = [[], []]
   const rosterWords = words.filter(w => w.y > 450 && w.y < 665 && w.x > 900)
+  // Team of each roster column: the circled A/B letter; when it is missing (e.g. covered by a long team
+  // name in an edited PDF) the team name printed in the same header, which is data of the scoresheet too
+  const rosterNotes = []
+  const squash = text => text.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const rosterSideByName = column => {
+    const header = squash(words.filter(w => Math.abs(w.y - 428) <= 4 && (column ? w.x > 1060 && w.x < 1190 : w.x > 935 && w.x < 1025))
+      .sort((a, b) => a.x - b.x).map(w => w.text).join(' '))
+    if (header.length < 3) return -1
+    const matches = teams.map(team => squash(team)).map(team => team.startsWith(header) || header.startsWith(team))
+    return matches.filter(Boolean).length === 1 ? matches.indexOf(true) : -1
+  }
   for (const [column, bounds] of [{numberX: 926, nameX: 942.8, right: 1046}, {numberX: 1051, nameX: 1068.3, right: 1180}].entries()) {
     const letter = around(column ? 1156.8 : 924.5, 429.4, 5, 3).find(w => /^[AB]$/.test(w.text))?.text
-    const side = teamLetters.indexOf(letter)
+    let side = teamLetters.indexOf(letter)
+    if (side < 0) {
+      side = rosterSideByName(column)
+      if (side >= 0) rosterNotes.push({ column, team: teams[side] })
+    }
     if (side < 0) throw Error('Squadra della rosa FIPAV non riconosciuta.')
     for (const word of rosterWords.filter(w => Math.abs(w.x - bounds.numberX) < 5 && /^\d{1,2}$/.test(w.text))) {
       const number = Number(word.text)
-      const row = rosterWords.filter(w => Math.abs(w.y - word.y) <= 2 && w.x >= bounds.nameX - 2 && w.x < bounds.right)
+      // Rows are 14pt apart: a name within 5.5pt of the number belongs to that row (edited PDFs may write
+      // the name slightly higher and smaller than the original)
+      const row = rosterWords.filter(w => Math.abs(w.y - word.y) <= 5.5 && w.x >= bounds.nameX - 2 && w.x < bounds.right)
       const name = row.filter(w => !/^L[12]?$/.test(w.text)).sort((a,b) => a.x-b.x).map(w => w.text).join(' ').trim()
       const libero = row.find(w => /^L[12]?$/.test(w.text))?.text
       if (name) roster[side].push({ number, name: libero ? `${name} - ${libero}` : name })
@@ -727,6 +744,13 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
   // reading order, so the two halves of the fifth set can be merged cell by cell.
   const progressionStarts = [[102.5, 365.4], [652.8, 913.4]]
   const warnings = []
+  for (const note of rosterNotes) {
+    warnings.push({
+      set: null, team: note.team, expected: 'lettera A/B cerchiata', found: 'lettera assente',
+      zone: `Elenco atleti · intestazione colonna ${note.column ? 'destra' : 'sinistra'} (x≈${note.column ? 1156.8 : 924.5}, y≈429.4)`,
+      message: `Squadra della colonna associata dal nome scritto nell'intestazione (${note.team}).`,
+    })
+  }
   const warn = (set, team, expected, found, zone, message) =>
     warnings.push({ set, team, expected, found, zone, message })
   const teamOfSide = (panel, side) => teams[side === panel.ownSide ? 0 : 1]

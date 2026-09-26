@@ -43,3 +43,11 @@ test('chart tooltip names the rally, then the score', () => {
   assert.match(text, /Rally 32\s+Punteggio: \d+-\d+/)
   assert.doesNotMatch(text, /Punto 32/)
 })
+
+test('no two source files differ only by letter case (macOS/Windows builds would pick the wrong one)', () => {
+  // JS modules are imported without extension ("./Glossary"): those are the ones that can collide
+  const names = readdirSync(new URL('../src/', import.meta.url)).filter(name => /\.jsx?$/.test(name))
+  const stems = names.map(name => name.replace(/\.jsx?$/, '').toLowerCase())
+  const clashes = stems.filter((stem, i) => stems.indexOf(stem) !== i)
+  assert.deepEqual(clashes, [], `case-insensitive clash: ${clashes.join(', ')}`)
+})

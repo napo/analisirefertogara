@@ -13,7 +13,7 @@ import { emptyFilters, matchHeading } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
 import MatchFlow from './MatchFlow'
 import AthletesTable from './AthletesTable'
-import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './Glossary'
+import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './GlossaryView'
 import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
 import './App.css'
@@ -2382,11 +2382,11 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 
       {draft.importWarnings?.length > 0 && (
         <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '0.5rem', color: '#6D4C00', fontSize: '0.85rem' }}>
-          <strong>Dati del PDF da controllare:</strong> il referto contiene valori tra loro incompatibili. Non sono stati corretti automaticamente: confrontali con il PDF originale.
+          <strong>Dati del PDF da controllare:</strong> alcuni valori non sono stati letti come previsto o non sono coerenti tra loro. L’app non li ha corretti: confrontali con il PDF originale.
           <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.25rem' }}>
             {draft.importWarnings.map((warning, i) => (
               <li key={i}>
-                Set {warning.set}{warning.team ? ` · ${warning.team}` : ''}: {warning.message} Atteso: {String(warning.expected)}; trovato: {String(warning.found)}.
+                {warning.set ? `Set ${warning.set}` : 'Referto'}{warning.team ? ` · ${warning.team}` : ''}: {warning.message} Atteso: {String(warning.expected)}; trovato: {String(warning.found)}.
                 <span style={{ display: 'block', fontSize: '0.76rem', opacity: 0.8 }}>Zona del PDF: {warning.zone}</span>
               </li>
             ))}
