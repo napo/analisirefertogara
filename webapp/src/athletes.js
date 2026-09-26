@@ -100,7 +100,9 @@ const matchAthleteStats = matches => {
             entered: true,
           })
         }
-        const points = Math.max(0, value - previous - 1)
+        // Every turn starts with the side-out point won in reception (-1), except the set's first serve:
+        // box I of the team serving first starts at 0-0 (Excel U9 = D9, same rule as servicePoints)
+        const points = Math.max(0, value - previous - (index === 0 ? 0 : 1))
         const player = stats.get(number)
         player.services += points + 1
         player.serviceTurns += 1

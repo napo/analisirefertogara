@@ -1,4 +1,3 @@
-import { athleteStats } from './athletes'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
@@ -13,6 +12,7 @@ import { formatDuration, formatWins, matchDuration } from './format'
 import { emptyFilters, matchHeading } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
 import MatchFlow from './MatchFlow'
+import AthletesTable from './AthletesTable'
 import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
 import './App.css'
@@ -162,7 +162,7 @@ function MainApp() {
       // Page breaks: after blocks, or inside a table body keeping at least 3 rows before and 2 after the cut
       const tableRows = [...el.querySelectorAll('tbody')].flatMap(tbody => [...tbody.rows].slice(2, -2))
       const breakPoints = [...new Set(
-        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, .vs-flow-set, .vs-flow-match-reading'), ...tableRows]
+        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, .vs-flow-set, .vs-flow-reading-set, .vs-flow-synthesis'), ...tableRows]
           .map(node => Math.round(node.getBoundingClientRect().bottom - containerTop))
       )].sort((a, b) => a - b)
 
@@ -1294,11 +1294,6 @@ function MainApp() {
                   />
                 </div>
 
-                {/* Andamento della gara: only for a single match */}
-                {isSingleMatch && visibleMatches[0] && (
-                  <MatchFlow match={visibleMatches[0]} female={isFemaleAnalysis} printing={exportingPdf} />
-                )}
-
                 {/* Rotations Table */}
                 <div className="vs-card">
                   <div className="vs-card-header">
@@ -1365,6 +1360,11 @@ function MainApp() {
                   </p>
                 </div>
 
+                {/* Andamento della gara: only for a single match, right after the rotation table */}
+                {isSingleMatch && visibleMatches[0] && (
+                  <MatchFlow match={visibleMatches[0]} female={isFemaleAnalysis} printing={exportingPdf} />
+                )}
+
                 <div className="vs-card">
                   <div className="vs-card-header">
                     <div>
@@ -1374,58 +1374,7 @@ function MainApp() {
                       </p>
                     </div>
                   </div>
-                  <div className="vs-table-wrap">
-                    <table className="vs-table">
-                      <thead>
-                        <tr>
-                          <th>{isFemaleAnalysis ? 'Atleta' : 'Atleta'}</th>
-                          <th className="num-cell-header">Punti nei set di presenza</th>
-                          <th className="num-cell-header">Servizi stimati</th>
-                          <th className="num-cell-header">Media servizi consecutivi stimati</th>
-                          <th className="num-cell-header" title={`Media punti della squadra per turno in fase break point con ${isFemaleAnalysis ? "l'atleta" : "l'atleta"} al servizio`}>
-                            MP BP con {isFemaleAnalysis ? 'atleta' : 'atleta'} al servizio
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {athleteStats(visibleMatches).filter(player => player.entered).map(player => (
-                          <tr key={player.id}>
-                            <td>
-                              <strong style={{ color: 'var(--vs-heading)', marginRight: '0.4rem' }}>#{player.number}</strong>
-                              {player.name ? (
-                                <span style={{ fontWeight: 600 }}>{player.name}</span>
-                              ) : (
-                                <span style={{ color: 'var(--vs-muted)', fontStyle: 'italic', fontSize: '0.84rem' }}>
-                                  (nome non associato: verificare la rosa importata)
-                                </span>
-                              )}
-                              {player.isSetter && (
-                                <span
-                                  className="vs-tag"
-                                  style={{
-                                    marginLeft: '0.55rem',
-                                    fontSize: '0.72rem',
-                                    padding: '0.1rem 0.45rem',
-                                    backgroundColor: '#FFF7ED',
-                                    color: '#C2410C',
-                                    border: '1px solid #FDBA74',
-                                    borderRadius: '0.25rem',
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  P
-                                </span>
-                              )}
-                            </td>
-                            <td className="num-cell">{player.pointsPlayed}</td>
-                            <td className="num-cell">{player.services}</td>
-                            <td className="num-cell">{fmt(player.averageConsecutive)}</td>
-                            <td className="num-cell">{fmt(player.averagePointsAtServe)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <AthletesTable matches={visibleMatches} female={isFemaleAnalysis} printing={exportingPdf} />
                 </div>
 
               </div>

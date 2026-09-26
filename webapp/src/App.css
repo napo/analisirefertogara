@@ -856,11 +856,67 @@
 .vs-flow-set-title .won { color: #2E7D32; }
 .vs-flow-set-title .lost { color: #C62828; }
 
-.vs-flow-set-reading {
-  margin: 0.2rem 0 0;
-  font-size: 0.82rem;
-  line-height: 1.5;
+.vs-flow-reading-set,
+.vs-flow-synthesis {
+  padding: 0.45rem 0.6rem;
+  margin: 0 -0.6rem;
+  border-radius: 0.4rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.vs-flow-reading-set.current {
+  background: var(--vs-orange-soft);
+}
+
+.vs-flow-set-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
   color: var(--vs-heading);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--vs-border-hover);
+  text-underline-offset: 3px;
+}
+
+.vs-flow-set-link:hover,
+.vs-flow-set-link[aria-pressed="true"] {
+  text-decoration-color: var(--vs-orange);
+}
+
+/* "Tutti i set": the selected set's chart is highlighted like its reading */
+.vs-flow-set.current {
+  background: var(--vs-orange-soft);
+  box-shadow: 0 0 0 0.6rem var(--vs-orange-soft);
+  border-radius: 0.2rem;
+  scroll-margin-top: 5rem;
+}
+
+.vs-flow-interactive,
+.vs-flow-set {
+  scroll-margin-top: 5rem;
+}
+
+.vs-flow-reading-set h4,
+.vs-flow-synthesis h4 {
+  font-size: 0.84rem;
+  margin: 0 0 0.15rem;
+  color: var(--vs-heading);
+}
+
+.vs-flow-reading-set h4 span {
+  color: var(--vs-muted);
+  font-weight: 500;
+  margin-left: 0.25rem;
+}
+
+.vs-flow-synthesis {
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--vs-border);
+  border-radius: 0;
+  padding-top: 0.7rem;
 }
 
 .vs-flow-scale-note {
@@ -1031,6 +1087,11 @@
 }
 
 /* PDF export and print: always "Tutti i set" (see MatchFlow), no interactive controls */
+.vs-pdf-export .vs-flow-reading-set.current,
+.vs-pdf-export .vs-flow-set.current {
+  background: none;
+  box-shadow: none;
+}
 .vs-pdf-export .vs-flow-views,
 .vs-pdf-export .vs-flow-tabs,
 .vs-pdf-export .vs-flow-options,
@@ -1038,10 +1099,6 @@
   display: none;
 }
 
-.vs-flow-match-reading {
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
 
 @media print {
   .vs-flow-views,
@@ -1050,9 +1107,13 @@
     display: none !important;
   }
   .vs-flow-set,
-  .vs-flow-match-reading {
+  .vs-flow-reading-set,
+  .vs-flow-synthesis {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+  .vs-flow-reading-set.current {
+    background: none;
   }
 }
 
@@ -1339,3 +1400,278 @@
   }
 }
 
+
+/* Athletes table: compact, fits desktop and PDF width */
+.vs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.vs-ath-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.vs-ath-scope > span {
+  font-weight: 700;
+  color: var(--vs-heading);
+  margin-right: 0.2rem;
+}
+
+.vs-ath-scope button {
+  border: 1px solid var(--vs-border);
+  background: var(--vs-surface);
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  font: inherit;
+  cursor: pointer;
+  color: var(--vs-text);
+}
+
+.vs-ath-scope button.active {
+  background: var(--vs-accent);
+  border-color: var(--vs-accent);
+  color: var(--vs-accent-contrast);
+  font-weight: 600;
+}
+
+.vs-ath-table {
+  font-size: 0.82rem;
+}
+
+.vs-ath-table th,
+.vs-ath-table td {
+  padding: 0.24rem 0.55rem;
+}
+
+.vs-ath-table thead th {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.vs-ath-table .num-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.vs-ath-name {
+  white-space: nowrap;
+}
+
+.vs-ath-name strong {
+  color: var(--vs-heading);
+  margin-right: 0.35rem;
+}
+
+.vs-ath-player {
+  font-weight: 600;
+}
+
+.vs-ath-missing {
+  color: var(--vs-muted);
+  font-style: italic;
+}
+
+.vs-ath-setter {
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  padding: 0 0.35rem;
+  border: 1px solid #FDBA74;
+  border-radius: 0.25rem;
+  color: #C2410C;
+  background: #FFF7ED;
+  font-weight: 700;
+}
+
+.vs-ath-toggle {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--vs-muted);
+  padding: 0 0.3rem 0 0;
+  font-size: 0.8rem;
+}
+
+.vs-ath-na {
+  color: var(--vs-muted);
+}
+
+/* Best / worst: symbol + weight + light tint + border, never color alone */
+/* inline-block + real border (not flex / box-shadow): also captured correctly in the PDF */
+.vs-ath-ext {
+  display: inline-block;
+  padding: 0.02rem 0.35rem 0.02rem 0.3rem;
+  border-radius: 0 0.25rem 0.25rem 0;
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.vs-ath-tri {
+  display: inline-block;
+  vertical-align: middle;
+  margin: -2px 0.22rem 0 0;
+}
+
+.vs-ath-ext.best {
+  font-weight: 800;
+  color: var(--vs-heading);
+  background: #EAF1F8;
+  border-left-color: #2a78d6;
+}
+
+.vs-ath-ext.worst {
+  color: var(--vs-heading);
+  background: #F5F0EA;
+  border-left-color: #9E9E9E;
+}
+
+/* Set trend: mini bars with the value under each bar */
+.vs-ath-trend-head {
+  text-align: center;
+}
+
+.vs-ath-trend {
+  display: inline-flex;
+  gap: 3px;
+  align-items: flex-end;
+}
+
+.vs-ath-bar {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 24px;
+}
+
+.vs-ath-bar-track {
+  height: 13px;
+  width: 14px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-bottom: 1px solid #CFD8DC;
+}
+
+.vs-ath-bar-fill {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  opacity: 0.85;
+}
+
+.vs-ath-bar-empty {
+  font-size: 0.7rem;
+  color: var(--vs-muted);
+  line-height: 1;
+}
+
+.vs-ath-bar-value {
+  font-size: 0.6rem;
+  line-height: 1.1;
+  color: var(--vs-text);
+  font-variant-numeric: tabular-nums;
+  min-height: 0.75rem;
+}
+
+.vs-ath-bar.current .vs-ath-bar-track {
+  outline: 2px solid var(--vs-orange);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.vs-ath-detail > td {
+  background: #FAFBFC;
+  padding: 0.4rem 0.6rem 0.6rem 1.6rem;
+}
+
+.vs-ath-detail-table {
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.vs-ath-detail-table th,
+.vs-ath-detail-table td {
+  padding: 0.18rem 0.55rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid #EEF1F4;
+}
+
+.vs-ath-detail-table th[scope="row"] {
+  text-align: left;
+  font-weight: 600;
+  color: var(--vs-heading);
+}
+
+.vs-ath-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 1rem;
+  font-size: 0.72rem;
+  color: var(--vs-muted);
+  margin: 0.4rem 0 0;
+}
+
+/* PDF export: no controls, same width as the page */
+.vs-pdf-export .vs-ath-scope,
+.vs-pdf-export .vs-ath-toggle {
+  display: none;
+}
+
+@media print {
+  .vs-ath-scope,
+  .vs-ath-toggle {
+    display: none !important;
+  }
+}
+
+/* Phones: one card per athlete */
+@media (max-width: 700px) {
+  .vs-ath-table thead {
+    display: none;
+  }
+  .vs-ath-table,
+  .vs-ath-table tbody,
+  .vs-ath-table tr,
+  .vs-ath-table td {
+    display: block;
+    width: 100%;
+  }
+  .vs-ath-table tr {
+    border-bottom: 1px solid var(--vs-border);
+    padding: 0.35rem 0;
+  }
+  .vs-ath-table td {
+    padding: 0.12rem 0.5rem;
+    border: 0;
+  }
+  .vs-ath-table td.num-cell,
+  .vs-ath-table td.vs-ath-trend-cell {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+  }
+  .vs-ath-table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--vs-muted);
+    font-size: 0.74rem;
+    text-align: left;
+    margin-right: 0.6rem;
+  }
+  .vs-ath-name {
+    white-space: normal;
+  }
+  .vs-ath-detail > td {
+    padding: 0.3rem 0.5rem;
+    overflow-x: auto;
+  }
+}

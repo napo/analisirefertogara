@@ -28,7 +28,7 @@ const FILTERS = [
 ]
 const EVENT_KEY = [['TO', 'time-out', 'timeout'], ['DC', 'doppio cambio', 'doubleChange'], ['S', 'sostituzione', 'substitution'], ['CC', 'cambio campo', 'courtChange']]
 const EVENT_LAYER = { timeout: 'timeouts', doubleChange: 'doubleChanges', substitution: 'substitutions', courtChange: 'courtChange' }
-const VIEWS = [['interactive', 'Vista interattiva'], ['all', 'Tutti i set']]
+const VIEWS = [['interactive', 'Interattiva'], ['all', 'Tutti i set']]
 const signed = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0')
 
 // Color swatch next to a filter value, so BP/CP and P1-P6 read the same as in the chart
@@ -88,7 +88,7 @@ function EventKey({ flows, layers, team }) {
 
 // "Tutti i set": every played set, one under the other, same style and same Y scale.
 // It is also the content of the PDF / print, whatever view is on screen.
-function AllSets({ flows, indicators, context, match, printing }) {
+function AllSets({ flows, context, match, highlight }) {
   const yRange = useMemo(() => commonYRange(flows), [flows])
   const layersFor = flow => ({ ...ALL_SETS_LAYERS, courtChange: flow.set === 5 })
   return (
@@ -97,8 +97,8 @@ function AllSets({ flows, indicators, context, match, printing }) {
       <p className="vs-flow-footnote vs-flow-scale-note">
         Stessa scala per tutti i set: Differenza da {signed(yRange.min + 1)} a {signed(yRange.max - 1)}.
       </p>
-      {flows.map((flow, index) => (
-        <article key={flow.set} className="vs-flow-set" aria-label={`Set ${flow.set}`}>
+      {flows.map(flow => (
+        <article key={flow.set} id={`vs-flow-set-${flow.set}`} className={`vs-flow-set${highlight === flow.set - 1 ? ' current' : ''}`} aria-label={`Set ${flow.set}`}>
           <h3 className="vs-flow-set-title">
             Set {flow.set} <span className={`tabular-nums ${flow.won ? 'won' : 'lost'}`}>{flow.scoreOwn}-{flow.scoreOther}</span>
           </h3>
@@ -106,9 +106,6 @@ function AllSets({ flows, indicators, context, match, printing }) {
             <p className="vs-flow-notice">Sequenza dei punti incompleta: controlla la griglia dei turni di questo set.</p>
           )}
           <FlowChart flow={flow} layers={layersFor(flow)} context={context} compact yRange={yRange} />
-          <p className="vs-flow-set-reading">
-            {describeSet(indicators[index], flow, context, { compact: !printing })}
-          </p>
         </article>
       ))}
       {flows.some(flow => !flow.rotationKnown) && (
@@ -119,7 +116,7 @@ function AllSets({ flows, indicators, context, match, printing }) {
 }
 
 // state lives in MatchFlow, so switching view and back keeps set, layers and filters
-function InteractiveView({ flows, indicators, context, match, state }) {
+function InteractiveView({ flows, context, match, state }) {
   const { setIndex, setSetIndex, layers, setLayers, courtChangeTouched, setCourtChangeTouched, filters, setFilters } = state
   const index = Math.min(setIndex, flows.length - 1)
   const flow = flows[index]
@@ -128,14 +125,13 @@ function InteractiveView({ flows, indicators, context, match, state }) {
     ...layers,
     courtChange: courtChangeTouched ? layers.courtChange : layers.courtChange || flow?.set === 5,
   }), [layers, courtChangeTouched, flow?.set])
-  const setReading = useMemo(() => describeSet(indicators[index], flow, context), [flow, indicators, index, context])
 
   const activeFilters = FILTERS
     .filter(([key]) => filters[key] !== 'all')
     .map(([key, label, options]) => `${label}: ${options.find(([value]) => value === filters[key])?.[1]}`)
 
   return (
-    <div className="vs-flow-interactive">
+    <div className="vs-flow-interactive" id="vs-flow-interactive">
       <div className="vs-flow-tabs" role="tablist" aria-label="Set">
         {flows.map((item, i) => (
           <button
@@ -221,10 +217,40 @@ function InteractiveView({ flows, indicators, context, match, state }) {
           {flow.unplacedEvents.map(event => `${eventLabel(event)} (${event.scoreText})`).join('; ')}.
         </p>
       )}
+    </div>
+  )
+}
 
-      <div className="vs-flow-reading">
-        <h3>Lettura del set</h3>
-        <p>{setReading}</p>
+// "Lettura della gara": first each set, then the synthesis of the whole match (not a concatenation).
+// Same block in both views and in the PDF; in the interactive view the selected set is highlighted.
+// "Set X" headings select that set: the chart follows and the reading is highlighted
+function MatchReading({ flows, indicators, context, synthesis, highlight, onSelect, printing }) {
+  return (
+    <div className="vs-flow-reading vs-flow-match-reading">
+      <h3>Lettura della gara</h3>
+      {flows.map((flow, index) => (
+        <div key={flow.set} className={`vs-flow-reading-set${highlight === index ? ' current' : ''}`}>
+          <h4>
+            {printing ? (
+              <>Set {flow.set} <span className="tabular-nums">{flow.scoreOwn}-{flow.scoreOther}</span></>
+            ) : (
+              <button
+                type="button"
+                className="vs-flow-set-link"
+                aria-pressed={highlight === index}
+                title={`Mostra il grafico del set ${flow.set}`}
+                onClick={() => onSelect(index)}
+              >
+                Set {flow.set} <span className="tabular-nums">{flow.scoreOwn}-{flow.scoreOther}</span>
+              </button>
+            )}
+          </h4>
+          <p>{describeSet(indicators[index], flow, context)}</p>
+        </div>
+      ))}
+      <div className="vs-flow-synthesis">
+        <h4>Sintesi della gara</h4>
+        <p>{synthesis}</p>
       </div>
     </div>
   )
@@ -237,6 +263,7 @@ export default function MatchFlow({ match, female = false, printing = false }) {
   const [view, setView] = useState('interactive')
   const [browserPrinting, setBrowserPrinting] = useState(false)
   const [setIndex, setSetIndex] = useState(0)
+  const [allHighlight, setAllHighlight] = useState(null)
   const [layers, setLayers] = useState(DEFAULT_LAYERS)
   const [courtChangeTouched, setCourtChangeTouched] = useState(false)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
@@ -280,13 +307,24 @@ export default function MatchFlow({ match, female = false, printing = false }) {
       </div>
 
       {showAll
-        ? <AllSets flows={flows} indicators={indicators} context={context} match={match} printing={print} />
-        : <InteractiveView flows={flows} indicators={indicators} context={context} match={match} state={interactiveState} />}
+        ? <AllSets flows={flows} context={context} match={match} highlight={print ? null : allHighlight} />
+        : <InteractiveView flows={flows} context={context} match={match} state={interactiveState} />}
 
-      <div className="vs-flow-reading vs-flow-match-reading">
-        <h3>Lettura della gara</h3>
-        <p>{matchReading}</p>
-      </div>
+      <MatchReading
+        flows={flows}
+        indicators={indicators}
+        context={context}
+        synthesis={matchReading}
+        printing={print}
+        highlight={print ? null : showAll ? allHighlight : Math.min(setIndex, flows.length - 1)}
+        onSelect={index => {
+          // Interactive: the chart switches to that set. "Tutti i set": that set's chart is highlighted.
+          setSetIndex(index)
+          setAllHighlight(index)
+          const target = document.getElementById(showAll ? `vs-flow-set-${flows[index].set}` : 'vs-flow-interactive')
+          target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }}
+      />
     </section>
   )
 }
