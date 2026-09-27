@@ -45,7 +45,8 @@ jobs:
           VITE_SITE_URL: ${{ steps.pages.outputs.base_url }}/
 
       - name: Verify PDF worker
-        run: find webapp/dist/assets -name 'pdf.worker.min-*.mjs' -size +0c | grep -q .
+        # pdf.js worker built by the app (webapp/src/pdf-worker.js, with the Safari polyfills)
+        run: find webapp/dist/assets -name 'pdf-worker-*.js' -size +0c | grep -q .
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
