@@ -1,7 +1,10 @@
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import './polyfills'
+// Legacy build of pdf.js: it adds the recent APIs missing in older Safari/iOS (Uint8Array.fromBase64,
+// URL.parse, ...), in the page and in the worker
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { parseItems, supportedSoftwareList } from './pdf-parser.js'
-GlobalWorkerOptions.workerSrc = workerUrl
+// Worker created by the app (pdf-worker.js loads the polyfills, then pdf.js); one for the whole session
+GlobalWorkerOptions.workerPort = new Worker(new URL('./pdf-worker.js', import.meta.url), { type: 'module' })
 
 function fallbackHash(bytes) {
   let first = 2166136261

@@ -1,9 +1,10 @@
 import React, { Fragment, useMemo, useState } from 'react'
-import { ATHLETE_INDICATORS, TREND_INDICATOR, athleteRows, extremes, indicatorValue } from './athlete-indicators'
+import { ATHLETE_INDICATORS, MIN_RALLIES_FOR_SHARE, TABLE_INDICATORS, TREND_INDICATOR, athleteRows, extremes, indicatorValue } from './athlete-indicators'
 import { PHASE_COLORS } from './theme'
 import { InfoTip } from './GlossaryView'
 
 const formatNumber = (value, decimals) => Number(value).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: decimals })
+const formatValue = (value, indicator) => (indicator.percent ? `${formatNumber(value * 100, indicator.decimals)}%` : formatNumber(value, indicator.decimals))
 const trendIndicator = ATHLETE_INDICATORS.find(indicator => indicator.key === TREND_INDICATOR)
 
 // SVG triangles instead of ▲▼ glyphs: always rendered, also in the PDF capture
@@ -17,7 +18,7 @@ const Triangle = ({ up = false }) => (
 function Value({ entry, indicator, mark, scopeLabel }) {
   if (entry.state === 'absent') return <span className="vs-ath-na" title="Non in campo in questo set">·</span>
   if (entry.state === 'not-applicable') return <span className="vs-ath-na" title="Non applicabile: nessun turno al servizio">–</span>
-  const text = formatNumber(entry.value, indicator.decimals)
+  const text = formatValue(entry.value, indicator)
   if (mark === 'best') return <span className="vs-ath-ext best" title={`Valore più alto ${scopeLabel}`}><Triangle up />{text}<span className="vs-sr"> (più alto {scopeLabel})</span></span>
   if (mark === 'worst') return <span className="vs-ath-ext worst" title={`Valore più basso ${scopeLabel}`}><Triangle />{text}<span className="vs-sr"> (più basso {scopeLabel})</span></span>
   return <span>{text}</span>
@@ -69,7 +70,7 @@ export default function AthletesTable({ matches, female = false, printing = fals
     else next.add(id)
     return next
   })
-  const columns = 1 + ATHLETE_INDICATORS.length + (withSets ? 1 : 0)
+  const columns = 1 + TABLE_INDICATORS.length + (withSets ? 1 : 0)
 
   return (
     <div className={`vs-ath${printing ? ' printing' : ''}`}>
@@ -95,7 +96,7 @@ export default function AthletesTable({ matches, female = false, printing = fals
           <thead>
             <tr>
               <th>Atleta</th>
-              {ATHLETE_INDICATORS.map(indicator => (
+              {TABLE_INDICATORS.map(indicator => (
                 <th key={indicator.key} className="num-cell-header">
                   <span title={indicator.label}>{indicator.short}</span>
                   {indicator.glossary && <InfoTip id={indicator.glossary} />}
@@ -122,7 +123,7 @@ export default function AthletesTable({ matches, female = false, printing = fals
                         : <span className="vs-ath-missing">(nome non associato)</span>}
                       {row.isSetter && <span className="vs-ath-setter" title="Palleggio">P</span>}
                     </td>
-                    {ATHLETE_INDICATORS.map(indicator => (
+                    {TABLE_INDICATORS.map(indicator => (
                       <td key={indicator.key} className="num-cell" data-label={indicator.short}>
                         <Value entry={indicatorValue(row, indicator, scope)} indicator={indicator} mark={markOf(indicator, row)} scopeLabel={scopeLabel} />
                       </td>
@@ -176,7 +177,8 @@ export default function AthletesTable({ matches, female = false, printing = fals
         </table>
       </div>
       <p className="vs-ath-legend">
-        <span><Triangle up /> valore più alto, <Triangle /> più basso {scopeLabel}, solo per le medie e tra {female ? 'le atlete' : 'gli atleti'} con almeno un turno al servizio</span>
+        <span><Triangle up /> valore più alto, <Triangle /> più basso {scopeLabel}: medie di servizio tra {female ? 'le atlete' : 'gli atleti'} con almeno un turno al servizio, % rally vinti da {MIN_RALLIES_FOR_SHARE} rally in campo</span>
+        <span>Rally in campo, vinti e persi: rally della squadra con l’atleta in campo, sostituzioni (uscite e rientri) comprese; i cambi del libero non hanno il punteggio sul referto e non sono considerati</span>
         <span>“<b>–</b>” non applicabile, “<b>·</b>” non in campo nel set; 0 è un valore</span>
         {withSets && <span>Nei set: {trendIndicator.label}, stessa scala per tutti</span>}
       </p>

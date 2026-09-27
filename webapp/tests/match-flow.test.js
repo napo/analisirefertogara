@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
 import { test } from 'node:test'
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { parseItems } from '../src/pdf-parser.js'
 import { analyze } from '../src/analysis.js'
 import { buildSetFlow, findRuns, matchFlow } from '../src/match-flow.js'
@@ -17,18 +14,7 @@ const fromFixture = name => {
 }
 const tiebreak = fromFixture('fipav-tiebreak-items.json')
 const newbit = fromFixture('referto11605-items.json')
-const task = getDocument({
-  data: new Uint8Array(readFileSync(new URL('../../Referto gara Ritorno Volley Life vs Anguillara.pdf', import.meta.url))),
-  standardFontDataUrl: join(dirname(fileURLToPath(import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs'))), '../../standard_fonts') + '/',
-})
-let snug
-try {
-  const page = await (await task.promise).getPage(1)
-  const viewport = page.getViewport({ scale: 1 })
-  snug = parseItems((await page.getTextContent()).items, viewport.width, viewport.height)
-} finally {
-  await task.destroy()
-}
+const snug = fromFixture('snug-items.json') // anonymized SNUG sample
 const matches = { tiebreak, newbit, snug }
 
 // Mark #12 as setter so P1–P6 are known (as the user does with the "p" column)

@@ -1373,7 +1373,7 @@ function MainApp() {
                     <div>
                       <h2 className="vs-card-title">{isFemaleAnalysis ? 'Atlete entrate' : 'Atleti entrati'}</h2>
                       <p className="vs-card-subtitle">
-                        Dati ricavati dalle formazioni e dai turni registrati: i punti in fase break point sono della squadra, non {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}. I rally nei set di presenza sono tutti i rally dei set in cui l’atleta risulta in campo, non i soli rally giocati. I servizi sono stimati dai progressivi dei turni. Questi dati descrivono che cosa è successo alla squadra, non azioni tecniche {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}.
+                        Dati ricavati dalle formazioni e dai turni registrati: i punti in fase break point sono della squadra, non {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}. Rally in campo, vinti e persi sono ricostruiti rally per rally con le sostituzioni del referto (uscite e rientri comprese): descrivono che cosa è successo alla squadra mentre l’atleta era in campo, non azioni tecniche {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}. I servizi sono stimati dai progressivi dei turni e da chi occupava la posizione al servizio.
                       </p>
                     </div>
                   </div>

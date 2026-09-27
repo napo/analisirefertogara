@@ -2,7 +2,9 @@
 // service-turn grids (own/other), starting lineups, starting rotation, time-outs and substitutions.
 // Pure functions, no React: the same logic can later be applied to several matches (history).
 import { rotationIndexForColumn } from './analysis.js'
-import { isSetter, rosterPlayer, servingNumber } from './athletes.js'
+import { isSetter, rosterPlayer } from './athletes.js'
+import { setRallies } from './rallies.js'
+import { onCourt } from './on-court.js'
 
 export const DEFAULT_RUN_LENGTH = 3
 export const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI']
@@ -11,25 +13,6 @@ const parseScore = text => {
   const match = String(text ?? '').match(/^\s*(\d+)\s*:\s*(\d+)\s*$/)
   return match ? [Number(match[1]), Number(match[2])] : null
 }
-const opposite = team => (team === 'own' ? 'other' : 'own')
-
-// Service turns in chronological order. The team serving first uses box I; the receiving team's box I
-// is crossed out ("X") and its first turn is box II. For every column c >= 1 the receiving team's turn
-// comes before the serving team's turn.
-function chronologicalTurns(set) {
-  const ownServesFirst = set.own?.[0] !== 'X'
-  const first = ownServesFirst ? 'own' : 'other'
-  const second = opposite(first)
-  const turns = []
-  for (let cell = 0; cell < 36; cell++) {
-    for (const team of [second, first]) {
-      const value = set[team]?.[cell]
-      if (Number.isInteger(value)) turns.push({ team, cell, end: value })
-    }
-  }
-  return { turns, servesFirst: first }
-}
-
 // Is the starting P of this set really known? The app derives it from a setter marked in the roster
 // and present in the starting lineup (see updateSetterRotations). Without it the statistics use P1 by
 // convention, which must not be shown as a fact.
@@ -50,40 +33,26 @@ const playerLabel = (number, roster) => {
 // team (BP = analyzed team serving, CP = receiving), P (same formula as the statistics) and who serves.
 export function buildSetFlow(match, setIndex, { runLength = DEFAULT_RUN_LENGTH } = {}) {
   const set = match.sets[setIndex]
-  const { turns, servesFirst } = chronologicalTurns(set)
+  const built = setRallies(set)
+  const { servesFirst, complete } = built
   const knownRotation = rotationKnown(match, set)
-  const score = { own: 0, other: 0 }
-  const points = []
-  let server = null
-  const rally = (winner, serving) => {
-    score[winner] += 1
-    const cell = serving.cell
-    const lineup = serving.team === 'own' ? set.lineup : set.opponentLineup
-    const roster = serving.team === 'own' ? match.roster : match.opponentRoster
-    points.push({
-      index: points.length + 1,
-      own: score.own,
-      other: score.other,
-      diff: score.own - score.other,
-      winner,
-      servingTeam: serving.team,
-      phase: serving.team === 'own' ? 'BP' : 'CP',
-      column: cell % 6,
-      rotation: knownRotation ? rotationIndexForColumn(set.rotation, cell % 6) + 1 : null,
-      server: { team: serving.team, ...(playerLabel(servingNumber(lineup, cell), roster) || { number: '', name: '' }) },
-    })
-  }
-  let consistent = true
-  for (const turn of turns) {
-    if (server) {
-      // side-out: the rally served by the previous server is won by the team starting this turn
-      if (score[turn.team] + 1 > turn.end) { consistent = false; break }
-      rally(turn.team, server)
+  // Who serves: the player on court in the serving column, substitutions (exit and re-entry) applied
+  const courts = { own: onCourt(set, 'own', built), other: onCourt(set, 'other', built) }
+  const points = built.rallies.map((rally, i) => {
+    const roster = rally.servingTeam === 'own' ? match.roster : match.opponentRoster
+    return {
+      index: rally.index,
+      own: rally.own,
+      other: rally.other,
+      diff: rally.own - rally.other,
+      winner: rally.winner,
+      servingTeam: rally.servingTeam,
+      phase: rally.servingTeam === 'own' ? 'BP' : 'CP',
+      column: rally.cell % 6,
+      rotation: knownRotation ? rotationIndexForColumn(set.rotation, rally.cell % 6) + 1 : null,
+      server: { team: rally.servingTeam, ...(playerLabel(courts[rally.servingTeam].server[i], roster) || { number: '', name: '' }) },
     }
-    server = turn
-    while (score[turn.team] < turn.end) rally(turn.team, turn)
-  }
-  const complete = consistent && score.own === set.scoreOwn && score.other === set.scoreOther
+  })
 
   const runs = findRuns(points, runLength)
   for (const run of runs) {

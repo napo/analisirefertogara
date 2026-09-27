@@ -106,7 +106,7 @@ export const GLOSSARY = [
     id: 'al-servizio',
     term: 'Al servizio',
     short: 'Atleta che effettua il servizio nel rally considerato.',
-    full: 'Atleta che effettua il servizio nel rally considerato. L\'app lo ricava dalla formazione iniziale del set e dai turni di servizio; le sostituzioni non vengono applicate, per questo il dato è una stima.',
+    full: 'Atleta che effettua il servizio nel rally considerato. L\'app lo ricava dai turni di servizio e da chi occupava quella posizione in quel momento: le sostituzioni del referto (uscite e rientri) sono applicate. I cambi del libero non hanno il punteggio sul referto e non sono considerati.',
     pdf: true,
     analysis: true,
   },
@@ -128,7 +128,7 @@ export const GLOSSARY = [
   {
     id: 'servizi-stimati',
     term: 'Servizi stimati',
-    short: 'Servizi effettuati dall\'atleta, stimati dai turni di servizio della squadra e dalla formazione iniziale.',
+    short: 'Servizi effettuati dall\'atleta, stimati dai turni di servizio della squadra e da chi era in campo in quella posizione (sostituzioni comprese).',
     pdf: true,
     analysis: true,
   },
@@ -153,24 +153,35 @@ export const GLOSSARY = [
     pdf: true,
     analysis: true,
   },
-  // Defined vocabulary for presence on court, not computed by the app yet: never shown until available.
+  // Presence on court, rally by rally: substitutions of the scoresheet (exit and re-entry) applied
   {
     id: 'rally-in-campo',
     term: 'Rally in campo',
     short: 'Rally disputati mentre l\'atleta era presente in campo.',
-    available: false,
+    full: 'Rally disputati mentre l\'atleta era presente in campo, ricostruiti rally per rally con le sostituzioni del referto (uscite e rientri). I cambi del libero non hanno il punteggio sul referto: non sono considerati, e per il libero il dato non è disponibile.',
+    pdf: true,
+    analysis: true,
   },
   {
     id: 'rally-vinti',
     term: 'Rally vinti',
     short: 'Rally vinti dalla squadra mentre l\'atleta era presente in campo. Non indica punti realizzati dall\'atleta.',
-    available: false,
+    pdf: true,
+    analysis: true,
   },
   {
     id: 'rally-persi',
     term: 'Rally persi',
     short: 'Rally persi dalla squadra mentre l\'atleta era presente in campo. Non indica errori o punti subiti dall\'atleta.',
-    available: false,
+    pdf: true,
+    analysis: true,
+  },
+  {
+    id: 'perc-rally-vinti',
+    term: '% rally vinti',
+    short: 'Rally vinti dalla squadra diviso rally in campo dell\'atleta. Confrontata tra atleti solo da 10 rally in campo.',
+    pdf: true,
+    analysis: true,
   },
 ]
 

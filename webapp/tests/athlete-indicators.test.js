@@ -5,7 +5,8 @@ import { parseItems } from '../src/pdf-parser.js'
 import { analyze } from '../src/analysis.js'
 import { athleteStats } from '../src/athletes.js'
 import { matchFlow } from '../src/match-flow.js'
-import { ATHLETE_INDICATORS, athleteRows, extremes, indicatorValue } from '../src/athlete-indicators.js'
+import { ATHLETE_INDICATORS, MIN_RALLIES_FOR_SHARE, athleteRows, extremes, indicatorValue } from '../src/athlete-indicators.js'
+import { onCourt } from '../src/on-court.js'
 
 const fromFixture = name => {
   const f = JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)))
@@ -48,7 +49,9 @@ test('per-set breakdown uses the same function and adds up to the total', () => 
 test('0, not applicable and not on court are different states', () => {
   const rows = athleteRows([tiebreak])
   const libero = rows.find(row => /L1/.test(row.name))
-  assert.deepEqual(indicatorValue(libero, indicator('services'), 'total'), { value: 0, state: 'value' })
+  const services = indicatorValue(libero, indicator('services'), 'total')
+  assert.deepEqual([services.value, services.state], [0, 'value'])
+  assert.equal(indicatorValue(libero, indicator('rallyOnCourt'), 'total').state, 'not-applicable', 'libero: no timed presence')
   assert.equal(indicatorValue(libero, indicator('averagePointsAtServe'), 'total').state, 'not-applicable')
   const absent = rows.find(row => row.sets.some(stat => stat === null))
   const set = absent.sets.findIndex(stat => stat === null)
@@ -75,5 +78,43 @@ test('best and worst: same indicator, same scope, only comparable values, only w
     for (const id of marks.worst) assert.equal(Number(comparable.find(entry => entry.row.id === id).value.toFixed(2)), Math.min(...values))
     // not applicable / not on court are never marked
     for (const id of [...marks.best, ...marks.worst]) assert.ok(comparable.some(entry => entry.row.id === id))
+  }
+})
+
+test('presence on court: exit and re-entry of the starter, six players in every rally', () => {
+  const set3 = tiebreak.sets[2] // LAGARIS: #3 replaces #17 (I) at 17:19, #17 back at 20:24
+  const court = onCourt(set3, 'own')
+  assert.deepEqual(court.unresolved, [])
+  assert.deepEqual(court.presence.get('17'), { rallies: 36 + 2, won: court.presence.get('17').won, lost: court.presence.get('17').lost })
+  assert.equal(court.presence.get('3').rallies, 44 - 36)
+  assert.equal(court.presence.get('15').rallies, 43 - 36)
+  assert.ok(court.occupants.every(numbers => numbers.filter(Boolean).length === 6))
+  for (const entry of court.presence.values()) assert.equal(entry.won + entry.lost, entry.rallies)
+  // match: every rally has six players of the analyzed team on court
+  const players = athleteStats([tiebreak])
+  const rallies = tiebreak.sets.reduce((total, set) => total + set.scoreOwn + set.scoreOther, 0)
+  assert.equal(players.reduce((total, player) => total + player.rallyOnCourt, 0), 6 * rallies)
+  // the serve of #3 while on court is hers, not the starter's
+  const set3Stats = athleteStats([{ ...tiebreak, sets: [set3] }])
+  assert.ok(set3Stats.find(player => Number(player.number) === 3).serviceTurns >= 1)
+})
+
+test('substitution with a score that never occurs is not applied and is reported', () => {
+  const set = { ...tiebreak.sets[2], substitutions: tiebreak.sets[2].substitutions.map((cell, i) => (i === 0 ? { ...cell, scoreIn: '30:30' } : cell)) }
+  const court = onCourt(set, 'own')
+  assert.equal(court.unresolved.length, 1)
+  assert.equal(court.presence.has('3'), false)
+})
+
+test('% rally vinti: compared only from the minimum number of rallies on court', () => {
+  const rows = athleteRows([tiebreak])
+  const share = indicator('rallyWinShare')
+  for (const scope of ['total', ...tiebreak.sets.map((_, i) => i)]) {
+    const marks = extremes(rows, share, scope)
+    for (const id of [...marks.best, ...marks.worst]) {
+      const row = rows.find(entry => entry.id === id)
+      const stat = scope === 'total' ? row.total : row.sets[scope]
+      assert.ok(stat.rallyOnCourt >= MIN_RALLIES_FOR_SHARE)
+    }
   }
 })

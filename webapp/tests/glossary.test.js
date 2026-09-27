@@ -22,9 +22,9 @@ test('PDF glossary explains the terms needed to read the report on its own', () 
   const pdf = glossaryEntries('pdf').map(entry => entry.id)
   for (const id of ['rally', 'bp', 'cp', 'p1-p6', 'differenza', 'turno-servizio', 'rally-set-presenza', 'mp', 'tt', 'differenza-mp', 'al-servizio'])
     assert.ok(pdf.includes(id), id)
-  // data not computed by the app are never shown
-  for (const place of ['info', 'analysis', 'pdf'])
-    assert.ok(glossaryEntries(place).every(entry => !['rally-in-campo', 'rally-vinti', 'rally-persi'].includes(entry.id)))
+  for (const id of ['rally-in-campo', 'rally-vinti', 'rally-persi', 'perc-rally-vinti']) assert.ok(pdf.includes(id), id)
+  // entries marked as not available are never shown
+  for (const place of ['info', 'analysis', 'pdf']) assert.ok(glossaryEntries(place).every(entry => entry.available !== false))
 })
 
 test('vocabulary: no "differenziale", "battitore/battitrice", "azione" as rally, no individual attribution', () => {

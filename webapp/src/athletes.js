@@ -1,3 +1,5 @@
+import { onCourt } from './on-court.js'
+
 export const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '', setterRole: '' }
 export const isSetter = player => Boolean(player.isSetter || player.setterRole === 'P1' || player.setterRole === 'P2')
 // Player at the service for a service-grid cell, estimated from the starting lineup (substitutions not applied)
@@ -33,6 +35,9 @@ const matchAthleteStats = matches => {
           serviceTurns: 0,
           consecutive: 0,
           pointsAtServe: 0,
+          rallyOnCourt: 0,
+          ralliesWon: 0,
+          ralliesLost: 0,
           isSetter: isSetter(player),
           entered: false,
         })
@@ -67,6 +72,9 @@ const matchAthleteStats = matches => {
             serviceTurns: 0,
             consecutive: 0,
             pointsAtServe: 0,
+            rallyOnCourt: 0,
+            ralliesWon: 0,
+            ralliesLost: 0,
             isSetter: settersSet.has(number),
             entered: true,
           })
@@ -78,12 +86,33 @@ const matchAthleteStats = matches => {
         if (settersSet.has(number)) record.isSetter = true
       }
 
+      // Presence rally by rally, substitutions applied (exit and re-entry). Liberos are not placed in
+      // time by the scoresheet: their rallies on court stay 0 (shown as "not applicable").
+      const court = onCourt(set, 'own')
+      if (court.complete) {
+        for (const [number, presence] of court.presence) {
+          if (!stats.has(number)) continue
+          const record = stats.get(number)
+          record.rallyOnCourt += presence.rallies
+          record.ralliesWon += presence.won
+          record.ralliesLost += presence.lost
+        }
+      }
+      // Who served each turn: the player in that position when the turn started (substitutions applied);
+      // if the rally sequence of the set is not complete, the starting lineup as before
+      const turnServer = cell => {
+        if (!court.complete) return servingNumber(set.lineup, cell)
+        const first = court.rallies.findIndex(rally => rally.servingTeam === 'own' && rally.cell === cell)
+        if (first >= 0) return court.server[first]
+        return court.occupants.at(-1)?.[cell % 6] || servingNumber(set.lineup, cell)
+      }
+
       let previous = 0
       for (const [index, value] of (set.own || []).entries()) {
         if (value === '' || value === null || value === undefined) continue
         if (value === 'X' || value === 'x') { previous = 0; continue }
         if (!Number.isInteger(value)) continue
-        const playerNumber = servingNumber(set.lineup, index)
+        const playerNumber = turnServer(index)
         if (playerNumber === '' || playerNumber === undefined) { previous = value; continue }
         const number = norm(playerNumber)
         if (!stats.has(number)) {
@@ -96,6 +125,9 @@ const matchAthleteStats = matches => {
             serviceTurns: 0,
             consecutive: 0,
             pointsAtServe: 0,
+            rallyOnCourt: 0,
+            ralliesWon: 0,
+            ralliesLost: 0,
             isSetter: settersSet.has(number),
             entered: true,
           })
@@ -118,8 +150,10 @@ const matchAthleteStats = matches => {
   return [...stats.values()]
     .map(player => ({
       ...player,
+      isLibero: /\bL[12]?\s*$/.test(player.name || ''),
       averageConsecutive: player.serviceTurns ? player.consecutive / player.serviceTurns : 0,
       averagePointsAtServe: player.serviceTurns ? player.pointsAtServe / player.serviceTurns : 0,
+      rallyWinShare: player.rallyOnCourt ? player.ralliesWon / player.rallyOnCourt : 0,
     }))
     .sort((a, b) => Number(a.number) - Number(b.number))
 }
@@ -135,10 +169,11 @@ export function athleteStats(matches) {
       if (!totals.has(id)) totals.set(id, { ...player, id, numbers: new Set([player.number]) })
       else {
         const total = totals.get(id)
-        for (const field of ['pointsPlayed', 'services', 'serviceTurns', 'consecutive', 'pointsAtServe']) total[field] += player[field]
+        for (const field of ['pointsPlayed', 'services', 'serviceTurns', 'consecutive', 'pointsAtServe', 'rallyOnCourt', 'ralliesWon', 'ralliesLost']) total[field] += player[field]
         total.numbers.add(player.number)
         total.entered ||= player.entered
         total.isSetter ||= player.isSetter
+        total.isLibero ||= player.isLibero
       }
     }
   })
@@ -147,5 +182,6 @@ export function athleteStats(matches) {
     number: [...player.numbers].join(' / #'),
     averageConsecutive: player.serviceTurns ? player.consecutive / player.serviceTurns : 0,
     averagePointsAtServe: player.serviceTurns ? player.pointsAtServe / player.serviceTurns : 0,
+    rallyWinShare: player.rallyOnCourt ? player.ralliesWon / player.rallyOnCourt : 0,
   }))
 }

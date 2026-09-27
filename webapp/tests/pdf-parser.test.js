@@ -1,37 +1,26 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
 import { test } from 'node:test'
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { applySetter, parseItems, refreshImportedMatch } from '../src/pdf-parser.js'
 import { analyze, validateMatch } from '../src/analysis.js'
 
-const task = getDocument({
-  data: new Uint8Array(readFileSync(new URL('../../Referto gara Ritorno Volley Life vs Anguillara.pdf', import.meta.url))),
-  standardFontDataUrl: join(dirname(fileURLToPath(import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs'))), '../../standard_fonts') + '/', // pdfjs requires a trailing '/', even on Windows
-})
-let items, viewport
-try {
-  const pdf = await task.promise
-  const page = await pdf.getPage(1)
-  items = (await page.getTextContent()).items
-  viewport = page.getViewport({ scale: 1 })
-} finally {
-  await task.destroy()
-}
+// Text items of the SNUG sample scoresheet (ANGUILL - LIFE F, U14, 10/01/2026) extracted with PDF.js.
+// Names of athletes, staff and officials and the validation code are anonymized; game data are original.
+const fixture = JSON.parse(readFileSync(new URL('./fixtures/snug-items.json', import.meta.url)))
+const items = fixture.items
+const viewport = { width: fixture.width, height: fixture.height }
 const parse = (input = items) => parseItems(input, viewport.width, viewport.height)
 
-test('sample PDF imports valid sets and distinct complete named rosters, including liberos', () => {
+test('SNUG sample imports valid sets and distinct complete named rosters, including liberos', () => {
   const match = applySetter(parse())
   assert.deepEqual(validateMatch(match), [])
   assert.deepEqual(match.sets.map(s => [s.scoreOwn, s.scoreOther]), [[6, 25], [22, 25], [15, 25]])
   assert.equal(match.roster.length, 13)
   assert.equal(match.opponentRoster.length, 13)
-  assert.deepEqual(match.roster.find(p => p.number === 7), { number: 7, name: 'LAZZERI ELENA' })
-  assert.equal(match.roster.find(p => p.number === 99).name, 'PINZUTI RACHELE - L1')
-  assert.equal(match.opponentRoster.find(p => p.number === 4).name, 'REALE IRENE')
-  assert.equal(match.opponentRoster.find(p => p.number === 1).name, 'BARTONE GIORGIA - L2')
+  assert.deepEqual(match.roster.find(p => p.number === 7), { number: 7, name: 'ATLETA 7' })
+  assert.equal(match.roster.find(p => p.number === 99).name, 'ATLETA 99 - L1')
+  assert.equal(match.opponentRoster.find(p => p.number === 4).name, 'ATLETA 4')
+  assert.equal(match.opponentRoster.find(p => p.number === 1).name, 'ATLETA 1 - L2')
   assert.ok(!match.roster.some(p => p.number === 43))
   assert.ok(!match.opponentRoster.some(p => p.number === 7))
   assert.ok([...match.roster, ...match.opponentRoster].every(p => p.name))
@@ -97,7 +86,7 @@ test('reimport updates legacy numbers and retains corrected names and set edits'
   const parsed = parse()
   const existing = { ...parsed, roster: [7, { number: 11, name: 'Nome corretto' }], sets: [{ rotation: 6 }] }
   const updated = refreshImportedMatch(existing, parsed)
-  assert.equal(updated.roster.find(p => p.number === 7).name, 'LAZZERI ELENA')
+  assert.equal(updated.roster.find(p => p.number === 7).name, 'ATLETA 7')
   assert.equal(updated.roster.find(p => p.number === 11).name, 'Nome corretto')
   assert.equal(updated.sets[0].rotation, 6)
   assert.equal(updated.sets[0].durationMinutes, 14)
@@ -107,8 +96,8 @@ test('reimport updates legacy numbers and retains corrected names and set edits'
 test('reimport respects the selected team after swapping sides', () => {
   const parsed = parse()
   const updated = refreshImportedMatch({ ...parsed, team: parsed.opponent, opponent: parsed.team, roster: [4], opponentRoster: [7] }, parsed)
-  assert.equal(updated.roster.find(p => p.number === 4).name, 'REALE IRENE')
-  assert.equal(updated.opponentRoster.find(p => p.number === 7).name, 'LAZZERI ELENA')
+  assert.equal(updated.roster.find(p => p.number === 4).name, 'ATLETA 4')
+  assert.equal(updated.opponentRoster.find(p => p.number === 7).name, 'ATLETA 7')
 })
 
 test('unsupported documents give an explicit error', () => {
