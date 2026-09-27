@@ -98,6 +98,7 @@ function MainApp() {
     setDraft,
     loading,
     busy,
+    progress,
     message,
     setMessage,
     error,
@@ -675,6 +676,9 @@ function MainApp() {
                     Compila manualmente
                   </button>
                 </div>
+                {busy && progress && (
+                  <p className="vs-dropzone-progress" role="status" aria-live="polite">{progress}</p>
+                )}
                 <div style={{ marginTop: '1rem', fontSize: '0.82rem', color: 'var(--vs-muted)' }}>
                   <span>Sono supportati i modelli PDF dei software prodotti da {supportedSoftwareList()}</span>
                 </div>
@@ -1766,6 +1770,12 @@ function MainApp() {
                 Referto Volley è progettato per elaborare i referti localmente nel browser. I PDF caricati non vengono inviati
                 a un server per essere analizzati. I dati estratti rimangono sul dispositivo dell’utente.
                 Le gare salvate e i PDF vengono conservati localmente nel browser tramite IndexedDB.
+              </p>
+              <p>
+                I referti TieBreakTech sono stampati come immagini: vengono letti con il riconoscimento ottico dei caratteri (OCR),
+                eseguito anch’esso sul dispositivo. Il motore di riconoscimento e il modello della lingua sono inclusi nell’applicazione.
+                La lettura richiede qualche secondo e può contenere errori: i valori corretti automaticamente sono segnalati
+                e vanno verificati prima di salvare.
               </p>
               <p>
                 L’archivio rimane associato al browser e al dispositivo utilizzati. Dallo Storico puoi esportare un backup JSON

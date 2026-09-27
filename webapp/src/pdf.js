@@ -26,17 +26,30 @@ async function hashBuffer(buffer) {
   return fallbackHash(new Uint8Array(buffer))
 }
 
-export async function importPdf(file) {
+// Scoresheets without text (pages printed as images): the TieBreakTech template is read with OCR,
+// loaded only when needed
+async function importImagePdf(pdf, bytes, onProgress) {
+  const { importTbt } = await import('./tbt-ocr.js')
+  return importTbt(pdf, bytes, onProgress)
+}
+
+export async function importPdf(file, { onProgress = () => {} } = {}) {
   if (file.size > 20 * 1024 * 1024) throw Error('Il PDF supera il limite di 20 MB.')
   const buffer = await file.arrayBuffer()
   const hash = await hashBuffer(buffer)
   const task = getDocument({ data: new Uint8Array(buffer.slice(0)), standardFontDataUrl: `${import.meta.env.BASE_URL}standard_fonts/`, isEvalSupported: false })
   try {
     const pdf = await task.promise
-    if (pdf.numPages !== 1) throw Error(`I referti supportati contengono una sola pagina. Carica un singolo referto ${supportedSoftwareList('disjunction')}.`)
     const page = await pdf.getPage(1), content = await page.getTextContent(), viewport = page.getViewport({ scale: 1 })
-    const operatorList = await page.getOperatorList()
-    const match = parseItems(content.items, viewport.width, viewport.height, operatorList)
+    let match = null
+    if (!content.items.some(item => item.str?.trim())) {
+      if (pdf.numPages <= 2) match = await importImagePdf(pdf, new Uint8Array(buffer), onProgress)
+      if (!match) throw Error(`Formato non riconosciuto: il PDF non contiene testo. Attualmente sono supportati i formati dei software di ${supportedSoftwareList()}.`)
+    } else {
+      if (pdf.numPages !== 1) throw Error(`I referti supportati contengono una sola pagina. Carica un singolo referto ${supportedSoftwareList('disjunction')}.`)
+      const operatorList = await page.getOperatorList()
+      match = parseItems(content.items, viewport.width, viewport.height, operatorList)
+    }
     return { ...match, id: hash, fileName: file.name, pdf: new Blob([buffer], { type: 'application/pdf' }), importedAt: new Date().toISOString() }
   } finally { await task.destroy() }
 }

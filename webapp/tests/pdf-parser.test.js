@@ -101,7 +101,7 @@ test('reimport respects the selected team after swapping sides', () => {
 })
 
 test('unsupported documents give an explicit error', () => {
-  assert.throws(() => parse([]), /^Error: Formato non riconosciuto. Attualmente sono supportati i formati dei software di NEWBIT e SNUG.$/)
+  assert.throws(() => parse([]), /^Error: Formato non riconosciuto. Attualmente sono supportati i formati dei software di NEWBIT, SNUG e TieBreakTech.$/)
 })
 
 

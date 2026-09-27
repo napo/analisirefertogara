@@ -17,6 +17,16 @@ export default defineConfig(({ mode }) => {
       },
     ],
     base: process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || '/',
+    build: {
+      rolldownOptions: {
+        output: {
+          // OCR model (TieBreakTech import): tesseract.js wants a folder and the original file name
+          assetFileNames: asset => (asset.names?.some(name => name.endsWith('.traineddata.gz'))
+            ? 'assets/ocr-4.0.0_best_int/[name][extname]'
+            : 'assets/[name]-[hash][extname]'),
+        },
+      },
+    },
     optimizeDeps: {
       exclude: ['pdfjs-dist'],
     },

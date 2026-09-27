@@ -338,6 +338,13 @@
   margin: 0 auto 1.25rem;
 }
 
+.vs-dropzone-progress {
+  margin: 0.9rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--vs-heading);
+}
+
 .vs-dropzone-actions {
   display: flex;
   align-items: center;
@@ -691,7 +698,8 @@
 
 .vs-turn-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Two teams side by side when both tables fit, otherwise one under the other: never cut on the right */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
   gap: 1.5rem;
   margin-top: 1rem;
 }
@@ -1187,15 +1195,16 @@
 
 .vs-grid-table .vs-sub-note {
   color: #00695C;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-style: italic;
-  white-space: nowrap;
+  line-height: 1.15;
+  white-space: normal;
 }
 
 .vs-grid-table input.vs-score-input,
 .vs-timeouts input.vs-score-input {
-  width: 44px;
-  font-size: 0.74rem;
+  width: 40px;
+  font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1242,9 +1251,10 @@
 
 .vs-grid-table .vs-lineup-note {
   color: var(--vs-orange);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-style: italic;
-  white-space: nowrap;
+  line-height: 1.15;
+  white-space: normal;
 }
 
 /* FOOTER */

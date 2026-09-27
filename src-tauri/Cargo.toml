@@ -1,6 +1,6 @@
 [package]
 name = "referto-volley"
-version = "0.13.0"
+version = "0.14.0"
 description = "Analisi locale dei referti di gara della pallavolo"
 authors = ["Maurizio Napolitano"]
 license = "AGPL-3.0-or-later"

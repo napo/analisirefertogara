@@ -1,5 +1,5 @@
 // Scoresheet software whose PDF format can be imported; add new importers here
-export const SUPPORTED_SOFTWARE = ['NEWBIT', 'SNUG']
+export const SUPPORTED_SOFTWARE = ['NEWBIT', 'SNUG', 'TieBreakTech']
 
 // "NEWBIT e SNUG", "NEWBIT, SNUG e X" ("o" instead of "e" with type 'disjunction')
 export const supportedSoftwareList = (type = 'conjunction') =>
@@ -59,13 +59,13 @@ function cleanJerseyNumber(text) {
   return null
 }
 
-const emptyLibero = () => ({
+export const emptyLibero = () => ({
   onCourt: Array(6).fill(''),
   entered: Array(6).fill(''),
   otherEntered: Array(6).fill(''),
 })
 
-const liberoFields = replacements => {
+export const liberoFields = replacements => {
   const fields = emptyLibero()
   for (const entry of replacements || []) {
     const row = entry.row - 1

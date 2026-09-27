@@ -48,6 +48,13 @@ jobs:
         # pdf.js worker built by the app (webapp/src/pdf-worker.js, with the Safari polyfills)
         run: find webapp/dist/assets -name 'pdf-worker-*.js' -size +0c | grep -q .
 
+      - name: Verify OCR files
+        # TieBreakTech import: tesseract.js worker, engine and English model served by the app
+        run: |
+          test -s webapp/dist/assets/ocr-4.0.0_best_int/eng.traineddata.gz
+          find webapp/dist/assets -name 'worker.min-*.js' -size +0c | grep -q .
+          find webapp/dist/assets -name 'tesseract-core-*lstm.wasm-*.js' -size +0c | grep -q .
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

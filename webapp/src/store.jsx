@@ -71,6 +71,7 @@ export function MatchStoreProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [progress, setProgress] = useState('') // phase of a long import (OCR)
   const [error, setError] = useState('')
 
   const [latestMatchId, setLatestMatchId] = useState(null)
@@ -197,7 +198,7 @@ export function MatchStoreProvider({ children }) {
     setError('')
     setMessage('')
     try {
-      const parsed = await importPdf(file)
+      const parsed = await importPdf(file, { onProgress: setProgress })
       const existing = matches.find(m => m.id === parsed.id)
       const prepared = existing ? refreshImportedMatch(existing, parsed) : applySetter(parsed)
       if (existing) setMessage(parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 2
@@ -212,6 +213,7 @@ export function MatchStoreProvider({ children }) {
       setError(e.message || 'Errore durante la lettura del PDF.')
     } finally {
       setBusy(false)
+      setProgress('')
     }
   }, [matches])
 
@@ -414,6 +416,7 @@ export function MatchStoreProvider({ children }) {
     setDraft,
     loading,
     busy,
+    progress,
     message,
     setMessage,
     error,
@@ -445,6 +448,7 @@ export function MatchStoreProvider({ children }) {
     draft,
     loading,
     busy,
+    progress,
     message,
     error,
     readPdfFile,
