@@ -184,7 +184,7 @@ export const GLOSSARY = [
     analysis: true,
   },
   { id: 'prima-linea', term: 'Prima linea', short: 'Atleti che in quel rally occupano i posti 2, 3 e 4.', pdf: true, analysis: true },
-  { id: 'seconda-linea', term: 'Seconda linea', short: 'Atleti che in quel rally occupano i posti 1, 6 e 5. "L#5⇒#11" indica il libero #5 in campo al posto di #11; "L?⇒#11" un cambio del libero che il referto non permette di collocare con certezza.', pdf: true, analysis: true },
+  { id: 'seconda-linea', term: 'Seconda linea', short: 'Atleti che in quel rally occupano i posti 1, 6 e 5. "L#5⇒#11" indica il libero #5 in campo al posto di #11; "L?⇒#11" una presenza del libero non determinabile con certezza: ricostruita dal referto e dalle regole di gioco, ma non collocabile rally per rally.', pdf: true, analysis: true },
   { id: 'p-avversaria', term: 'P avversaria', short: 'Posizione del palleggiatore effettivo della squadra avversaria.', pdf: true, analysis: true },
   { id: 'configurazione-in-campo', term: 'Configurazione in campo', short: 'Combinazione degli atleti e delle rispettive posizioni presenti in campo in un determinato rally.', pdf: true, analysis: true },
   { id: 'confronto-rotazioni', term: 'Confronto delle rotazioni', short: 'Confronto tra la posizione del palleggiatore della squadra analizzata e quella del palleggiatore avversario nei rally osservati.', pdf: true, analysis: true },

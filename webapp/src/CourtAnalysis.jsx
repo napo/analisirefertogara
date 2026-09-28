@@ -21,6 +21,19 @@ const EXCLUSION_TEXT = {
 }
 const few = rallies => rallies > 0 && rallies < FEW_RALLIES
 
+// Second line; an uncertain libero ("L?⇒#11") is marked and explained, never shown as observed
+const LIBERO_UNCERTAIN = 'La presenza del libero in questo tratto è ricostruita dalle informazioni disponibili nel referto e dalle regole di gioco, ma non può essere collocata con certezza rally per rally.'
+function BackRow({ labels }) {
+  return labels.map((label, i) => (
+    <span key={i}>
+      {i > 0 && ' · '}
+      {label.startsWith('L?')
+        ? <span className="vs-court-uncertain" title={LIBERO_UNCERTAIN}>{label}<span className="vs-sr-only"> (presenza del libero non determinabile con certezza)</span></span>
+        : label}
+    </span>
+  ))
+}
+
 // P always written, the color swatch is only an extra cue
 function PBadge({ P }) {
   if (!P) return <span className="vs-court-muted">non determinata</span>
@@ -93,7 +106,7 @@ function Configurations({ rows: allRows, phase, limit = null, onShowAll = null }
               {phase === 'all' && <td><PhaseBadge phase={row.phase} /></td>}
               {phase !== 'CP' && <td>{row.server ? `#${row.server}` : '—'}</td>}
               <td>{players(row.frontRow)}</td>
-              <td>{row.backRow.join(' · ')}</td>
+              <td><BackRow labels={row.backRow} /></td>
               <td><PBadge P={row.P} /></td>
               <td>{row.rallies}</td><td>{row.won}</td><td>{row.lost}</td>
               <td><Percent row={row} /></td>
@@ -179,7 +192,7 @@ function Detail({ detail, selected, phase, set = 'all', team, opponent, onClose 
           {[['Nostra seconda linea', detail.ownBackRows], ['Seconda linea avversaria', detail.otherBackRows]].map(([heading, rows]) => (
             <div key={heading}>
               <h4>{heading}</h4>
-              <ul>{rows.map(row => <li key={row.key}>{row.labels.join(' · ')} — {row.rallies} rally</li>)}</ul>
+              <ul>{rows.map(row => <li key={row.key}><BackRow labels={row.labels} /> — {row.rallies} rally</li>)}</ul>
             </div>
           ))}
           {detail.servers.length > 0 && (
@@ -368,7 +381,7 @@ export default function CourtAnalysis({ match, onUpdate, printing = false, inclu
           Rally osservati per atleta al servizio, prima linea (posti 2, 3 e 4), seconda linea (posti 1, 6 e 5) e P. Vinti e persi sono della squadra mentre quella configurazione era in campo: non sono punti dei singoli atleti.
         </p>
         {!printing && <PhaseFilter value={configPhase} onChange={setConfigPhase} all="Tutte" />}
-        <p className="vs-court-note">Fase: {configPhase === 'all' ? 'Tutte' : configPhase} · ordinate per numero di rally osservati · L#5⇒#11 = libero #5 in campo al posto di #11; L?⇒#11 = cambio del libero non collocabile con certezza.</p>
+        <p className="vs-court-note">Fase: {configPhase === 'all' ? 'Tutte' : configPhase} · ordinate per numero di rally osservati · L#5⇒#11 = libero #5 in campo al posto di #11; L?⇒#11 = presenza del libero non determinabile con certezza (non è una presenza osservata).</p>
         <Configurations
           rows={configurations}
           phase={configPhase}

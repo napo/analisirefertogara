@@ -135,7 +135,10 @@ function resolveSetters(setIndex, team, columnsByRally, setters, choices) {
   return { setterByRally, ambiguities }
 }
 
-// Libero on court, rally by rally, for one team: [{ number, replaced, column, certain }] or null per rally
+// Libero on court, rally by rally, for one team: { number, replaced, column, certain, reason } or null per
+// rally. certain: the exchange of the scoresheet is placed in this back-row stretch (shown normally).
+// Not certain: reason 'unmatched' (stretch without a row on the scoresheet: libero or listed player, not
+// determinable) or 'identity' (a libero surely plays, but a libero-for-libero chain does not say which).
 function placeLiberos(rallies, team, columnsByRally, chains) {
   const result = rallies.map(() => null)
   const players = [...new Set(chains.map(chain => chain.player))]
@@ -170,11 +173,13 @@ function placeLiberos(rallies, team, columnsByRally, chains) {
       const identified = chain.liberos.length === 1 || chain.liberos.length === segments.length
       segments.forEach((segment, k) => {
         const number = chain.liberos.length === 1 ? chain.liberos[0] : identified ? chain.liberos[k] : null
-        for (let i = segment.from; i < segment.to; i++) result[i] = { number, replaced: stretch.player, column: stretch.column, certain: Boolean(number) }
+        // identity unknown: a libero surely replaces the player, but the chain does not say which one
+        for (let i = segment.from; i < segment.to; i++) result[i] = { number, replaced: stretch.player, column: stretch.column, certain: Boolean(number), reason: number ? null : 'identity' }
       })
     } else {
       unmatchedStretches.push(stretch)
-      for (let i = stretch.from; i < stretch.to; i++) result[i] = { number: null, replaced: stretch.player, column: stretch.column, certain: false }
+      // no exchange on the scoresheet for this stretch: libero or listed player, not determinable
+      for (let i = stretch.from; i < stretch.to; i++) result[i] = { number: null, replaced: stretch.player, column: stretch.column, certain: false, reason: 'unmatched' }
     }
   }
   return { byRally: result, unmatchedStretches: unmatchedStretches.length, unmatchedChains: chains.length - next }

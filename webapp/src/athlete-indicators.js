@@ -11,6 +11,8 @@ import { athleteStats } from './athletes.js'
 const onCourtKnown = stat => stat.rallyOnCourt > 0
 // A share over very few rallies says little: compared (best/worst) only from this many rallies on court
 export const MIN_RALLIES_FOR_SHARE = 10
+// Indicators based on presence on court (see rallyOnCourtUncertain)
+const PRESENCE_KEYS = new Set(['rallyOnCourt', 'ralliesWon', 'ralliesLost', 'rallyWinShare'])
 
 export const ATHLETE_INDICATORS = [
   {
@@ -122,7 +124,9 @@ export function indicatorValue(row, indicator, scope) {
   const stat = scope === 'total' ? row.total : row.sets[scope]
   if (!stat) return { value: null, state: 'absent' }
   if (!indicator.applicable(stat)) return { value: null, state: 'not-applicable' }
-  return { value: stat[indicator.key], state: 'value', comparable: indicator.comparable ? indicator.comparable(stat) : true }
+  // presence indicators: rallies whose presence is inferred (libero exchange not placeable) are reported
+  const uncertain = PRESENCE_KEYS.has(indicator.key) ? stat.rallyOnCourtUncertain || 0 : 0
+  return { value: stat[indicator.key], state: 'value', comparable: indicator.comparable ? indicator.comparable(stat) : true, uncertain }
 }
 
 // Best and worst ids for one indicator in one scope. Only comparable values count (on court, applicable);

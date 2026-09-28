@@ -73,3 +73,4 @@ button.vs-court-cell { cursor: pointer; }
 thead tr:first-child .vs-court-axis { border-bottom: 2px solid #63717c; }
 .vs-court-rallies { margin-top: 1rem; }
 .vs-court-rallies small { font-size: .75rem; }
+.vs-court-uncertain { color: var(--vs-muted); font-style: italic; text-decoration: underline dotted; cursor: help; }

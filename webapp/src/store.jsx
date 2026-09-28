@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany } from './storage'
-import { ARCHIVE_MIME, archiveFileName, buildArchive, readArchive } from './archive.js'
+import { ARCHIVE_MIME, archiveFileName, buildArchive, importSummary, planImport } from './archive.js'
 import { APP_VERSION } from './version.js'
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
@@ -361,29 +361,34 @@ export function MatchStoreProvider({ children }) {
     }
   }, [matches])
 
-  // Restore an archive (.zrv) or an older JSON backup; matches already present are kept
-  const restoreBackup = useCallback(async (file) => {
+  // Import an archive (.zrv) or an older JSON backup, also to restore one. Atomic: the whole file is read
+  // and checked first (planImport); the local archive changes only if there is no problem at all, and the
+  // new matches are written in a single IndexedDB transaction (saveMany). Matches already present (same id)
+  // are left as they are.
+  const importArchive = useCallback(async (file) => {
     if (!file) return
     setBusy(true)
     setError('')
     setMessage('')
+    setProgress('Importazione archivio…')
     try {
-      if (file.size > 300 * 1024 * 1024) throw Error('File troppo grande (massimo 300 MB).')
-      const incoming = []
-      for (const m of readArchive(new Uint8Array(await file.arrayBuffer()))) {
-        if (!m || typeof m.id !== 'string' || !/^[a-f0-9]{64}$/.test(m.id) || validateMatch(m, { strict: false }).length) {
-          throw Error('L’archivio contiene gare non valide.')
-        }
-        analyze([m])
-        if (!matches.some(x => x.id === m.id)) incoming.push(m)
+      if (file.size > 300 * 1024 * 1024) throw Error('Il file supera il limite di 300 MB.')
+      const plan = planImport(new Uint8Array(await file.arrayBuffer()), matches.map(m => m.id))
+      const summary = importSummary(plan)
+      if (!plan.ok) {
+        setError([summary.title, ...summary.lines].join('\n'))
+        return
       }
-      await dbSaveMany(incoming)
-      await refresh()
-      setMessage(incoming.length === 1 ? '1 gara ripristinata nell’archivio locale.' : `${incoming.length} gare ripristinate nell’archivio locale.`)
+      if (plan.toImport.length) {
+        await dbSaveMany(plan.toImport)
+        await refresh()
+      }
+      setMessage([summary.title, ...summary.lines].join('\n'))
     } catch (e) {
-      setError(`Ripristino non riuscito: ${e.message}`)
+      setError(`Importazione non riuscita.\n${e.message}`)
     } finally {
       setBusy(false)
+      setProgress('')
     }
   }, [matches, refresh])
 
@@ -424,7 +429,7 @@ export function MatchStoreProvider({ children }) {
     updateMatch,
     deleteMatch,
     exportBackup,
-    restoreBackup,
+    importArchive,
   }), [
     matches, filteredMatches, filters, updateFilters,
     teams,
@@ -454,7 +459,7 @@ export function MatchStoreProvider({ children }) {
     updateMatch,
     deleteMatch,
     exportBackup,
-    restoreBackup,
+    importArchive,
   ])
 
   return (

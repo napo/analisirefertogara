@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { RELEASES_API, checkForUpdate, compareVersions, mobileDownload, mobilePlatform } from '../src/updates.js'
 
@@ -44,7 +45,7 @@ test('update check: nothing in the web version; mobile compares with the latest 
 })
 
 test('release scripts: latest.json lists only signed packages, with the platform keys of the updater', () => {
-  const root = new URL('../../', import.meta.url).pathname
+  const root = fileURLToPath(new URL('../../', import.meta.url)) // a real path also on Windows
   const dir = mkdtempSync(join(tmpdir(), 'release-'))
   const files = {
     'Referto.Volley_0.15.0_x64-setup.exe': 'exe', 'Referto.Volley_0.15.0_x64-setup.exe.sig': 'SIG-NSIS\n',
@@ -57,7 +58,7 @@ test('release scripts: latest.json lists only signed packages, with the platform
     'Referto.Volley_0.15.0_android-universal.apk': 'apk',
   }
   for (const [name, content] of Object.entries(files)) writeFileSync(join(dir, name), content)
-  execFileSync('node', ['scripts/updater-manifest.mjs', dir, 'v0.15'], { cwd: root })
+  execFileSync(process.execPath, ['scripts/updater-manifest.mjs', dir, 'v0.15'], { cwd: root })
   const manifest = JSON.parse(readFileSync(join(dir, 'latest.json'), 'utf8'))
   const version = JSON.parse(readFileSync(join(root, 'src-tauri/tauri.conf.json'), 'utf8')).version
   assert.equal(manifest.version, version)

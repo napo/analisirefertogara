@@ -21,18 +21,26 @@ export function tally(states) {
 }
 const knownP = P => Number.isInteger(P) && P >= 1 && P <= 6
 export const matrixEligible = s => knownP(s.teams.own.P) && knownP(s.teams.other.P) && s.reliable !== false
-// Rallies on court per player of one team (won/lost by the team while the player was on court). A
-// libero exchange that cannot be placed counts the replaced player, as the scoresheet lineup says.
+// Rallies on court per player of one team (won/lost by the team while the player was on court).
+// { rallies, won, lost, uncertain }: uncertain = rallies counted for the player listed on the scoresheet
+// while a libero exchange that cannot be placed may have taken her place (inferred, not observed). When a
+// libero surely plays but it is not known which one, the rally is attributed to nobody in that position.
 export function presenceByPlayer(states, team) {
   const presence = new Map()
   for (const state of states) {
     const side = state.teams[team]
-    const numbers = side.onCourt.map((number, column) => number || side.columns[column])
-    for (const number of new Set(numbers.filter(Boolean))) {
-      const entry = presence.get(number) || { rallies: 0, won: 0, lost: 0 }
+    const counted = new Map()
+    side.columns.forEach((nominal, column) => {
+      const physical = side.onCourt[column]
+      if (physical) counted.set(physical, counted.get(physical) || false)
+      else if (side.libero?.column === column && side.libero.reason === 'unmatched' && nominal) counted.set(nominal, true)
+    })
+    for (const [number, inferred] of counted) {
+      const entry = presence.get(number) || { rallies: 0, won: 0, lost: 0, uncertain: 0 }
       entry.rallies += 1
       if (state.winner === team) entry.won += 1
       else entry.lost += 1
+      if (inferred) entry.uncertain += 1
       presence.set(number, entry)
     }
   }

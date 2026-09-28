@@ -93,4 +93,6 @@ All’avvio le applicazioni installate controllano se è uscita una nuova versio
 
 ## Archivio delle gare (.zrv)
 
-Le applicazioni desktop registrano l’estensione `.zrv` ("zip referto volley", tipo `application/vnd.referto-volley+zip`). Il file è un archivio ZIP documentato; per ora si importa con **Ripristina archivio** dall’elenco dei referti o dallo Storico.
+Le applicazioni desktop registrano l’estensione `.zrv` ("zip referto volley", tipo `application/vnd.referto-volley+zip`): il file compare come documento di Referto Volley e un doppio clic apre l’applicazione.
+
+L’importazione avviene con **Importa archivio** (elenco dei referti, Storico, Informazioni), su web, Windows, macOS, Linux, Android e iPhone. Il doppio clic **non** importa ancora il file in automatico: per farlo servono parti native diverse per sistema (su Windows e Linux il percorso arriva come argomento del processo, su macOS con l’evento `RunEvent::Opened`, su Android e iOS con intent e document type), più il plugin per il file system e un’istanza singola dell’app per non aprirne una seconda. È documentato qui invece di introdurre una soluzione fragile; il formato e l’import con il pulsante non cambiano.

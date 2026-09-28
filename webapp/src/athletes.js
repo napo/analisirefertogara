@@ -38,6 +38,7 @@ const matchAthleteStats = matches => {
           consecutive: 0,
           pointsAtServe: 0,
           rallyOnCourt: 0,
+          rallyOnCourtUncertain: 0,
           ralliesWon: 0,
           ralliesLost: 0,
           isSetter: isSetter(player),
@@ -75,6 +76,7 @@ const matchAthleteStats = matches => {
             consecutive: 0,
             pointsAtServe: 0,
             rallyOnCourt: 0,
+            rallyOnCourtUncertain: 0,
             ralliesWon: 0,
             ralliesLost: 0,
             isSetter: settersSet.has(number),
@@ -89,7 +91,8 @@ const matchAthleteStats = matches => {
       }
 
       // Presence rally by rally from the canonical court states: substitutions (exit and re-entry) and
-      // libero exchanges applied; where a libero exchange cannot be placed the replaced player is counted
+      // libero exchanges applied. Where a libero exchange cannot be placed the player listed on the
+      // scoresheet is counted, and those rallies are kept apart as not certain (rallyOnCourtUncertain)
       const court = setStates(match, setIndex)
       if (court.complete) {
         for (const [number, presence] of presenceByPlayer(court.states, 'own')) {
@@ -98,6 +101,7 @@ const matchAthleteStats = matches => {
           record.rallyOnCourt += presence.rallies
           record.ralliesWon += presence.won
           record.ralliesLost += presence.lost
+          record.rallyOnCourtUncertain += presence.uncertain
         }
       }
       // Who served each turn: the player in that position when the turn started (substitutions applied);
@@ -128,6 +132,7 @@ const matchAthleteStats = matches => {
             consecutive: 0,
             pointsAtServe: 0,
             rallyOnCourt: 0,
+            rallyOnCourtUncertain: 0,
             ralliesWon: 0,
             ralliesLost: 0,
             isSetter: settersSet.has(number),
@@ -171,7 +176,7 @@ export function athleteStats(matches) {
       if (!totals.has(id)) totals.set(id, { ...player, id, numbers: new Set([player.number]) })
       else {
         const total = totals.get(id)
-        for (const field of ['pointsPlayed', 'services', 'serviceTurns', 'consecutive', 'pointsAtServe', 'rallyOnCourt', 'ralliesWon', 'ralliesLost']) total[field] += player[field]
+        for (const field of ['pointsPlayed', 'services', 'serviceTurns', 'consecutive', 'pointsAtServe', 'rallyOnCourt', 'rallyOnCourtUncertain', 'ralliesWon', 'ralliesLost']) total[field] += player[field] || 0
         total.numbers.add(player.number)
         total.entered ||= player.entered
         total.isSetter ||= player.isSetter

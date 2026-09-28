@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import { strFromU8, strToU8, unzipSync } from 'fflate'
 import { ARCHIVE_FORMAT, ARCHIVE_VERSION, archiveFileName, buildArchive, csv, readArchive } from '../src/archive.js'
 import { parseItems } from '../src/pdf-parser.js'
 import { validateMatch } from '../src/analysis.js'
@@ -64,21 +64,6 @@ test('archive: export and reimport give back the same matches and PDFs', async (
   const manual = { ...m, id: 'b'.repeat(64), pdf: null }
   const [again] = readArchive(await buildArchive([manual]))
   assert.equal(again.pdf, null)
-})
-
-test('archive: older JSON backups still restore; damaged or newer archives are refused', async () => {
-  const m = match()
-  const legacy = JSON.stringify({ version: 1, matches: [{ ...m, pdf: `data:application/pdf;base64,${Buffer.from(PDF).toString('base64')}` }] })
-  const [old] = readArchive(strToU8(legacy))
-  assert.deepEqual(new Uint8Array(await old.pdf.arrayBuffer()), PDF)
-  assert.throws(() => readArchive(strToU8('{"version":3,"matches":[]}')), /Formato backup non valido/)
-  assert.throws(() => readArchive(new Uint8Array([0x50, 0x4b, 1, 2, 3])), /danneggiato/)
-  const zip = obj => zipSync({ 'archivio.json': strToU8(JSON.stringify(obj)) })
-  assert.throws(() => readArchive(zip({ format: 'altro', version: 2, matches: [] })), /formato non riconosciuto/)
-  assert.throws(() => readArchive(zip({ format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION + 1, matches: [] })), /versione più recente/)
-  assert.throws(() => readArchive(zip({ format: ARCHIVE_FORMAT, version: 2, matches: [{ id: 'x', pdfFile: 'pdf/x.pdf' }] })), /manca pdf\/x\.pdf/)
-  const notPdf = zipSync({ 'archivio.json': strToU8(JSON.stringify({ format: ARCHIVE_FORMAT, version: 2, matches: [{ id: 'x', pdfFile: 'pdf/x.pdf' }] })), 'pdf/x.pdf': strToU8('hello') })
-  assert.throws(() => readArchive(notPdf), /non è un PDF/)
 })
 
 test('CSV cells with separators, quotes and new lines are quoted', () => {

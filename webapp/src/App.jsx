@@ -23,6 +23,9 @@ import AthletesTable from './AthletesTable'
 import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './GlossaryView'
 import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
+import { AboutProject, PrivacyCard, SupportCard } from './AboutProject.jsx'
+import ExternalLink from './ExternalLink.jsx'
+import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
 import './App.css'
 
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, CanvasRenderer])
@@ -98,7 +101,7 @@ function MainApp() {
     updateMatch,
     deleteMatch,
     exportBackup,
-    restoreBackup,
+    importArchive,
   } = useMatchStore()
 
   const fileInputRef = useRef(null)
@@ -225,8 +228,8 @@ function MainApp() {
       const pad = n => String(n).padStart(2, '0')
       const createdAt = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`
       const siteUrl = 'https://refertogara.volleyserve.it'
-      const repoUrl = 'https://github.com/napo/analisirefertogara'
-      const footerLeft = 'Analisi Referto Volley è un progetto open source di Maurizio Napolitano - '
+      const repoUrl = SOURCE_REPOSITORY_URL
+      const footerLeft = `Analisi Referto Volley è un progetto open source di ${AUTHOR_NAME} - `
       const footerRight = `report prodotto in data ${createdAt} ver ${APP_VERSION}`
 
       const drawHeaderFooter = (pageIndex, pageCount) => {
@@ -485,7 +488,7 @@ function MainApp() {
         accept=".zrv,.json,.zip,application/vnd.referto-volley+zip,application/zip,application/json"
         hidden
         onChange={(e) => {
-          if (e.target.files?.[0]) restoreBackup(e.target.files[0])
+          if (e.target.files?.[0]) importArchive(e.target.files[0])
           e.target.value = ''
         }}
       />
@@ -699,11 +702,12 @@ function MainApp() {
                   </button>
                   <button
                     type="button"
+                    title="Apri un file .zrv (o un vecchio backup .json): tutte le gare vengono verificate e aggiunte all’archivio locale, senza estrarre nulla. Serve anche a ripristinare un archivio."
                     className="vs-btn vs-btn-sm vs-btn-secondary"
                     disabled={busy}
                     onClick={() => { if (backupInputRef.current) backupInputRef.current.click() }}
                   >
-                    Ripristina archivio
+                    Importa archivio
                   </button>
                 </div>
               </div>
@@ -1427,12 +1431,13 @@ function MainApp() {
                   </button>
                   <button
                     type="button"
+                    title="Apri un file .zrv (o un vecchio backup .json): tutte le gare vengono verificate e aggiunte all’archivio locale, senza estrarre nulla. Serve anche a ripristinare un archivio."
                     className="vs-btn vs-btn-sm vs-btn-secondary"
                     onClick={() => {
                       if (backupInputRef.current) backupInputRef.current.click()
                     }}
                   >
-                    Ripristina archivio
+                    Importa archivio
                   </button>
                 </div>
               </div>
@@ -1655,7 +1660,7 @@ function MainApp() {
               <p style={{ color: 'var(--vs-text)', fontSize: '0.92rem', margin: '0 0 1rem', maxWidth: '48rem' }}>
                 I PDF caricati non vengono inviati a un server per essere analizzati. I referti salvati e i dati estratti rimangono sul dispositivo,
                 nell’archivio locale del browser tramite IndexedDB. L’archivio è associato al browser e al dispositivo utilizzati.
-                Con &quot;Esporta archivio&quot; puoi salvare un file .zrv con le gare, i PDF originali e le tabelle CSV e ripristinarlo su un altro dispositivo.
+                Il file .zrv è il formato portabile di Referto Volley: con &quot;Esporta&quot; salvi le gare, i PDF originali e le tabelle CSV; con &quot;Importa archivio&quot; lo apri su un altro dispositivo o ripristini un archivio salvato, senza estrarre nulla.
                 Il file è un archivio ZIP documentato (LEGGIMI.txt, JSON con schema, CSV): può essere letto anche da altri programmi.
                 La cancellazione dei dati del sito o del browser può comportare la perdita dell’archivio se non hai esportato un backup.
                 Font, script e risorse sono inclusi nell’applicazione: l’elaborazione non dipende da servizi esterni.
@@ -1671,12 +1676,13 @@ function MainApp() {
                 </button>
                 <button
                   type="button"
+                  title="Apri un file .zrv (o un vecchio backup .json): tutte le gare vengono verificate e aggiunte all’archivio locale, senza estrarre nulla. Serve anche a ripristinare un archivio."
                   className="vs-btn vs-btn-sm vs-btn-secondary"
                   onClick={() => {
                     if (backupInputRef.current) backupInputRef.current.click()
                   }}
                 >
-                  Ripristina archivio
+                  Importa archivio
                 </button>
               </div>
             </div>
@@ -1686,12 +1692,9 @@ function MainApp() {
         {/* TAB 4: INFORMAZIONI */}
         {activeTab === 'info' && (
           <section>
-            <div className="vs-card">
-              <h1 className="vs-card-title">Cos’è Referto Volley</h1>
-              <p>
-                Referto Volley permette di analizzare i dati contenuti nel referto di gara della pallavolo e di osservare il rendimento della squadra nelle diverse rotazioni e nelle fasi break point e cambio palla.
-              </p>
-            </div>
+            <SupportCard />
+
+            <AboutProject />
 
             <div className="vs-card">
               <h2 className="vs-card-title">Come funziona l’analisi</h2>
@@ -1768,53 +1771,7 @@ function MainApp() {
 
             <UpdateSettings />
 
-            <div className="vs-card">
-              <h2 className="vs-card-title">Dati, privacy e funzionamento locale</h2>
-              <p>
-                Referto Volley è progettato per elaborare i referti localmente nel browser. I PDF caricati non vengono inviati
-                a un server per essere analizzati. I dati estratti rimangono sul dispositivo dell’utente.
-                Le gare salvate e i PDF vengono conservati localmente nel browser tramite IndexedDB.
-              </p>
-              <p>
-                I referti TieBreakTech sono stampati come immagini: vengono letti con il riconoscimento ottico dei caratteri (OCR),
-                eseguito anch’esso sul dispositivo. Il motore di riconoscimento e il modello della lingua sono inclusi nell’applicazione.
-                La lettura richiede qualche secondo e può contenere errori: i valori corretti automaticamente sono segnalati
-                e vanno verificati prima di salvare.
-              </p>
-              <p>
-                L’archivio rimane associato al browser e al dispositivo utilizzati. Dall’elenco dei referti o dallo Storico puoi esportare l’archivio (.zrv)
-                con gare, PDF originali e tabelle CSV e ripristinarlo anche su un altro dispositivo. La cancellazione dei dati del sito o del browser
-                può comportare la perdita dell’archivio locale se non hai esportato un backup.
-              </p>
-              <p>
-                Referto Volley non utilizza cookie di profilazione, analytics o pubblicitari e non utilizza cookie per memorizzare i dati delle gare.
-                L’archivio dell’applicazione viene conservato localmente nel browser tramite IndexedDB.
-                Il codice applicativo non imposta cookie e non integra servizi di analytics, tracking, pubblicità o telemetria.
-              </p>
-              <p>
-                Font, script e risorse sono distribuiti con l’applicazione e non vengono caricati da servizi esterni.
-                La versione web richiede una connessione per caricare il sito; le applicazioni Tauri includono le risorse per l’uso locale.
-                L’archivio di ogni applicazione è separato da quello del browser: usa l’archivio .zrv per trasferire le gare.
-              </p>
-            </div>
-
-            <div className="vs-card">
-              <h2 className="vs-card-title">Progetto, autori e licenza</h2>
-              <p>
-                Referto Volley è un progetto di <a href="https://github.com/napo" target="_blank" rel="noopener noreferrer">Maurizio Napolitano</a>,
-                basato sul modello di analisi delle rotazioni sviluppato da Andrea Fortunati in un foglio di calcolo Excel.
-              </p>
-              <p>
-                Il credito ad Andrea Fortunati riguarda il modello di analisi delle rotazioni nel foglio Excel.
-                L’importazione PDF, l’interfaccia, l’archivio locale e le altre funzionalità dell’applicazione sono sviluppi del progetto software.
-              </p>
-              <p>
-                Il software è distribuito con licenza <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">GNU Affero General Public License, versione 3 o successive</a> (AGPL-3.0-or-later),
-                senza alcuna garanzia. Chi usa l’applicazione, anche via web, può ottenerne il{' '}
-                <a href="https://github.com/napo/analisirefertogara" target="_blank" rel="noopener noreferrer">codice sorgente</a>;
-                le versioni modificate vanno rilasciate con la stessa licenza.
-              </p>
-            </div>
+            <PrivacyCard />
           </section>
         )}
 
@@ -1823,18 +1780,18 @@ function MainApp() {
           <div>
             <strong>Referto Volley</strong> — Analisi e lettura referti di gara della pallavolo
             <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--vs-muted)', marginTop: '0.2rem' }}>
-              Progetto di Maurizio Napolitano, basato sul modello di analisi delle rotazioni sviluppato da Andrea Fortunati in un foglio di calcolo Excel.
+              Un progetto open source di {AUTHOR_NAME}, dall’idea del foglio Excel di Andrea Fortunati per l’analisi delle rotazioni.
             </span>
           </div>
           <div className="vs-footer-meta">
-            <span>Analisi dei PDF nel browser · Archivio locale tramite IndexedDB</span>
+            <span>Analisi dei PDF sul dispositivo · Archivio locale tramite IndexedDB</span>
             <span style={{ display: 'block', fontSize: '0.8rem', marginTop: '0.2rem' }}>
-              <a href="https://github.com/napo/analisirefertogara/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Licenza AGPL-3.0-or-later</a>
+              <ExternalLink href={LICENSE_URL}>Licenza {LICENSE_SPDX}</ExternalLink>
               {' · '}
-              <a href="https://github.com/napo/analisirefertogara" target="_blank" rel="noopener noreferrer">Codice sorgente</a>
+              <ExternalLink href={SOURCE_REPOSITORY_URL}>Codice sorgente</ExternalLink>
             </span>
             <span className="vs-footer-version">
-              <a href={`https://github.com/napo/analisirefertogara/releases/tag/v${APP_VERSION}`} target="_blank" rel="noopener noreferrer">ver {APP_VERSION}</a>
+              <ExternalLink href={releaseUrl(APP_VERSION)}>ver {APP_VERSION}</ExternalLink>
             </span>
           </div>
         </footer>

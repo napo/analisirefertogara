@@ -4,7 +4,9 @@
 // - Android, iPhone/iPad: the updater does not exist on mobile; the latest GitHub release is read and,
 //   if newer, the notice opens its download (APK) or its page (iPhone) in the browser.
 // Only the version is requested from GitHub: no data about the matches leaves the device.
-export const RELEASES_API = 'https://api.github.com/repos/napo/analisirefertogara/releases/latest'
+import { SOURCE_REPOSITORY_URL } from './config.js'
+
+export const RELEASES_API = SOURCE_REPOSITORY_URL.replace('https://github.com/', 'https://api.github.com/repos/') + '/releases/latest'
 const SETTING = 'referto-volley.update-checks'
 
 export const isTauriApp = () => Boolean(globalThis.__TAURI_INTERNALS__)
@@ -76,8 +78,9 @@ export async function installUpdate(info, onProgress = () => {}) {
   await relaunch()
 }
 
-// Mobile: open the download in the system browser
-export async function openDownload(url) {
+// Installed apps: open a URL in the system browser (download of a new version, external links)
+export async function openInSystemBrowser(url) {
   const { openUrl } = await import('@tauri-apps/plugin-opener')
   await openUrl(url)
 }
+export const openDownload = openInSystemBrowser

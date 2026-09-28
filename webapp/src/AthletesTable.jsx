@@ -14,11 +14,21 @@ const Triangle = ({ up = false }) => (
   </svg>
 )
 
+const UNCERTAIN_NOTE = 'La presenza del libero in questo tratto è ricostruita dalle informazioni disponibili nel referto e dalle regole di gioco, ma non può essere collocata con certezza rally per rally.'
+
 // One value with its state: 0 is a value; "–" not applicable; "·" not on court in that set
 function Value({ entry, indicator, mark, scopeLabel }) {
   if (entry.state === 'absent') return <span className="vs-ath-na" title="Non in campo in questo set">·</span>
   if (entry.state === 'not-applicable') return <span className="vs-ath-na" title="Non applicabile: nessun turno al servizio">–</span>
   const text = formatValue(entry.value, indicator)
+  // presence partly inferred: a libero exchange that the scoresheet does not let place rally by rally
+  if (entry.uncertain > 0) {
+    return (
+      <span title={`${UNCERTAIN_NOTE} Comprende ${entry.uncertain} ${entry.uncertain === 1 ? 'rally' : 'rally'} con presenza non determinabile con certezza.`}>
+        {text}<sup className="vs-ath-uncertain" aria-hidden="true">*</sup><span className="vs-sr"> (comprende {entry.uncertain} rally con presenza non certa)</span>
+      </span>
+    )
+  }
   if (mark === 'best') return <span className="vs-ath-ext best" title={`Valore più alto ${scopeLabel}`}><Triangle up />{text}<span className="vs-sr"> (più alto {scopeLabel})</span></span>
   if (mark === 'worst') return <span className="vs-ath-ext worst" title={`Valore più basso ${scopeLabel}`}><Triangle />{text}<span className="vs-sr"> (più basso {scopeLabel})</span></span>
   return <span>{text}</span>
@@ -178,7 +188,10 @@ export default function AthletesTable({ matches, female = false, printing = fals
       </div>
       <p className="vs-ath-legend">
         <span><Triangle up /> valore più alto, <Triangle /> più basso {scopeLabel}: medie di servizio tra {female ? 'le atlete' : 'gli atleti'} con almeno un turno al servizio, % rally vinti da {MIN_RALLIES_FOR_SHARE} rally in campo</span>
-        <span>Rally in campo, vinti e persi: rally della squadra con l’atleta in campo, sostituzioni (uscite e rientri) e cambi del libero compresi. Il libero è collocato con la regola di gioco: sostituisce l’atleta indicata sul referto mentre è in seconda linea, dal momento in cui la squadra passa in ricezione; dove un cambio del libero non è collocabile viene contata l’atleta sostituita</span>
+        <span>Rally in campo, vinti e persi: rally della squadra con l’atleta in campo, sostituzioni (uscite e rientri) e cambi del libero compresi. Il libero è collocato con la regola di gioco: sostituisce l’atleta indicata sul referto mentre è in seconda linea, dal momento in cui la squadra passa in ricezione</span>
+        {rows.some(row => row.total.rallyOnCourtUncertain > 0) && (
+          <span><sup className="vs-ath-uncertain">*</sup> comprende rally in cui la presenza non è determinabile con certezza: il referto non permette di collocare un cambio del libero, e il rally è attribuito all’atleta indicata sul referto</span>
+        )}
         <span>“<b>–</b>” non applicabile, “<b>·</b>” non in campo nel set; 0 è un valore</span>
         {withSets && <span>Nei set: {trendIndicator.label}, stessa scala per tutti</span>}
       </p>

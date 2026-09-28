@@ -101,7 +101,7 @@ export function configurationsReading(states, { phase = 'all', team = 'la squadr
   const withLibero = groupRallies(considered.filter(s => s.teams.own.libero?.certain), s => ({ number: s.teams.own.libero.number }))
   if (withLibero.length) sentences.push(`In seconda linea, ${list(withLibero.map(g => `il libero #${g.number} era in campo in ${rallyCount(g.rallies)} (${g.won} ${g.won === 1 ? 'vinto' : 'vinti'})`))}.`)
   const uncertain = considered.filter(s => backRowLabels(s, 'own').some(label => label.startsWith('L?'))).length
-  if (uncertain) sentences.push(`In ${rallyCount(uncertain)} il cambio del libero non è collocabile con certezza (L?).`)
+  if (uncertain) sentences.push(`In ${rallyCount(uncertain)} la presenza del libero non è determinabile con certezza (L?): il referto non permette di collocare il cambio rally per rally.`)
   sentences.push('I rally vinti e persi sono della squadra mentre quella configurazione era in campo, non punti dei singoli atleti.')
   return sentences
 }
