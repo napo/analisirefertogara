@@ -3,7 +3,7 @@
 // archive, whose name gets the architecture (Apple Silicon and Intel would otherwise collide).
 // Usage: node scripts/collect-desktop.mjs <rust target>
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 const target = process.argv[2]
 if (!target) throw Error('usage: collect-desktop.mjs <rust target>')
@@ -21,7 +21,7 @@ const walk = dir => (existsSync(dir) ? readdirSync(dir).flatMap(name => {
 
 let copied = 0
 for (const path of walk(bundle)) {
-  const name = path.split('/').pop()
+  const name = basename(path)
   let destination = null
   if (/(\.exe|\.msi|\.dmg|\.deb|\.AppImage)(\.sig)?$/.test(name)) destination = clean(name)
   else if (/\.app\.tar\.gz(\.sig)?$/.test(name)) destination = clean(`Referto Volley_${version}_${arch}.app.tar.gz${name.endsWith('.sig') ? '.sig' : ''}`)
