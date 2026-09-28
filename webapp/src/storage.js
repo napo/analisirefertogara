@@ -36,6 +36,3 @@ export const saveMany = async matches => {
   const stored = await Promise.all(matches.map(encode))
   return transact('readwrite', store => { stored.forEach(m => store.put(m)) })
 }
-export async function backup(matches) {
-  return JSON.stringify({ version: 1, matches: await Promise.all(matches.map(async m => ({ ...m, pdf: m.pdf ? await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(m.pdf) }) : null }))) }, null, 2)
-}

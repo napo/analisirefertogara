@@ -6,7 +6,14 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { MatchStoreProvider, useMatchStore } from './store'
-import { applySetter, emptySubstitutions, emptyTimeouts, normalizeScore, supportedSoftwareList } from './pdf-parser'
+import CourtAnalysis from './CourtAnalysis.jsx'
+import PrintToggle from './PrintToggle.jsx'
+import ScrollableTable from './ScrollableTable.jsx'
+import UpdateNotice, { UpdateSettings } from './UpdateNotice.jsx'
+import { loadPrintSections, savePrintSections } from './print-sections.js'
+import { swapTeams } from './match-teams.js'
+import { isSetter, rosterPlayer } from './athletes.js'
+import { normalizeScore, supportedSoftwareList } from './pdf-parser'
 import { duplicateLineupNumbers, validateMatch } from './analysis'
 import { formatDuration, formatWins, matchDuration } from './format'
 import { emptyFilters, matchHeading } from './match-filters'
@@ -33,31 +40,11 @@ async function svgToPng(svg, size) {
 }
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
-const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '', setterRole: '' }
-const isSetter = player => Boolean(player.isSetter || player.setterRole === 'P1' || player.setterRole === 'P2')
+// At least the 6 rows of the scoresheet box; more are kept (fifth set: rows of the court-change panel)
 const liberoValues = (libero, key) => Array.isArray(libero?.[key])
-  ? [...libero[key], '', '', '', '', '', ''].slice(0, 6)
+  ? [...libero[key], '', '', '', '', '', ''].slice(0, Math.max(6, libero[key].length))
   : Array(6).fill(libero?.[key] || '')
 const resultStr = m => `${m.sets.filter(s => s.scoreOwn > s.scoreOther).length} – ${m.sets.filter(s => s.scoreOther > s.scoreOwn).length}`
-const updateSetterRotations = match => {
-  if (!match) return match
-  const setters = (match.roster || []).map(rosterPlayer)
-    .filter(player => isSetter(player) && String(player.number ?? '').trim() !== '')
-  const primarySetter = setters[0]
-  return {
-    ...match,
-    setter: primarySetter ? String(primarySetter.number) : (match.setter || ''),
-    sets: (match.sets || []).map(set => {
-      const setter = setters.find(player => (set.lineup || []).some(number => String(number).trim() === String(player.number).trim()))
-      const position = setter
-        ? (set.lineup || []).findIndex(number => String(number).trim() === String(setter.number).trim()) + 1
-        : 0
-      const rotationValue = position > 0 ? position : (Number(set.rotation) || 1)
-      return { ...set, rotation: rotationValue }
-    }),
-  }
-}
-
 const isFemaleTeamOrMatch = (matchOrList, activeTeam = '') => {
   const list = Array.isArray(matchOrList) ? matchOrList : [matchOrList].filter(Boolean)
   for (const m of list) {
@@ -108,6 +95,7 @@ function MainApp() {
     addSetToDraft,
     removeLastSetFromDraft,
     saveDraft,
+    updateMatch,
     deleteMatch,
     exportBackup,
     restoreBackup,
@@ -118,6 +106,18 @@ function MainApp() {
   const reportExportRef = useRef(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const [exportingPdf, setExportingPdf] = useState(false)
+  // Reports chosen for the archive export (.zrv) in "Referti salvati nell'archivio locale"
+  const [exportIds, setExportIds] = useState([])
+  // Blocks included in the PDF report (all by default); a block turned off is not drawn while exporting
+  const [printSections, setPrintSections] = useState(loadPrintSections)
+  const includeInPdf = id => printSections[id] !== false
+  const setIncludeInPdf = (id, value) => setPrintSections(current => {
+    const next = { ...current, [id]: value }
+    savePrintSections(next)
+    return next
+  })
+  const inReport = id => !exportingPdf || includeInPdf(id)
+  const printToggle = id => <PrintToggle checked={includeInPdf(id)} onChange={value => setIncludeInPdf(id, value)} printing={exportingPdf} />
   const [showMatchPicker, setShowMatchPicker] = useState(false)
   const [selectedHistoryIds, setSelectedHistoryIds] = useState([])
   const [searchMenuOpen, setSearchMenuOpen] = useState(false)
@@ -162,7 +162,7 @@ function MainApp() {
       const containerTop = el.getBoundingClientRect().top
       const cssWidth = el.offsetWidth
       // Page breaks: after blocks, or inside a table body keeping at least 3 rows before and 2 after the cut
-      const tableRows = [...el.querySelectorAll('tbody')].flatMap(tbody => [...tbody.rows].slice(2, -2))
+      const tableRows = [...el.querySelectorAll('tbody')].flatMap(tbody => tbody.closest('.vs-court-matrix-card') ? [] : [...tbody.rows].slice(2, -2))
       const breakPoints = [...new Set(
         [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, .vs-flow-set, .vs-flow-reading-set, .vs-flow-synthesis'), ...tableRows]
           .map(node => Math.round(node.getBoundingClientRect().bottom - containerTop))
@@ -462,20 +462,9 @@ function MainApp() {
             </ul>
           </nav>
 
-          {/* Zone 3: 1 Primary Action */}
-          <div className="vs-nav-actions">
-            <button
-              type="button"
-              className="vs-btn vs-btn-primary"
-              disabled={busy || loading}
-              onClick={() => {
-                setActiveTab('reports')
-                if (fileInputRef.current) fileInputRef.current.click()
-              }}
-            >
-              + Carica referto PDF
-            </button>
-          </div>
+          {/* Zone 3: empty, same width as the former upload button so the menu keeps its place
+              (uploading starts from the logo or from "Referti di gara") */}
+          <div className="vs-nav-actions vs-nav-spacer" aria-hidden="true" />
         </div>
       </header>
 
@@ -493,7 +482,7 @@ function MainApp() {
       <input
         ref={backupInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".zrv,.json,.zip,application/vnd.referto-volley+zip,application/zip,application/json"
         hidden
         onChange={(e) => {
           if (e.target.files?.[0]) restoreBackup(e.target.files[0])
@@ -502,6 +491,7 @@ function MainApp() {
       />
 
       <main className="vs-shell">
+        <UpdateNotice />
         {/* Introduzione solo nella home; intestazione compatta durante la verifica. */}
         {draft && activeTab === 'reports' ? (
           <section className="vs-hero-compact">
@@ -694,9 +684,28 @@ function MainApp() {
                     Tutti i file PDF originali e i dati estratti sono salvati direttamente nel tuo browser.
                   </p>
                 </div>
-                <span className="vs-btn vs-btn-sm vs-btn-secondary" style={{ cursor: 'default' }}>
-                  {matches.length} referti archiviati
-                </span>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span className="vs-btn vs-btn-sm vs-btn-secondary" style={{ cursor: 'default' }}>
+                    {matches.length} referti archiviati
+                  </span>
+                  <button
+                    type="button"
+                    className="vs-btn vs-btn-sm vs-btn-secondary"
+                    disabled={!matches.length || busy}
+                    title="Scarica un file .zrv con tutte le gare, i PDF originali e le tabelle CSV, riutilizzabile su altri dispositivi e programmi. Per esportarne solo alcune, selezionale nell’elenco."
+                    onClick={() => exportBackup()}
+                  >
+                    Esporta tutto (.zrv)
+                  </button>
+                  <button
+                    type="button"
+                    className="vs-btn vs-btn-sm vs-btn-secondary"
+                    disabled={busy}
+                    onClick={() => { if (backupInputRef.current) backupInputRef.current.click() }}
+                  >
+                    Ripristina archivio
+                  </button>
+                </div>
               </div>
 
               {!matches.length ? (
@@ -711,10 +720,36 @@ function MainApp() {
                   </button>
                 </div>
               ) : (
-                <div className="vs-table-wrap">
+                <>
+                {(() => {
+                  const chosen = matches.filter(m => exportIds.includes(m.id))
+                  return chosen.length > 0 && (
+                    <div className="vs-selection-bar">
+                      <span>✓ {chosen.length} {chosen.length === 1 ? 'referto selezionato' : 'referti selezionati'} per l’esportazione</span>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button type="button" className="vs-btn vs-btn-sm vs-btn-primary" disabled={busy} onClick={() => exportBackup(chosen)}>
+                          Esporta {chosen.length} {chosen.length === 1 ? 'referto' : 'referti'} (.zrv)
+                        </button>
+                        <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => setExportIds([])}>
+                          Deseleziona tutti
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+                <ScrollableTable>
                   <table className="vs-table">
                     <thead>
                       <tr>
+                        <th style={{ width: '2.5rem' }}>
+                          <input
+                            type="checkbox"
+                            aria-label="Seleziona tutti i referti per l’esportazione"
+                            title="Seleziona tutti i referti per l’esportazione"
+                            checked={filteredMatches.length > 0 && filteredMatches.every(m => exportIds.includes(m.id))}
+                            onChange={event => setExportIds(event.target.checked ? filteredMatches.map(m => m.id) : [])}
+                          />
+                        </th>
                         <th>Data</th>
                         <th>Gara</th>
                         <th>Risultato</th>
@@ -729,6 +764,15 @@ function MainApp() {
                         const year = m.date.slice(0, 4)
                         return (
                           <tr key={m.id}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                aria-label={`Seleziona per l’esportazione: ${m.team} vs ${m.opponent}`}
+                                title="Seleziona per l’esportazione"
+                                checked={exportIds.includes(m.id)}
+                                onChange={() => setExportIds(ids => (ids.includes(m.id) ? ids.filter(id => id !== m.id) : [...ids, m.id]))}
+                              />
+                            </td>
                             <td className="tabular-nums" style={{ fontWeight: 600 }}>{`${day}/${month}/${year}`}</td>
                             <td>
                               <strong style={{ color: 'var(--vs-heading)' }}>{m.team}</strong> vs {m.opponent}
@@ -776,33 +820,7 @@ function MainApp() {
                                   className="vs-btn vs-btn-sm vs-btn-secondary"
                                   title={`Inverti per analizzare ${m.opponent}`}
                                   onClick={() => {
-                                    setDraft({
-                                      ...m,
-                                      team: m.opponent,
-                                      opponent: m.team,
-                                      roster: m.opponentRoster || [],
-                                      opponentRoster: m.roster || [],
-                                      sets: m.sets.map(s => ({
-                                        ...s,
-                                        own: s.other,
-                                        other: s.own,
-                                        scoreOwn: s.scoreOther,
-                                        scoreOther: s.scoreOwn,
-                                        lineup: s.opponentLineup,
-                                        opponentLineup: s.lineup,
-                                        substituteNumbers: s.opponentSubstituteNumbers || [],
-                                        opponentSubstituteNumbers: s.substituteNumbers || [],
-                                        libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
-                                        opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
-                                        liberoReplacements: s.opponentLiberoReplacements || [],
-                                        opponentLiberoReplacements: s.liberoReplacements || [],
-                                        substitutions: s.opponentSubstitutions || emptySubstitutions(),
-                                        opponentSubstitutions: s.substitutions || emptySubstitutions(),
-                                        timeouts: s.opponentTimeouts || emptyTimeouts(),
-                                        opponentTimeouts: s.timeouts || emptyTimeouts(),
-                                        rotation: '',
-                                      })),
-                                    })
+                                    setDraft(swapTeams(m))
                                     setActiveTab('reports')
                                   }}
                                 >
@@ -857,7 +875,8 @@ function MainApp() {
                       })}
                     </tbody>
                   </table>
-                </div>
+                </ScrollableTable>
+                </>
               )}
             </div>
           </section>
@@ -947,6 +966,7 @@ function MainApp() {
                     <PdfIcon size={18} />
                     {exportingPdf ? 'Esportazione in corso…' : 'Esporta report PDF'}
                   </button>
+                  <PrintToggle checked={includeInPdf('glossary')} onChange={value => setIncludeInPdf('glossary', value)} label="Glossario nel PDF" printing={exportingPdf} />
                 </div>
               </div>
             )}
@@ -1128,33 +1148,7 @@ function MainApp() {
                         title="Inverti l'analisi per analizzare la squadra avversaria"
                         onClick={() => {
                           const cur = visibleMatches[0]
-                          const inverted = {
-                            ...cur,
-                            team: cur.opponent,
-                            opponent: cur.team,
-                            roster: cur.opponentRoster || [],
-                            opponentRoster: cur.roster || [],
-                            sets: cur.sets.map(s => ({
-                              ...s,
-                              own: s.other,
-                              other: s.own,
-                              scoreOwn: s.scoreOther,
-                              scoreOther: s.scoreOwn,
-                              lineup: s.opponentLineup,
-                              opponentLineup: s.lineup,
-                              substituteNumbers: s.opponentSubstituteNumbers || [],
-                              opponentSubstituteNumbers: s.substituteNumbers || [],
-                              libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
-                              opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
-                              liberoReplacements: s.opponentLiberoReplacements || [],
-                              opponentLiberoReplacements: s.liberoReplacements || [],
-                              substitutions: s.opponentSubstitutions || emptySubstitutions(),
-                              opponentSubstitutions: s.substitutions || emptySubstitutions(),
-                              timeouts: s.opponentTimeouts || emptyTimeouts(),
-                              opponentTimeouts: s.timeouts || emptyTimeouts(),
-                              rotation: '',
-                            })),
-                          }
+                          const inverted = swapTeams(cur)
                           setDraft(inverted)
                           setActiveTab('reports')
                         }}
@@ -1212,7 +1206,8 @@ function MainApp() {
                 {/* Metric Cards */}
                 <GlossaryDetails />
 
-                <div className="vs-metrics-grid">
+                {!exportingPdf && <div className="vs-print-toggle-row">{printToggle('summary')}</div>}
+                {inReport('summary') && <div className="vs-metrics-grid">
                   {isSingleMatch && (
                     <div className="vs-metric-card accent-neutral">
                       <span className="vs-metric-label">Durata gara</span>
@@ -1285,10 +1280,11 @@ function MainApp() {
                       Escluse le fasi terminate senza cambio palla a fine set
                     </span>
                   </div>
-                </div>
+                </div>}
 
                 {/* Charts Grid */}
-                <div className="vs-charts-grid">
+                {!exportingPdf && <div className="vs-print-toggle-row">{printToggle('charts')}</div>}
+                {inReport('charts') && <div className="vs-charts-grid">
                   <Chart
                     title="Rendimento per rotazione (P1–P6)"
                     subtitle="Punti in fase break point vs punti subiti in fase cambio palla"
@@ -1299,10 +1295,10 @@ function MainApp() {
                     subtitle={isSingleMatch ? 'Punteggio parziale set per set' : 'Punti totali fatti e subiti per incontro'}
                     option={trendOption}
                   />
-                </div>
+                </div>}
 
                 {/* Rotations Table */}
-                <div className="vs-card">
+                {inReport('rotations') && <><div className="vs-card">
                   <div className="vs-card-header">
                     <div>
                       <h2 className="vs-card-title">Le sei rotazioni a confronto</h2>
@@ -1312,6 +1308,7 @@ function MainApp() {
                         % punti BP = quota dei punti in fase break point della rotazione sul totale in fase break point.
                       </p>
                     </div>
+                    {printToggle('rotations')}
                   </div>
 
                   <div className="vs-table-wrap">
@@ -1362,17 +1359,21 @@ function MainApp() {
 
                   <p style={{ fontSize: '0.82rem', color: 'var(--vs-muted)', margin: '1rem 0 0' }}>
                     Il punto che riconquista il servizio appartiene alla fase cambio palla e viene escluso dai punti in fase break point.
-                    <strong>P1–P6</strong> identifica la rotazione dalla posizione del palleggiatore.
+                    <strong>P1–P6</strong> è la posizione del palleggiatore effettivo, ricostruita rally per rally con sostituzioni e doppi cambi.
                     La differenza MP è la media punti conquistati in BP meno la media punti subiti in CP; non misura l’efficienza dei singoli fondamentali.
                   </p>
                 </div>
 
+                <p className="vs-flow-footnote">TT conta i tratti continui di turno con la stessa P effettiva; un cambio di P divide il turno. I turni senza rally osservati non sono conteggiati.</p>
+                {aggregatedAnalysis.excludedRallies > 0 && <p className="vs-flow-notice">{aggregatedAnalysis.excludedRallies} rally esclusi dal rendimento per rotazione perché la P non è determinata.</p>}
+                </>}
                 {/* Andamento della gara: only for a single match, right after the rotation table */}
-                {isSingleMatch && visibleMatches[0] && (
+                {isSingleMatch && visibleMatches[0] && !exportingPdf && <div className="vs-print-toggle-row">{printToggle('flow')}</div>}
+                {isSingleMatch && visibleMatches[0] && inReport('flow') && (
                   <MatchFlow match={visibleMatches[0]} female={isFemaleAnalysis} printing={exportingPdf} />
                 )}
 
-                <div className="vs-card">
+                {inReport('athletes') && <div className="vs-card">
                   <div className="vs-card-header">
                     <div>
                       <h2 className="vs-card-title">{isFemaleAnalysis ? 'Atlete entrate' : 'Atleti entrati'}</h2>
@@ -1380,12 +1381,23 @@ function MainApp() {
                         Dati ricavati dalle formazioni e dai turni registrati: i punti in fase break point sono della squadra, non {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}. Rally in campo, vinti e persi sono ricostruiti rally per rally con le sostituzioni del referto (uscite e rientri comprese): descrivono che cosa è successo alla squadra mentre l’atleta era in campo, non azioni tecniche {isFemaleAnalysis ? 'della singola atleta' : 'del singolo atleta'}. I servizi sono stimati dai progressivi dei turni e da chi occupava la posizione al servizio.
                       </p>
                     </div>
+                    {printToggle('athletes')}
                   </div>
                   <AthletesTable matches={visibleMatches} female={isFemaleAnalysis} printing={exportingPdf} />
-                </div>
+                </div>}
+                {visibleMatches.length === 1 && (
+                  <CourtAnalysis
+                    key={visibleMatches[0].id}
+                    match={visibleMatches[0]}
+                    onUpdate={updateMatch}
+                    printing={exportingPdf}
+                    includeInPdf={includeInPdf}
+                    printToggle={printToggle}
+                  />
+                )}
 
                 {/* Glossary: only in the PDF / print, always the last block of the report */}
-                <GlossaryPrintTable />
+                {inReport('glossary') && <GlossaryPrintTable />}
               </div>
             ) : (
               <p>Errore nel calcolo dei dati della gara.</p>
@@ -1401,7 +1413,7 @@ function MainApp() {
                 <div>
                   <h2 className="vs-card-title">Storico delle gare registrate</h2>
                   <p className="vs-card-subtitle">
-                    Le gare salvate in questo browser su questo dispositivo. Esporta un backup JSON per conservarle o trasferirle.
+                    Le gare salvate in questo browser su questo dispositivo. Esporta l’archivio (.zrv) per conservarle o trasferirle.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -1411,7 +1423,7 @@ function MainApp() {
                     disabled={!matches.length}
                     onClick={() => exportBackup()}
                   >
-                    Esporta backup (.json)
+                    Esporta tutto (.zrv)
                   </button>
                   <button
                     type="button"
@@ -1420,7 +1432,7 @@ function MainApp() {
                       if (backupInputRef.current) backupInputRef.current.click()
                     }}
                   >
-                    Ripristina backup
+                    Ripristina archivio
                   </button>
                 </div>
               </div>
@@ -1472,6 +1484,14 @@ function MainApp() {
                           }}
                         >
                           📊 Analizza e aggrega {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara' : 'gare'}
+                        </button>
+                        <button
+                          type="button"
+                          className="vs-btn vs-btn-sm vs-btn-secondary"
+                          disabled={busy}
+                          onClick={() => exportBackup(matches.filter(m => selectedHistoryIds.includes(m.id)))}
+                        >
+                          Esporta {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara' : 'gare'} (.zrv)
                         </button>
                         <button
                           type="button"
@@ -1570,33 +1590,7 @@ function MainApp() {
                                     className="vs-btn vs-btn-sm vs-btn-secondary"
                                     title={`Inverti per analizzare ${m.opponent}`}
                                     onClick={() => {
-                                      setDraft({
-                                        ...m,
-                                        team: m.opponent,
-                                        opponent: m.team,
-                                        roster: m.opponentRoster || [],
-                                        opponentRoster: m.roster || [],
-                                        sets: m.sets.map(s => ({
-                                          ...s,
-                                          own: s.other,
-                                          other: s.own,
-                                          scoreOwn: s.scoreOther,
-                                          scoreOther: s.scoreOwn,
-                                          lineup: s.opponentLineup,
-                                          opponentLineup: s.lineup,
-                                          substituteNumbers: s.opponentSubstituteNumbers || [],
-                                          opponentSubstituteNumbers: s.substituteNumbers || [],
-                                          libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
-                                          opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
-                                          liberoReplacements: s.opponentLiberoReplacements || [],
-                                          opponentLiberoReplacements: s.liberoReplacements || [],
-                                          substitutions: s.opponentSubstitutions || emptySubstitutions(),
-                                          opponentSubstitutions: s.substitutions || emptySubstitutions(),
-                                          timeouts: s.opponentTimeouts || emptyTimeouts(),
-                                          opponentTimeouts: s.timeouts || emptyTimeouts(),
-                                          rotation: '',
-                                        })),
-                                      })
+                                      setDraft(swapTeams(m))
                                       setActiveTab('reports')
                                       window.scrollTo({ top: 0, behavior: 'smooth' })
                                     }}
@@ -1661,7 +1655,8 @@ function MainApp() {
               <p style={{ color: 'var(--vs-text)', fontSize: '0.92rem', margin: '0 0 1rem', maxWidth: '48rem' }}>
                 I PDF caricati non vengono inviati a un server per essere analizzati. I referti salvati e i dati estratti rimangono sul dispositivo,
                 nell’archivio locale del browser tramite IndexedDB. L’archivio è associato al browser e al dispositivo utilizzati.
-                Con &quot;Esporta backup&quot; puoi salvare un file JSON con le gare e i PDF e ripristinarlo su un altro dispositivo.
+                Con &quot;Esporta archivio&quot; puoi salvare un file .zrv con le gare, i PDF originali e le tabelle CSV e ripristinarlo su un altro dispositivo.
+                Il file è un archivio ZIP documentato (LEGGIMI.txt, JSON con schema, CSV): può essere letto anche da altri programmi.
                 La cancellazione dei dati del sito o del browser può comportare la perdita dell’archivio se non hai esportato un backup.
                 Font, script e risorse sono inclusi nell’applicazione: l’elaborazione non dipende da servizi esterni.
               </p>
@@ -1672,7 +1667,7 @@ function MainApp() {
                   disabled={!matches.length}
                   onClick={() => exportBackup()}
                 >
-                  Esporta archivio in JSON
+                  Esporta tutto (.zrv)
                 </button>
                 <button
                   type="button"
@@ -1681,7 +1676,7 @@ function MainApp() {
                     if (backupInputRef.current) backupInputRef.current.click()
                   }}
                 >
-                  Ripristina archivio da JSON
+                  Ripristina archivio
                 </button>
               </div>
             </div>
@@ -1737,9 +1732,16 @@ function MainApp() {
             <div className="vs-card">
               <h2 className="vs-card-title">Rotazioni P1–P6</h2>
               <p>
-                P1–P6 identifica ciascuna rotazione dalla posizione del palleggiatore: P1 in zona 1, P2 in zona 2,
-                fino a P6 in zona 6. La posizione iniziale del palleggiatore nel set permette di associare i turni
-                alle rotazioni successive. Verifica chi gioca al palleggio prima di salvare il referto.
+                P1–P6 indica la posizione del palleggiatore effettivo in ciascun rally: P1 in posto 1, P2 in posto 2,
+                fino a P6 in posto 6. L’app la ricostruisce rally per rally da formazione iniziale, rotazioni, sostituzioni
+                e rientri, per entrambe le squadre: può cambiare anche senza una rotazione, per esempio dopo un doppio cambio.
+                La squadra in ricezione ruota solo quando conquista il cambio palla.
+              </p>
+              <p>
+                Segna nell’elenco atleti tutti i possibili palleggiatori (colonna &quot;p&quot;), anche della squadra avversaria.
+                Se in campo ce n’è uno solo, l’app lo riconosce da sola. Se ce ne sono due o più contemporaneamente, il referto non
+                dice chi palleggiava: l’app chiede di indicarlo per quel tratto di gara, e senza una risposta la P resta non
+                determinata. I rally con P non determinata non vengono attribuiti a nessuna rotazione.
               </p>
               <p>
                 Tabelle e grafici confrontano i punti in fase break point e i punti subiti in fase cambio palla per ciascuna rotazione.
@@ -1764,6 +1766,8 @@ function MainApp() {
               <GlossaryList />
             </div>
 
+            <UpdateSettings />
+
             <div className="vs-card">
               <h2 className="vs-card-title">Dati, privacy e funzionamento locale</h2>
               <p>
@@ -1778,8 +1782,8 @@ function MainApp() {
                 e vanno verificati prima di salvare.
               </p>
               <p>
-                L’archivio rimane associato al browser e al dispositivo utilizzati. Dallo Storico puoi esportare un backup JSON
-                con gare e PDF e ripristinarlo anche su un altro dispositivo. La cancellazione dei dati del sito o del browser
+                L’archivio rimane associato al browser e al dispositivo utilizzati. Dall’elenco dei referti o dallo Storico puoi esportare l’archivio (.zrv)
+                con gare, PDF originali e tabelle CSV e ripristinarlo anche su un altro dispositivo. La cancellazione dei dati del sito o del browser
                 può comportare la perdita dell’archivio locale se non hai esportato un backup.
               </p>
               <p>
@@ -1790,7 +1794,7 @@ function MainApp() {
               <p>
                 Font, script e risorse sono distribuiti con l’applicazione e non vengono caricati da servizi esterni.
                 La versione web richiede una connessione per caricare il sito; le applicazioni Tauri includono le risorse per l’uso locale.
-                L’archivio di ogni applicazione è separato da quello del browser: usa il backup JSON per trasferire le gare.
+                L’archivio di ogni applicazione è separato da quello del browser: usa l’archivio .zrv per trasferire le gare.
               </p>
             </div>
 
@@ -1916,33 +1920,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                   className="vs-btn vs-btn-sm vs-btn-secondary"
                   title="Inverti quale delle due squadre analizzare"
                   onClick={() => {
-                    setDraft(d => ({
-                      ...d,
-                      team: d.opponent,
-                      opponent: d.team,
-                      roster: d.opponentRoster || [],
-                      opponentRoster: d.roster || [],
-                      sets: d.sets.map(s => ({
-                        ...s,
-                        own: s.other,
-                        other: s.own,
-                        scoreOwn: s.scoreOther,
-                        scoreOther: s.scoreOwn,
-                        lineup: s.opponentLineup,
-                        opponentLineup: s.lineup,
-                        substituteNumbers: s.opponentSubstituteNumbers || [],
-                        opponentSubstituteNumbers: s.substituteNumbers || [],
-                        libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
-                        opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
-                        liberoReplacements: s.opponentLiberoReplacements || [],
-                        opponentLiberoReplacements: s.liberoReplacements || [],
-                        substitutions: s.opponentSubstitutions || emptySubstitutions(),
-                        opponentSubstitutions: s.substitutions || emptySubstitutions(),
-                        timeouts: s.opponentTimeouts || emptyTimeouts(),
-                        opponentTimeouts: s.timeouts || emptyTimeouts(),
-                        rotation: '',
-                      })),
-                    }))
+                    setDraft(d => (swapTeams(d)))
                   }}
                 >
                   ⇄ Inverti squadra analizzata
@@ -1957,34 +1935,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
               value={draft.selectedSide || 'A'}
               onChange={(event) => {
                 if (event.target.value === (draft.selectedSide || 'A')) return
-                setDraft(d => applySetter({
-                  ...d,
-                  selectedSide: event.target.value,
-                  team: d.opponent,
-                  opponent: d.team,
-                  roster: d.opponentRoster || [],
-                  opponentRoster: d.roster || [],
-                  sets: d.sets.map(s => ({
-                    ...s,
-                    own: s.other,
-                    other: s.own,
-                    scoreOwn: s.scoreOther,
-                    scoreOther: s.scoreOwn,
-                    lineup: s.opponentLineup,
-                    opponentLineup: s.lineup,
-                    substituteNumbers: s.opponentSubstituteNumbers || [],
-                    opponentSubstituteNumbers: s.substituteNumbers || [],
-                    libero: s.opponentLibero || { onCourt: '', entered: '', otherEntered: '' },
-                    opponentLibero: s.libero || { onCourt: '', entered: '', otherEntered: '' },
-                    liberoReplacements: s.opponentLiberoReplacements || [],
-                    opponentLiberoReplacements: s.liberoReplacements || [],
-                    substitutions: s.opponentSubstitutions || emptySubstitutions(),
-                    opponentSubstitutions: s.substitutions || emptySubstitutions(),
-                    timeouts: s.opponentTimeouts || emptyTimeouts(),
-                    opponentTimeouts: s.timeouts || emptyTimeouts(),
-                    rotation: '',
-                  })),
-                }))
+                setDraft(d => ({ ...swapTeams(d), selectedSide: event.target.value }))
               }}
             >
               <option value="A">{sideA} (squadra A)</option>
@@ -2066,15 +2017,14 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
             scrollMarginTop: '1.5rem',
           }}
         >
-          {(() => {
-            const name = draft.team || 'Squadra analizzata'
-            const roster = draft.roster || []
-            const rosterKey = 'roster'
+          {['roster', 'opponentRoster'].map(rosterKey => {
+            const name = (rosterKey === 'roster' ? draft.team : draft.opponent) || 'Squadra'
+            const roster = draft[rosterKey] || []
             const isFemale = isFemaleTeamOrMatch(draft, draft.team)
             const hasSetter = roster.map(rosterPlayer).some(isSetter)
             const editable = Boolean(draft.isManual)
             const rosterColumns = editable ? '4rem minmax(0, 1fr) 2.4rem 2rem' : '3.5rem minmax(0, 1fr) 2.4rem'
-            const updateRoster = change => setDraft(draftValue => updateSetterRotations({
+            const updateRoster = change => setDraft(draftValue => ({
               ...draftValue,
               [rosterKey]: change((draftValue[rosterKey] || []).map(rosterPlayer)),
             }))
@@ -2194,7 +2144,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                     <input
                       type="checkbox"
                       checked={isSetter(player)}
-                      disabled={!isSetter(player) && roster.map(rosterPlayer).filter(isSetter).length >= 3}
+                      
                       aria-label={`Imposta chi gioca al palleggio: ${player.name || `maglia ${player.number}`}`}
                       title="Imposta chi gioca al palleggio"
                       onChange={event => setDraft(draftValue => {
@@ -2205,7 +2155,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                             : currentPlayer
                         })
                         const nextDraft = { ...draftValue, [rosterKey]: nextRoster }
-                        return rosterKey === 'roster' ? updateSetterRotations(nextDraft) : nextDraft
+                        return nextDraft
                       })}
                     />
                     {editable && (
@@ -2268,7 +2218,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
               )}
             </div>
             )
-          })()}
+          })}
         </div>
       )}
 
@@ -2346,10 +2296,11 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           index={index}
           team={draft.team || 'Squadra analizzata'}
           opponent={draft.opponent || 'Squadra avversaria'}
+          female={isFemaleTeamOrMatch(draft, draft.team)}
           update={(patch) => {
             setDraft(d => {
               const next = { ...d, sets: d.sets.map((s, i) => i === index ? { ...s, ...patch } : s) }
-              return patch.lineup ? updateSetterRotations(next) : next
+              return next
             })
           }}
           onLineupCommit={text => {
@@ -2449,7 +2400,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           }}
           disabled={busy}
           onClick={async () => {
-            const finalDraft = updateSetterRotations(draft)
+            const finalDraft = draft
             setDraft(finalDraft)
             const success = await onSave(finalDraft)
             if (!success) {
@@ -2469,7 +2420,7 @@ const LINEUP_HINT = 'Giocatori titolari: numeri di maglia della formazione inizi
 
 const SUBSTITUTION_HINT = 'Sostituzioni: nella colonna della posizione I–VI il numero di chi entra al posto del titolare (riga "Riserve N°" del referto) e i punteggi di entrata e di rientro del titolare ("Punteggio al cambio")'
 
-function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
+function SetEditor({ set: s, index, team, opponent, female = false, update, onLineupCommit }) {
   const isGoldenSet = index === 5
   const isTieBreak = index === 4
   const setLabel = isGoldenSet ? 'Set 6 — Golden Set (a 15 punti)' : isTieBreak ? 'Set 5 — Tie-break (a 15 punti)' : `Set ${index + 1}`
@@ -2567,9 +2518,9 @@ function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
                 <table className="vs-grid-table">
                   <thead>
                     <tr>
-                      <th>Giro</th>
+                      <th>Pos.</th>
                       {['I', 'II', 'III', 'IV', 'V', 'VI'].map(v => <th key={v}>{v}</th>)}
-                      <th colSpan="3">Libero</th>
+                      <th colSpan="3">{female ? 'Atlete' : 'Atleti'}</th>
                     </tr>
                     <tr className="vs-lineup-row" title={LINEUP_HINT}>
                       <th scope="row">Titolari</th>
@@ -2629,6 +2580,12 @@ function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
                         <td colSpan="3" className="vs-sub-note">{description}</td>
                       </tr>
                     ))}
+                    <tr className="vs-grid-spacer" aria-hidden="true"><td colSpan="10" /></tr>
+                    <tr className="vs-grid-section-head">
+                      <th scope="col">Turni</th>
+                      <th scope="colgroup" colSpan="6">Punteggio per rotazione</th>
+                      <th scope="colgroup" colSpan="3" className="vs-libero-start">Ingressi libero</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {Array.from({ length: 6 }, (_, r) => (
@@ -2655,7 +2612,7 @@ function SetEditor({ set: s, index, team, opponent, update, onLineupCommit }) {
                           )
                         })}
                         {Object.entries(liberoFields).map(([field, values]) => (
-                          <td key={field}>
+                          <td key={field} className={field === 'onCourt' ? 'vs-libero-start' : undefined}>
                             <input
                               aria-label={`Set ${index + 1}, ${name}, giro ${r + 1}, libero ${field}`}
                               value={values[r]}

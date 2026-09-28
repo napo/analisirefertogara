@@ -6,9 +6,9 @@ import { athleteStats } from './athletes.js'
 // Single place for the meaning of each indicator.
 // direction: 'higher' = a higher value is better; null = volume/exposure, never judged best/worst.
 // applicable: when the value means something for that athlete in that scope (otherwise "–").
-// Presence on court (rally in campo / vinti / persi) comes from the substitutions of the scoresheet, rally
-// by rally; liberos cannot be placed in time (no score on their replacements): not applicable.
-const onCourtKnown = stat => !stat.isLibero && stat.rallyOnCourt > 0
+// Presence on court (rally in campo / vinti / persi) comes from the canonical court states (rally-state.js):
+// substitutions and libero exchanges placed rally by rally. Liberos included.
+const onCourtKnown = stat => stat.rallyOnCourt > 0
 // A share over very few rallies says little: compared (best/worst) only from this many rallies on court
 export const MIN_RALLIES_FOR_SHARE = 10
 

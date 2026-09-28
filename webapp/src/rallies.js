@@ -21,16 +21,24 @@ export function chronologicalTurns(set) {
   return { turns, servesFirst: first }
 }
 
-// Rallies: { index (1-based), own, other (score after the rally), winner, servingTeam, cell }.
+// Rallies: { index (1-based), own, other (score after the rally), winner, servingTeam, cell, columns }.
 // cell = service-grid box of the serving team's turn (column = cell % 6).
+// columns = rotation column of each team during the rally: the box of its most recent service turn (the
+// current one when serving), 0 before its first turn. A receiving team keeps its column when it loses a
+// rally and moves on only when it wins the side-out and starts its next turn (that rally is still played
+// in the old column). Also valid after the fifth-set court change: the boxes simply continue.
 export function setRallies(set) {
   const { turns, servesFirst } = chronologicalTurns(set)
   const score = { own: 0, other: 0 }
+  const last = { own: 0, other: 0 }
   const rallies = []
   let server = null
   const rally = (winner, serving) => {
     score[winner] += 1
-    rallies.push({ index: rallies.length + 1, own: score.own, other: score.other, winner, servingTeam: serving.team, cell: serving.cell })
+    rallies.push({
+      index: rallies.length + 1, own: score.own, other: score.other, winner, servingTeam: serving.team, cell: serving.cell,
+      columns: { own: last.own % 6, other: last.other % 6 },
+    })
   }
   let consistent = true
   for (const turn of turns) {
@@ -40,6 +48,7 @@ export function setRallies(set) {
       rally(turn.team, server)
     }
     server = turn
+    last[turn.team] = turn.cell
     while (score[turn.team] < turn.end) rally(turn.team, turn)
   }
   const complete = consistent && score.own === set.scoreOwn && score.other === set.scoreOther

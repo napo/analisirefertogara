@@ -715,26 +715,30 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
     return { own: sides[ownSide], other: sides[1 - ownSide] }
   })
   const liberoStarts = [[305.7, 566.3], [855.9, 1116.5]]
+  // Rows of a "LIBERO" column (6 rows): [{ row, onCourt, entered, otherEntered }]
+  const readLiberoRows = (y, start, teamIndex) => {
+    const rows = []
+    for (const word of words.filter(w =>
+      Math.abs(w.x - start) <= 4 && w.y >= y - 18 && w.y < y + 55 && /^\d+(?:\s*[-–/]\s*\d+)*$/.test(w.text),
+    )) {
+      const row = Math.round((word.y - (y - 15.4)) / 14.2)
+      if (row < 0 || row >= 6) continue
+      const numbers = word.text.match(/\d+/g) || []
+      // NEWBIT may record only the replaced player when the team has one libero.
+      // With multiple liberos the annotation is ambiguous: never guess who entered.
+      const liberos = roster[teamIndex].filter(player => /\bL[12]?\b/.test(player.name))
+      rows.push({ row, onCourt: numbers[0] || '', entered: numbers[1] || (liberos.length === 1 ? String(liberos[0].number) : ''), otherEntered: numbers[2] || '' })
+    }
+    return rows.sort((a, b) => a.row - b.row)
+  }
   const liberoSequences = panelRows.map(({ y, pair, ownSide }) => {
     const fields = [
       { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
       { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
     ]
     for (const side of [0, 1]) {
-      const start = liberoStarts[pair][side]
-      for (const word of words.filter(w =>
-        Math.abs(w.x - start) <= 4 && w.y >= y - 18 && w.y < y + 55 && /^\d+(?:\s*[-–/]\s*\d+)*$/.test(w.text),
-      )) {
-        const row = Math.round((word.y - (y - 15.4)) / 14.2)
-        if (row < 0 || row >= 6) continue
-        const numbers = word.text.match(/\d+/g) || []
-        fields[side].onCourt[row] = numbers[0] || ''
-        // NEWBIT may record only the replaced player when the team has one libero.
-        // With multiple liberos the annotation is ambiguous: never guess who entered.
-        const teamIndex = side === ownSide ? 0 : 1
-        const liberos = roster[teamIndex].filter(player => /\bL[12]?\b/.test(player.name))
-        fields[side].entered[row] = numbers[1] || (liberos.length === 1 ? String(liberos[0].number) : '')
-        fields[side].otherEntered[row] = numbers[2] || ''
+      for (const entry of readLiberoRows(y, liberoStarts[pair][side], side === ownSide ? 0 : 1)) {
+        for (const key of ['onCourt', 'entered', 'otherEntered']) fields[side][key][entry.row] = entry[key]
       }
     }
     return { own: fields[ownSide], other: fields[1 - ownSide] }
@@ -832,6 +836,22 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
       timeouts[4][key] = mergeCourtChange(timeouts[4][key], readTimeouts(panel.y, lineupStarts[1][0]),
         (row, _field, kept, found) => warn(5, changingTeam, kept, found, `Set 5 · CAMBIO CAMPO · time-out, riga ${row + 1}`,
           'Time-out diverso da quello del pannello del set: vale quello del pannello del set.'))
+      // Libero exchanges after the court change: written in the "LIBERO" column of the court-change panel,
+      // appended after those of the set panel (a copy of the set panel's rows, if any, is skipped)
+      const liberoBox = liberoSequences[4][key]
+      const liberoBefore = liberoBox.onCourt.map((player, row) => `${player}-${liberoBox.entered[row]}-${liberoBox.otherEntered[row]}`)
+        .slice(0, liberoBox.onCourt.findLastIndex(Boolean) + 1)
+      let after = readLiberoRows(panel.y, liberoStarts[1][0], key === 'own' ? 0 : 1)
+      const copied = liberoBefore.length > 0 && after.length >= liberoBefore.length &&
+        liberoBefore.every((text, row) => `${after[row].onCourt}-${after[row].entered}-${after[row].otherEntered}` === text)
+      if (copied) after = after.slice(liberoBefore.length)
+      for (const entry of after) {
+        for (const field of ['onCourt', 'entered', 'otherEntered']) liberoBox[field][liberoBefore.length] = entry[field]
+        liberoBefore.push('')
+      }
+      for (const field of ['onCourt', 'entered', 'otherEntered']) {
+        while (liberoBox[field].length < 6) liberoBox[field].push('')
+      }
       if (lastBefore >= 0 && firstAfter >= 0 && firstAfter <= lastBefore) {
         warn(5, changingTeam, `primo turno dopo il cambio oltre giro ${Math.floor(lastBefore / 6) + 1} pos. ${ROMAN[lastBefore % 6]}`,
           `giro ${Math.floor(firstAfter / 6) + 1} pos. ${ROMAN[firstAfter % 6]}`, 'Set 5 · CAMBIO CAMPO · turni',
@@ -986,38 +1006,6 @@ function fifthSetDebug(fifth, set, teams, teamLetters, grids) {
     scoreAtCourtChange: fifth.pointsAtChange !== null && fifth.changingTeam ? { [fifth.changingTeam]: fifth.pointsAtChange } : {},
     serviceTurns: turns.sort((a, b) => a.order - b.order),
     finalScore: { [teams[0]]: set.scoreOwn, [teams[1]]: set.scoreOther },
-  }
-}
-
-// Jersey numbers supplied by the user;
-// unknown lineups remain explicitly unset.
-export function applySetter(match) {
-  const jersey =
-    /anguill/i.test(match.team)
-      ? '7'
-      : /life/i.test(match.team)
-        ? '4'
-        : null
-
-  return {
-    ...match,
-
-    setter: jersey || '',
-
-    sets: match.sets.map(s => {
-      const index = jersey
-        ? s.lineup.indexOf(jersey)
-        : -1
-
-      return {
-        ...s,
-
-        rotation:
-          index >= 0
-            ? index + 1
-            : '',
-      }
-    }),
   }
 }
 

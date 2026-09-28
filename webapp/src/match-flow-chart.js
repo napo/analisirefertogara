@@ -10,7 +10,7 @@ export const DEFAULT_LAYERS = {
   rotation: true,
   timeouts: true,
   doubleChanges: true,
-  substitutions: false,
+  substitutions: true, // who enters and leaves is written on the badge
   runs: false,
   server: false,
   courtChange: false,
@@ -28,6 +28,14 @@ const AXIS_INK = '#7D7D7D'
 const LANE_NAME = { phase: 'Fase', rotation: 'P', server: 'Al servizio', events: 'Eventi' }
 const LANE_HEIGHT = { phase: 14, rotation: 20, server: 16, events: 4 * 15 }
 const textWidth = text => String(text).length * 5.8 + 8 // 9px bold labels, approximate
+
+// Badge text of an event: substitutions and double changes say who enters (↑) and who leaves (↓)
+export function eventBadgeText(event) {
+  const short = EVENT_SHORT[event.type]
+  if ((event.type !== 'substitution' && event.type !== 'doubleChange') || !event.changes?.length) return short
+  const who = change => `↑${change.in?.number ?? '?'} ↓${change.out?.number ?? '?'}`
+  return `${short} ${event.changes.map(who).join(' · ')}`
+}
 
 const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch])
 const signed = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0')
@@ -75,6 +83,11 @@ export function tooltipHtml(flow, x, context) {
     `Fase: ${swatch(PHASE_COLORS[point.phase])}${point.phase}`,
   ]
   if (point.rotation) rows.push(`P: ${swatch(ROTATION_COLORS[point.rotation].fill)}P${point.rotation}`)
+  if (!point.rotation) rows.push('P: non determinata')
+  rows.push(`P avversaria: ${point.opponentRotation ? `P${point.opponentRotation}` : 'non determinata'}`)
+  for (const [label, players] of [['Nostra prima linea', point.frontRow], ['Prima linea avversaria', point.opponentFrontRow]]) {
+    if (players) rows.push(`${label}: ${players.map(n => n ? `#${escapeHtml(n)}` : '—').join(' · ')}`)
+  }
   const serving = servingText(point.server, context)
   if (serving) rows.push(`Al servizio: ${escapeHtml(serving)}`)
   const events = flow.events.filter(e => e.after === x)
@@ -92,7 +105,6 @@ export function tooltipHtml(flow, x, context) {
 // "Tutti i set": what each set shows by default (the fitter details stay in the interactive view)
 export const ALL_SETS_LAYERS = {
   ...DEFAULT_LAYERS,
-  substitutions: false,
   runs: false,
   server: false,
   courtChange: true, // only present in the fifth set
@@ -266,9 +278,11 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
     }
     if (position.lane === 'rotation') {
       const gridIndex = laneAxis(position)
-      blocksSeries(gridIndex, 'P', segments(flow.points, point => point.rotation).map(block => ({
-        ...block, color: ROTATION_COLORS[block.value].fill, textColor: ROTATION_COLORS[block.value].text, label: `P${block.value}`,
-      })), 2)
+      // Stretches with P not determined (no setter marked or on court, ambiguity not resolved): neutral
+      // gray block "P?", never a P color
+      blocksSeries(gridIndex, 'P', segments(flow.points, point => point.rotation).map(block => (ROTATION_COLORS[block.value]
+        ? { ...block, color: ROTATION_COLORS[block.value].fill, textColor: ROTATION_COLORS[block.value].text, label: `P${block.value}` }
+        : { ...block, color: '#E0E0E0', textColor: '#455A64', label: 'P?' })), 2)
       // Double changes of the analyzed team: a clear break in the P lane (the P itself comes from the
       // app's logic and is not reinterpreted here)
       if (doubleChanges.length && layers.doubleChanges) {
@@ -309,7 +323,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
       }
       const lastX = Object.fromEntries(layout.eventLanes.map(lane => [lane, -Infinity]))
       const badges = [...groups.values()].sort((a, b) => a.after - b.after).map(group => {
-        const label = group.events.map(e => EVENT_SHORT[e.type]).join('+')
+        const label = group.events.map(eventBadgeText).join(' + ')
         const badgeWidth = textWidth(label) + 2
         const lanes = [`${group.team}:0`, `${group.team}:1`].filter(lane => layout.eventLanes.includes(lane))
         const lane = lanes.find(candidate => (group.after - lastX[candidate]) * pxPerRally >= badgeWidth + 3) ||

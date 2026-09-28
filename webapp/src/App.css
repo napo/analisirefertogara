@@ -116,6 +116,12 @@
   gap: 0.75rem;
 }
 
+/* Empty zone 3: keeps the menu where it was with the former upload button (179px wide) */
+.vs-nav-spacer {
+  width: 179px;
+  flex: none;
+}
+
 /* BUTTONS */
 .vs-btn {
   display: inline-flex;
@@ -736,6 +742,24 @@
   font-weight: 600;
 }
 
+/* Service turns: space under the substitutions, own heading, libero columns set apart */
+.vs-grid-table .vs-grid-spacer td {
+  height: 0.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.vs-grid-table .vs-grid-section-head th {
+  color: var(--vs-heading);
+  font-weight: 700;
+  border-bottom: 2px solid var(--vs-heading);
+}
+
+.vs-grid-table .vs-libero-start {
+  border-left: 3px solid var(--vs-heading);
+}
+
 /* Starting lineup row ("Giocatori titolari N°" on the scoresheet) */
 .vs-grid-table .vs-lineup-row th,
 .vs-grid-table .vs-lineup-row td {
@@ -1316,6 +1340,9 @@
     padding-bottom: 0.35rem;
     gap: 1.25rem;
   }
+  .vs-nav-spacer {
+    display: none;
+  }
   .vs-nav-item.active::after {
     bottom: -0.35rem;
   }
@@ -1872,4 +1899,34 @@
   .vs-glossary-print h2 {
     break-after: avoid;
   }
+}
+
+/* "Includi nel PDF": per-block choice of the report content (never drawn in the PDF) */
+.vs-print-toggle { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; color: var(--vs-muted); white-space: nowrap; cursor: pointer; }
+.vs-print-toggle.off { color: #8a2e00; font-weight: 600; }
+.vs-print-toggle-row { display: flex; justify-content: flex-end; margin: 0 0 .35rem; }
+.vs-pdf-export .vs-print-toggle, .vs-pdf-export .vs-print-toggle-row { display: none; }
+
+/* New version available (installed apps only) */
+.vs-update-notice { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 0 0 1.25rem; padding: .8rem 1rem; border: 1px solid #245b7b; border-left: 5px solid #245b7b; border-radius: var(--vs-radius); background: #eaf2f8; color: var(--vs-heading); font-size: .9rem; }
+.vs-update-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* More columns on the right of a scrolling table: discreet arrow on the visible edge */
+.vs-scroll-frame { position: relative; }
+.vs-scroll-more {
+  position: absolute; right: 1px; width: 2.4rem;
+  display: flex; align-items: center; justify-content: flex-end; padding: 0 .45rem 0 0;
+  border: 0; border-radius: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.92) 55%);
+  color: var(--vs-muted); font-size: 1.7rem; line-height: 1; cursor: pointer; opacity: 0.7;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.vs-scroll-more:hover, .vs-scroll-more:focus-visible { opacity: 1; color: var(--vs-heading); }
+
+/* Selection bar of the reports chosen for the archive export (same look as the history selection) */
+.vs-selection-bar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;
+  padding: 0.75rem 1rem; margin-bottom: 1rem;
+  background: #E8F5E9; border: 1px solid #C8E6C9; border-radius: var(--vs-radius);
+  font-weight: 600; color: #1B5E20;
 }

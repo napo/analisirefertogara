@@ -1,0 +1,75 @@
+.vs-court-analysis { margin-top: 1.5rem; }
+.vs-court-analysis .vs-card { margin-bottom: 1.5rem; padding: 1.25rem; }
+.vs-court-filters { display: flex; gap: .5rem; margin: 1rem 0; }
+.vs-court-filters [aria-pressed="true"] { outline: 2px solid #245b7b; font-weight: 700; }
+.vs-court-scroll { overflow-x: auto; }
+.vs-court-table, .vs-court-matrix { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.vs-court-table th, .vs-court-table td { padding: .5rem; text-align: left; border-bottom: 1px solid #d5d9dd; white-space: nowrap; }
+.vs-court-matrix { min-width: 570px; table-layout: fixed; color: #142636; }
+.vs-court-matrix caption { text-align: left; padding: .5rem 0; }
+.vs-court-matrix th { font-size: .78rem; padding: .65rem .25rem; }
+.vs-court-matrix td { border: 2px solid #fff; padding: 0; }
+.vs-court-cell { color: #142636; width: 100%; min-height: 65px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; border: 0; gap: .2rem; font: inherit; }
+button.vs-court-cell { cursor: pointer; }
+.vs-court-cell strong { font-size: 1.12rem; }
+.vs-court-cell small { font-size: .8rem; }
+.vs-court-cell:focus-visible, .vs-court-cell[aria-pressed="true"] { outline: 3px solid #142636; outline-offset: -4px; }
+.vs-court-total { box-shadow: inset 0 0 0 1px #6c7b86; }
+.vs-court-legend { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; font-size: .85rem; }
+.vs-court-legend-bar { display: inline-block; width: 160px; height: 12px; border: 1px solid #63717c; }
+.vs-court-legend-empty { padding: 0 .4rem; border: 1px dashed #8a959e; }
+.vs-court-note { font-size: .85rem; line-height: 1.5; }
+.vs-court-detail { margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #63717c; }
+.vs-court-detail-columns, .vs-court-rosters { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 1rem; }
+.vs-court-setters summary { cursor: pointer; font-weight: 700; }
+.vs-court-setters fieldset { border: 1px solid #bac4cd; padding: 1rem; min-width: 0; }
+.vs-court-setters label { display: flex; align-items: center; gap: .5rem; margin: .4rem 0; }
+.vs-court-choice { margin-top: 1rem; }
+.vs-pdf-export .vs-court-matrix-card { break-inside: avoid; }
+.vs-pdf-export .vs-court-scroll { overflow: visible; }
+.vs-pdf-export .vs-court-cell { min-height: 55px; }
+@media (forced-colors: active) {
+  .vs-court-matrix td { border: 1px solid CanvasText; }
+  .vs-court-total { outline: 2px solid CanvasText; }
+}
+@media print {
+  .vs-court-setters, .vs-court-filters, .vs-court-detail { display: none; }
+  .vs-court-matrix-card { break-inside: avoid; }
+  .vs-court-scroll { overflow: visible; }
+  .vs-court-matrix { min-width: 0; }
+}
+
+.vs-court-p { display: inline-flex; align-items: center; gap: .3rem; font-weight: 700; }
+.vs-court-p i { width: .7rem; height: .7rem; border-radius: 2px; box-shadow: 0 0 0 1px #fff, 0 0 0 2px #8a959e; }
+.vs-court-phase { display: inline-block; padding: 0 .35rem; border-left: 4px solid; font-weight: 700; }
+.vs-court-muted { color: var(--vs-muted); }
+.vs-court-few { display: block; font-size: .72rem; color: var(--vs-muted); white-space: nowrap; }
+.vs-court-cell .vs-court-few { display: none; }
+.vs-court-empty .vs-court-cell { outline: 1px dashed #8a959e; outline-offset: -6px; color: var(--vs-muted); }
+.vs-court-detail-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.vs-court-detail-head h3 { margin: 0; }
+.vs-court-detail-total { font-size: 1.05rem; }
+.vs-court-excluded { font-size: .9rem; }
+.vs-court-analysis .vs-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.vs-court-excluded ul { margin: .25rem 0 .75rem; padding-left: 1.25rem; font-size: .88rem; }
+.vs-court-reading { margin-top: 1rem; }
+.vs-court-reading ul { margin: .35rem 0 0; padding-left: 1.2rem; line-height: 1.5; }
+.vs-court-reading li { margin: .2rem 0; }
+.vs-court-filter-rows { display: flex; flex-wrap: wrap; gap: 0 1.5rem; align-items: center; }
+.vs-court-filter-rows .vs-court-filters { margin: .5rem 0; flex-wrap: wrap; }
+.vs-court-filters small { font-weight: 400; margin-left: .25rem; }
+
+/* "Verifica": action needed on the setters. Amber, distinct from BP navy, CP orange and the heatmap
+   bronze/blue; dark text (contrast 10:1) */
+.vs-court-verify, .vs-court-verify-badge { background: #ffd54f; color: #2b1d00; border: 2px solid #c79100; font-weight: 700; }
+.vs-court-verify:hover, .vs-court-verify:focus-visible { background: #ffca28; }
+.vs-court-verify-badge { display: inline-block; margin-left: .5rem; padding: 0 .45rem; border-radius: 999px; font-size: .78rem; }
+.vs-court-verify-note { padding: .6rem .8rem; border-left: 5px solid #c79100; background: #fff8e1; color: #2b1d00; font-weight: 600; }
+.vs-court-title { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.vs-court-guide { margin: .5rem 0 1rem; padding: .75rem 1rem; background: #f5f7f9; border-left: 4px solid #63717c; font-size: .9rem; line-height: 1.5; }
+.vs-court-guide h3 { margin: 0 0 .35rem; font-size: .95rem; }
+.vs-court-guide p { margin: .25rem 0; }
+.vs-court-axis { font-size: .78rem; font-weight: 700; color: #142636; text-align: center; white-space: nowrap; }
+thead tr:first-child .vs-court-axis { border-bottom: 2px solid #63717c; }
+.vs-court-rallies { margin-top: 1rem; }
+.vs-court-rallies small { font-size: .75rem; }

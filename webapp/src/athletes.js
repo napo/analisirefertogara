@@ -1,11 +1,13 @@
-import { onCourt } from './on-court.js'
+import { presenceByPlayer } from './court-stats.js'
+import { setStates } from './rally-state.js'
+import { isSetter, rosterPlayer } from './roster.js'
 
-export const rosterPlayer = player => typeof player === 'object' ? player : { number: player, name: '', setterRole: '' }
-export const isSetter = player => Boolean(player.isSetter || player.setterRole === 'P1' || player.setterRole === 'P2')
+export { isSetter, rosterPlayer }
 // Player at the service for a service-grid cell, estimated from the starting lineup (substitutions not applied)
 export const servingNumber = (lineup, cell) => lineup?.[cell % 6]
+// At least the 6 rows of the scoresheet box; more are kept (fifth set: rows of the court-change panel)
 const liberoValues = (libero, key) => Array.isArray(libero?.[key])
-  ? [...libero[key], '', '', '', '', '', ''].slice(0, 6)
+  ? [...libero[key], '', '', '', '', '', ''].slice(0, Math.max(6, libero[key].length))
   : Array(6).fill(libero?.[key] || '')
 
 const matchAthleteStats = matches => {
@@ -48,7 +50,7 @@ const matchAthleteStats = matches => {
       }
     }
 
-    for (const set of match.sets || []) {
+    for (const [setIndex, set] of (match.sets || []).entries()) {
       const active = new Set([...(set.lineup || []), ...(set.substituteNumbers || [])].filter(Boolean).map(norm))
       for (const entry of set.liberoReplacements || []) {
         if (entry.player) active.add(norm(entry.player))
@@ -86,11 +88,11 @@ const matchAthleteStats = matches => {
         if (settersSet.has(number)) record.isSetter = true
       }
 
-      // Presence rally by rally, substitutions applied (exit and re-entry). Liberos are not placed in
-      // time by the scoresheet: their rallies on court stay 0 (shown as "not applicable").
-      const court = onCourt(set, 'own')
+      // Presence rally by rally from the canonical court states: substitutions (exit and re-entry) and
+      // libero exchanges applied; where a libero exchange cannot be placed the replaced player is counted
+      const court = setStates(match, setIndex)
       if (court.complete) {
-        for (const [number, presence] of court.presence) {
+        for (const [number, presence] of presenceByPlayer(court.states, 'own')) {
           if (!stats.has(number)) continue
           const record = stats.get(number)
           record.rallyOnCourt += presence.rallies
@@ -102,9 +104,9 @@ const matchAthleteStats = matches => {
       // if the rally sequence of the set is not complete, the starting lineup as before
       const turnServer = cell => {
         if (!court.complete) return servingNumber(set.lineup, cell)
-        const first = court.rallies.findIndex(rally => rally.servingTeam === 'own' && rally.cell === cell)
-        if (first >= 0) return court.server[first]
-        return court.occupants.at(-1)?.[cell % 6] || servingNumber(set.lineup, cell)
+        const first = court.states.find(state => state.servingTeam === 'own' && state.cell === cell)
+        if (first) return first.teams.own.server
+        return court.states.at(-1)?.teams.own.columns[cell % 6] || servingNumber(set.lineup, cell)
       }
 
       let previous = 0

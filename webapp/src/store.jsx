@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
-import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany, backup as dbBackup } from './storage'
+import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany } from './storage'
+import { ARCHIVE_MIME, archiveFileName, buildArchive, readArchive } from './archive.js'
+import { APP_VERSION } from './version.js'
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
-import { applySetter, emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
+import { emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
 import { emptyFilters, filterMatches } from './match-filters'
 
 export function createBlankSet(number) {
@@ -200,7 +202,7 @@ export function MatchStoreProvider({ children }) {
     try {
       const parsed = await importPdf(file, { onProgress: setProgress })
       const existing = matches.find(m => m.id === parsed.id)
-      const prepared = existing ? refreshImportedMatch(existing, parsed) : applySetter(parsed)
+      const prepared = existing ? refreshImportedMatch(existing, parsed) : parsed
       if (existing) setMessage(parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 2
         ? 'Corrette le associazioni delle squadre: rose, formazioni, liberi, punteggi e turni sono stati riletti dal PDF. Verifica i dati e reimposta le rotazioni del palleggiatore prima di salvare.'
         : parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 3
@@ -340,51 +342,44 @@ export function MatchStoreProvider({ children }) {
   }, [selectedMatchId])
 
   // Export JSON backup with embedded PDFs
-  const exportBackup = useCallback(async () => {
+  // Export the archive (all matches, or the selected ones) as a .zrv file (ZIP: documented JSON, CSV
+  // tables, original PDFs)
+  const exportBackup = useCallback(async (selected = matches) => {
+    const chosen = Array.isArray(selected) && selected.length ? selected : matches
     try {
-      const json = await dbBackup(matches)
-      const blob = new Blob([json], { type: 'application/json' })
+      const bytes = await buildArchive(chosen, { appVersion: APP_VERSION })
+      const blob = new Blob([bytes], { type: ARCHIVE_MIME })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `referto-volley-backup-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = archiveFileName()
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
+      setMessage(`Archivio esportato: ${chosen.length} ${chosen.length === 1 ? 'gara' : 'gare'}.`)
     } catch (e) {
       setError(`Errore durante l’esportazione: ${e.message}`)
     }
   }, [matches])
 
-  // Restore backup from JSON file
+  // Restore an archive (.zrv) or an older JSON backup; matches already present are kept
   const restoreBackup = useCallback(async (file) => {
     if (!file) return
     setBusy(true)
     setError('')
     setMessage('')
     try {
-      if (file.size > 100 * 1024 * 1024) throw Error('File di backup troppo grande (massimo 100 MB).')
-      const text = await file.text()
-      const b = JSON.parse(text)
-      if (b.version !== 1 || !Array.isArray(b.matches) || b.matches.length > 1000) {
-        throw Error('Formato backup non valido.')
-      }
+      if (file.size > 300 * 1024 * 1024) throw Error('File troppo grande (massimo 300 MB).')
       const incoming = []
-      for (const m of b.matches) {
-        if (!m || typeof m.id !== 'string' || !/^[a-f0-9]{64}$/.test(m.id) || validateMatch(m, false, { strict: false }).length) {
-          throw Error('Il backup contiene gare non valide.')
+      for (const m of readArchive(new Uint8Array(await file.arrayBuffer()))) {
+        if (!m || typeof m.id !== 'string' || !/^[a-f0-9]{64}$/.test(m.id) || validateMatch(m, { strict: false }).length) {
+          throw Error('L’archivio contiene gare non valide.')
         }
         analyze([m])
-        if (m.pdf && !/^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/.test(m.pdf)) {
-          throw Error('PDF del backup non valido.')
-        }
-        const pdf = m.pdf ? new Blob([Uint8Array.from(atob(m.pdf.split(',')[1]), c => c.charCodeAt(0))], { type: 'application/pdf' }) : null
-        if (!matches.some(x => x.id === m.id)) {
-          incoming.push({ ...m, pdf })
-        }
+        if (!matches.some(x => x.id === m.id)) incoming.push(m)
       }
       await dbSaveMany(incoming)
       await refresh()
-      setMessage(`${incoming.length} gare ripristinate nell’archivio locale.`)
+      setMessage(incoming.length === 1 ? '1 gara ripristinata nell’archivio locale.' : `${incoming.length} gare ripristinate nell’archivio locale.`)
     } catch (e) {
       setError(`Ripristino non riuscito: ${e.message}`)
     } finally {

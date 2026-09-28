@@ -1,6 +1,6 @@
 [package]
 name = "referto-volley"
-version = "0.14.0"
+version = "0.15.0"
 description = "Analisi locale dei referti di gara della pallavolo"
 authors = ["Maurizio Napolitano"]
 license = "AGPL-3.0-or-later"
@@ -17,3 +17,12 @@ tauri-build = { version = "=2.6.3", features = [] }
 
 [dependencies]
 tauri = { version = "=2.11.6", features = [] }
+# Needed by the generated context when tauri.conf.json configures plugins
+serde_json = "1"
+# Opens download links in the system browser (update notice on Android / iOS)
+tauri-plugin-opener = "~2.5.5"
+
+# Automatic updates with user confirmation: desktop only (the Tauri updater does not support mobile)
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "~2.12.0"
+tauri-plugin-process = "~2.3.1"

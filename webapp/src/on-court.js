@@ -37,7 +37,10 @@ export function positionSegments(set, team, rallies) {
     const substitute = norm(cell.in)
     const inPair = parsePair(cell.scoreIn)
     const outPair = parsePair(cell.scoreOut)
-    if (!substitute || !inPair) return [{ number: starter, from: 0, to: end }]
+    if (!substitute || !inPair) {
+      if (substitute) unresolved.push({ team, column, number: substitute, score: cell.scoreIn, reason: 'entrata senza punteggio valido' })
+      return [{ number: starter, from: 0, to: end }]
+    }
     const enter = stateIndex(rallies, team, inPair)
     if (enter < 0) {
       unresolved.push({ team, column, number: substitute, score: cell.scoreIn, reason: 'entrata' })

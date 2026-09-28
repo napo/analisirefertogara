@@ -59,8 +59,8 @@ export const GLOSSARY = [
   {
     id: 'p1-p6',
     term: 'P1-P6',
-    short: 'Posizione del palleggiatore, usata per identificare la rotazione della squadra.',
-    full: 'Posizione del palleggiatore nella formazione, usata per identificare la rotazione della squadra. L\'app la ricava dal palleggiatore indicato nell\'elenco atleti (colonna "p") e dalla sua posizione nella formazione iniziale del set; senza palleggiatore indicato le P non vengono mostrate.',
+    short: 'Posizione del palleggiatore effettivo nel rally; può cambiare anche per sostituzioni o doppi cambi.',
+    full: 'Posizione del palleggiatore effettivo nel rally, ricostruita da formazione, rotazioni, sostituzioni e rientri. Può cambiare anche per un doppio cambio senza normale rotazione. Con più palleggiatori marcati in campo serve una scelta per quel tratto; senza una scelta la P resta non determinata.',
     pdf: true,
     analysis: true,
   },
@@ -83,7 +83,7 @@ export const GLOSSARY = [
     id: 'tt',
     term: 'TT',
     abbr: 'Turni totali',
-    short: 'Turni totali: numero di turni di servizio (in BP) o di ricezione (in CP) in una rotazione.',
+    short: 'Turni totali: tratti continui di servizio (BP) o ricezione (CP) con la stessa P effettiva. Un cambio di P divide il turno; i turni senza rally osservati sono esclusi.',
     pdf: true,
     analysis: true,
   },
@@ -183,6 +183,12 @@ export const GLOSSARY = [
     pdf: true,
     analysis: true,
   },
+  { id: 'prima-linea', term: 'Prima linea', short: 'Atleti che in quel rally occupano i posti 2, 3 e 4.', pdf: true, analysis: true },
+  { id: 'seconda-linea', term: 'Seconda linea', short: 'Atleti che in quel rally occupano i posti 1, 6 e 5. "L#5⇒#11" indica il libero #5 in campo al posto di #11; "L?⇒#11" un cambio del libero che il referto non permette di collocare con certezza.', pdf: true, analysis: true },
+  { id: 'p-avversaria', term: 'P avversaria', short: 'Posizione del palleggiatore effettivo della squadra avversaria.', pdf: true, analysis: true },
+  { id: 'configurazione-in-campo', term: 'Configurazione in campo', short: 'Combinazione degli atleti e delle rispettive posizioni presenti in campo in un determinato rally.', pdf: true, analysis: true },
+  { id: 'confronto-rotazioni', term: 'Confronto delle rotazioni', short: 'Confronto tra la posizione del palleggiatore della squadra analizzata e quella del palleggiatore avversario nei rally osservati.', pdf: true, analysis: true },
+
 ]
 
 const available = entry => entry.available !== false

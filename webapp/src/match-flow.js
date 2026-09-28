@@ -1,10 +1,8 @@
-// Point-by-point flow of a set, rebuilt only from data the app already stores:
-// service-turn grids (own/other), starting lineups, starting rotation, time-outs and substitutions.
+// Point-by-point flow of a set. Phase, P of both teams, front rows and who serves come from the canonical
+// rally states (rally-state.js); here only the chart data, runs and events are built.
 // Pure functions, no React: the same logic can later be applied to several matches (history).
-import { rotationIndexForColumn } from './analysis.js'
-import { isSetter, rosterPlayer } from './athletes.js'
-import { setRallies } from './rallies.js'
-import { onCourt } from './on-court.js'
+import { rosterPlayer } from './athletes.js'
+import { frontRow, setStates } from './rally-state.js'
 
 export const DEFAULT_RUN_LENGTH = 3
 export const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI']
@@ -13,15 +11,6 @@ const parseScore = text => {
   const match = String(text ?? '').match(/^\s*(\d+)\s*:\s*(\d+)\s*$/)
   return match ? [Number(match[1]), Number(match[2])] : null
 }
-// Is the starting P of this set really known? The app derives it from a setter marked in the roster
-// and present in the starting lineup (see updateSetterRotations). Without it the statistics use P1 by
-// convention, which must not be shown as a fact.
-export function rotationKnown(match, set) {
-  const setters = (match?.roster || []).map(rosterPlayer).filter(player => isSetter(player) && String(player.number ?? '').trim() !== '')
-  return Number(set?.rotation) >= 1 && Number(set?.rotation) <= 6 &&
-    setters.some(player => (set.lineup || []).some(number => String(number).trim() !== '' && Number(number) === Number(player.number)))
-}
-
 const playerLabel = (number, roster) => {
   if (number === undefined || number === null || String(number).trim() === '') return null
   const player = (roster || []).map(rosterPlayer).find(entry => Number(entry.number) === Number(number))
@@ -33,26 +22,25 @@ const playerLabel = (number, roster) => {
 // team (BP = analyzed team serving, CP = receiving), P (same formula as the statistics) and who serves.
 export function buildSetFlow(match, setIndex, { runLength = DEFAULT_RUN_LENGTH } = {}) {
   const set = match.sets[setIndex]
-  const built = setRallies(set)
+  const built = setStates(match, setIndex)
   const { servesFirst, complete } = built
-  const knownRotation = rotationKnown(match, set)
-  // Who serves: the player on court in the serving column, substitutions (exit and re-entry) applied
-  const courts = { own: onCourt(set, 'own', built), other: onCourt(set, 'other', built) }
-  const points = built.rallies.map((rally, i) => {
-    const roster = rally.servingTeam === 'own' ? match.roster : match.opponentRoster
-    return {
-      index: rally.index,
-      own: rally.own,
-      other: rally.other,
-      diff: rally.own - rally.other,
-      winner: rally.winner,
-      servingTeam: rally.servingTeam,
-      phase: rally.servingTeam === 'own' ? 'BP' : 'CP',
-      column: rally.cell % 6,
-      rotation: knownRotation ? rotationIndexForColumn(set.rotation, rally.cell % 6) + 1 : null,
-      server: { team: rally.servingTeam, ...(playerLabel(courts[rally.servingTeam].server[i], roster) || { number: '', name: '' }) },
-    }
-  })
+  const knownRotation = built.states.some(state => state.teams.own.P !== null)
+  const points = built.states.map(state => ({
+    index: state.rally,
+    own: state.score.own,
+    other: state.score.other,
+    diff: state.score.own - state.score.other,
+    winner: state.winner,
+    servingTeam: state.servingTeam,
+    phase: state.phase,
+    column: state.teams.own.column,
+    rotation: state.teams.own.P,
+    opponentRotation: state.teams.other.P,
+    frontRow: frontRow(state, 'own'),
+    opponentFrontRow: frontRow(state, 'other'),
+    server: { team: state.servingTeam, ...(playerLabel(state.teams[state.servingTeam].server,
+      state.servingTeam === 'own' ? match.roster : match.opponentRoster) || { number: '', name: '' }) },
+  }))
 
   const runs = findRuns(points, runLength)
   for (const run of runs) {
@@ -66,6 +54,7 @@ export function buildSetFlow(match, setIndex, { runLength = DEFAULT_RUN_LENGTH }
     won: set.scoreOwn > set.scoreOther,
     servesFirst,
     rotationKnown: knownRotation,
+    excludedRotations: points.filter(point => point.rotation === null).length,
     complete,
     points,
     runs,

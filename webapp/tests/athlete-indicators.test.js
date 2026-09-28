@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
+import { setStates } from '../src/rally-state.js'
 import { parseItems } from '../src/pdf-parser.js'
 import { analyze } from '../src/analysis.js'
 import { athleteStats } from '../src/athletes.js'
@@ -51,7 +52,13 @@ test('0, not applicable and not on court are different states', () => {
   const libero = rows.find(row => /L1/.test(row.name))
   const services = indicatorValue(libero, indicator('services'), 'total')
   assert.deepEqual([services.value, services.state], [0, 'value'])
-  assert.equal(indicatorValue(libero, indicator('rallyOnCourt'), 'total').state, 'not-applicable', 'libero: no timed presence')
+  // the libero is placed rally by rally (back-row stretches of the players it replaces)
+  const liberoRallies = indicatorValue(libero, indicator('rallyOnCourt'), 'total')
+  assert.equal(liberoRallies.state, 'value')
+  const number = String(libero.number)
+  const expected = tiebreak.sets.reduce((total, _, index) => total +
+    setStates(tiebreak, index).states.filter(state => state.teams.own.libero?.number === number).length, 0)
+  assert.equal(liberoRallies.value, expected)
   assert.equal(indicatorValue(libero, indicator('averagePointsAtServe'), 'total').state, 'not-applicable')
   const absent = rows.find(row => row.sets.some(stat => stat === null))
   const set = absent.sets.findIndex(stat => stat === null)

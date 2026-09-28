@@ -14,7 +14,7 @@ test('NEWBIT 11605 follows team B through court changes, scores and tie-break', 
   assert.deepEqual(m.sets[0].lineup, ['1','12','18','10','17','11'])
   assert.deepEqual(m.sets.map(s => [s.own[0],s.other[0]]), [['X',0],[0,'X'],['X',0],[1,'X'],['X',0]])
   assert.deepEqual(m.sets[4].own.filter(v => v !== ''), ['X',6,7,11,12,13,15])
-  assert.deepEqual(validateMatch(m,false), [])
+  assert.deepEqual(validateMatch(m), [])
   const result = analyze([m])
   assert.equal(result.scored,104)
   assert.equal(result.conceded,99)

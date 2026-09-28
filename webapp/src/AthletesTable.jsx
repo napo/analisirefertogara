@@ -178,7 +178,7 @@ export default function AthletesTable({ matches, female = false, printing = fals
       </div>
       <p className="vs-ath-legend">
         <span><Triangle up /> valore più alto, <Triangle /> più basso {scopeLabel}: medie di servizio tra {female ? 'le atlete' : 'gli atleti'} con almeno un turno al servizio, % rally vinti da {MIN_RALLIES_FOR_SHARE} rally in campo</span>
-        <span>Rally in campo, vinti e persi: rally della squadra con l’atleta in campo, sostituzioni (uscite e rientri) comprese; i cambi del libero non hanno il punteggio sul referto e non sono considerati</span>
+        <span>Rally in campo, vinti e persi: rally della squadra con l’atleta in campo, sostituzioni (uscite e rientri) e cambi del libero compresi. Il libero è collocato con la regola di gioco: sostituisce l’atleta indicata sul referto mentre è in seconda linea, dal momento in cui la squadra passa in ricezione; dove un cambio del libero non è collocabile viene contata l’atleta sostituita</span>
         <span>“<b>–</b>” non applicabile, “<b>·</b>” non in campo nel set; 0 è un valore</span>
         {withSets && <span>Nei set: {trendIndicator.label}, stessa scala per tutti</span>}
       </p>

@@ -67,3 +67,30 @@ Il workflow GitHub Actions `Build applicazioni Tauri` (`.github/workflows/build-
   ```
 - **Nuova versione major** (`X+1.0`): `npm run version:major`, poi commit dei file modificati (l'hook non incrementa di nuovo).
 - **Commit senza nuova versione**: `SKIP_VERSION_BUMP=1 git commit ...`; con `git commit --amend` la versione non viene incrementata.
+
+---
+
+## Aggiornamenti automatici delle applicazioni
+
+All’avvio le applicazioni installate controllano se è uscita una nuova versione e mostrano un avviso: l’utente sceglie **Aggiorna ora** o **Più tardi**. Il controllo si può disattivare nella pagina Informazioni. Viene chiesto a GitHub solo il numero dell’ultima versione: nessun dato delle gare lascia il dispositivo.
+
+- **Windows, macOS, Linux (AppImage e .deb)**: plugin ufficiale `tauri-plugin-updater`. L’app legge `https://github.com/napo/analisirefertogara/releases/latest/download/latest.json`, scarica il pacchetto della propria piattaforma, ne verifica la firma con la chiave pubblica contenuta nell’app, lo installa e si riavvia. Su Linux l’aggiornamento del `.deb` chiede la password di amministratore (finestra `pkexec`).
+- **Android e iPhone/iPad**: il plugin non esiste su mobile. L’app legge l’ultima release dall’API di GitHub e, se è più nuova, l’avviso apre il download dell’APK (o la pagina della release su iPhone): l’installazione si conferma come la prima volta.
+- **Web**: sempre aggiornata, nessun controllo.
+
+### Come viene prodotto
+
+- `bundle.createUpdaterArtifacts: true` in `src-tauri/tauri.conf.json`: la build desktop produce, accanto a ogni installer, la firma `.sig` e su macOS l’archivio `.app.tar.gz`.
+- `scripts/collect-desktop.mjs` raccoglie i pacchetti di ogni target in `desktop-dist/` con nomi senza spazi; l’archivio macOS prende l’architettura nel nome (`_aarch64`, `_x64`), altrimenti le due build Mac avrebbero lo stesso file.
+- Nel job di release `scripts/updater-manifest.mjs` genera `latest.json` con le voci `windows-x86_64-nsis`/`-msi`, `darwin-aarch64-app`, `darwin-x86_64-app`, `linux-x86_64-appimage`, `linux-x86_64-deb` (più le voci generiche `<os>-<arch>`), solo per i pacchetti firmati, e lo pubblica nella release.
+
+### Chiave di firma degli aggiornamenti
+
+- Chiave privata e password: `~/.tauri-keys/referto-volley-updater.key` e `~/.tauri-keys/referto-volley-updater.password` sulla macchina del maintainer, e come secret del repository `TAURI_SIGNING_PRIVATE_KEY` e `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+- Chiave pubblica: `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`.
+- **Conservarne una copia sicura** (come per il keystore Android): senza la chiave privata le applicazioni già installate non possono più aggiornarsi da sole e andrebbero reinstallate a mano.
+- Senza i secret (per esempio nelle pull request da fork) la build desktop procede senza i file di aggiornamento.
+
+## Archivio delle gare (.zrv)
+
+Le applicazioni desktop registrano l’estensione `.zrv` ("zip referto volley", tipo `application/vnd.referto-volley+zip`). Il file è un archivio ZIP documentato; per ora si importa con **Ripristina archivio** dall’elenco dei referti o dallo Storico.

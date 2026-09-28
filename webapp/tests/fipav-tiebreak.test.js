@@ -114,6 +114,7 @@ test('fifth set debug structure reconstructs a single timeline', () => {
 
 test('fifth set statistics match the reconstructed sequence', () => {
   const m = parse()
+  m.roster = m.roster.map(p => ({ ...p, isSetter: String(p.number) === '12' }))
   const set5 = m.sets[4]
   const only5 = { ...m, sets: [set5] }
   const result = analyze([only5])
@@ -121,7 +122,8 @@ test('fifth set statistics match the reconstructed sequence', () => {
   assert.equal(result.conceded, 9)
   const ownTurns = filled(set5.own).length
   const otherTurns = filled(set5.other).length
-  assert.equal(result.rows.reduce((t, r) => t + r.turns, 0), ownTurns)
+  // The final side-out wins the set: its service box contains no rally played.
+  assert.equal(result.rows.reduce((t, r) => t + r.turns, 0), ownTurns - 1)
   assert.equal(result.rows.reduce((t, r) => t + r.concededTurns, 0), otherTurns)
   // Points on own serve = total - side-outs (every turn except the set's first serve starts with a side-out)
   assert.equal(result.rows.reduce((t, r) => t + r.points, 0), 15 - ownTurns)
@@ -207,4 +209,22 @@ test('edited PDFs: roster column without its A/B letter is matched by the team n
     : item)
   const n = parse(shifted)
   assert.deepEqual([n.roster.length, n.opponentRoster.length], [parse().roster.length, parse().opponentRoster.length])
+})
+
+test('fifth set: libero exchanges of the court-change panel are appended; a copy of the set rows is skipped', () => {
+  const like = { str: '18-3', x: 305.7 }
+  const withRows = rows => rows.reduce((items, [str, row]) => {
+    const sx = 1190.55 / fixture.width, sy = 841.89 / fixture.height
+    const model = fixture.items.find(item => item.str === like.str && Math.abs(item.transform[4] * sx - like.x) < 1)
+    const transform = [...model.transform]
+    transform[4] = 855.9 / sx
+    transform[5] = fixture.height - (444.8 + row * 14.05) / sy
+    return [...items, { str, transform }]
+  }, fixture.items)
+  const players = items => parse(items).sets[4].opponentLibero.onCourt.filter(Boolean)
+  assert.deepEqual(players(fixture.items), ['18', '5', '18'])
+  // new exchanges after the court change (NEWBIT writes them in the LIBERO column of that panel)
+  assert.deepEqual(players(withRows([['5-3', 0], ['18-3', 1]])), ['18', '5', '18', '5', '18'])
+  // the panel repeats the set rows and adds one: only the new one is appended
+  assert.deepEqual(players(withRows([['18-3', 0], ['5-3', 1], ['18-3', 2], ['5-3', 3]])), ['18', '5', '18', '5'])
 })

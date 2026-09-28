@@ -57,11 +57,12 @@ test('BP/CP and P come from the same logic as the existing statistics', () => {
     const { flows } = matchFlow(known)
     flows.forEach((flow, index) => {
       const set = known.sets[index]
-      const rows = analyze([{ ...known, sets: [set] }]).rows
+      const result = analyze([{ ...known, sets: [set] }])
+      const rows = result.rows
       const sum = key => rows.reduce((total, row) => total + row[key], 0)
       // Same totals as the rotation table (calculateGridPoints)
-      assert.equal(flow.points.filter(point => point.phase === 'BP' && point.winner === 'own').length, sum('points'), 'BP points')
-      assert.equal(flow.points.filter(point => point.phase === 'CP' && point.winner === 'other').length, sum('conceded'), 'opponent BP points')
+      assert.equal(flow.points.filter(point => point.phase === 'BP' && point.winner === 'own').length, sum('points') + result.excludedBreakPoints, 'BP points')
+      assert.equal(flow.points.filter(point => point.phase === 'CP' && point.winner === 'other').length, sum('conceded') + result.excludedConceded, 'opponent BP points')
       if (!flow.rotationKnown) return
       for (let p = 1; p <= 6; p++) {
         assert.equal(flow.points.filter(point => point.rotation === p && point.phase === 'BP' && point.winner === 'own').length, rows[p - 1].points, `P${p} points`)
@@ -156,7 +157,7 @@ test('break point and side-out cards match the rotation table and the point sequ
   for (const [name, match] of Object.entries(matches)) {
     const result = analyze([match])
     const tablePoints = result.rows.reduce((total, row) => total + row.points, 0)
-    assert.equal(result.breakPoints, tablePoints, `${name}: BP card = rotation table`)
+    assert.equal(result.breakPoints, tablePoints + result.excludedBreakPoints, `${name}: BP card = rotation table`)
     const flowBp = matchFlow(match).flows.reduce((total, flow) => total + flow.points.filter(p => p.phase === 'BP' && p.winner === 'own').length, 0)
     assert.equal(result.breakPoints, flowBp, `${name}: BP card = sequence`)
     assert.equal(result.reception.pointsInReception, result.scored - result.breakPoints, `${name}: CP card`)
@@ -167,7 +168,7 @@ test('break point and side-out cards match the rotation table and the point sequ
 
 test('visual defaults and shared colors', () => {
   // Shown at first: score, phase, P, time-outs, double changes; the rest available but off
-  assert.deepEqual(Object.keys(DEFAULT_LAYERS).filter(key => DEFAULT_LAYERS[key]), ['score', 'phase', 'rotation', 'timeouts', 'doubleChanges'])
+  assert.deepEqual(Object.keys(DEFAULT_LAYERS).filter(key => DEFAULT_LAYERS[key]), ['score', 'phase', 'rotation', 'timeouts', 'doubleChanges', 'substitutions'])
   // BP/CP are the same colors as the "Rendimento per rotazione" bar chart (first two series)
   assert.deepEqual([PHASE_COLORS.BP, PHASE_COLORS.CP], CHART_SERIES_COLORS.slice(0, 2))
   // Six fixed, distinct P colors, none equal to a phase color; readable label on each
@@ -203,16 +204,25 @@ test('"Tutti i set": one Y scale for the whole match, compact layout, same data'
     const option = flowChartOption(flow, { layers: ALL_SETS_LAYERS, context: {}, compact: true, yRange: range })
     assert.deepEqual([option.yAxis[0].min, option.yAxis[0].max], [range.min, range.max], `set ${flow.set} uses the common scale`)
   }
-  // compact chart: smaller, one event lane per team; details (substitutions, runs, server) off
+  // compact chart: smaller, one event lane per team; substitutions shown (who enters and leaves), runs and server off
   const known = withSetter(tiebreak, 12)
   const flow = buildSetFlow(known, 2)
   assert.ok(chartLayout(flow, ALL_SETS_LAYERS, { compact: true }).height < chartLayout(flow, DEFAULT_LAYERS).height)
   assert.equal(chartLayout(flow, ALL_SETS_LAYERS, { compact: true }).eventLanes.length, 2)
-  assert.deepEqual([ALL_SETS_LAYERS.substitutions, ALL_SETS_LAYERS.runs, ALL_SETS_LAYERS.server], [false, false, false])
+  assert.deepEqual([ALL_SETS_LAYERS.substitutions, ALL_SETS_LAYERS.runs, ALL_SETS_LAYERS.server], [true, false, false])
   // compact reading = the beginning of the full reading, same sentences
   const context = { team: tiebreak.team, opponent: tiebreak.opponent }
   const full = describeSet(indicators[2], flows[2], context)
   const compact = describeSet(indicators[2], flows[2], context, { compact: true })
   assert.ok(compact.length < full.length && full.startsWith(compact))
   assert.doesNotMatch(compact, /fase BP|Time-out/)
+})
+
+test('event badges say who enters (↑) and who leaves (↓)', async () => {
+  const { eventBadgeText } = await import('../src/match-flow-chart.js')
+  const change = (position, entering, leaving) => ({ position, in: { number: entering, name: '' }, out: { number: leaving, name: '' } })
+  assert.equal(eventBadgeText({ type: 'doubleChange', changes: [change('III', '21', '12'), change('VI', '10', '19')] }), 'DC ↑21 ↓12 · ↑10 ↓19')
+  assert.equal(eventBadgeText({ type: 'substitution', returning: true, changes: [change('III', '12', '21')] }), 'S ↑12 ↓21')
+  assert.equal(eventBadgeText({ type: 'timeout' }), 'TO')
+  assert.equal(eventBadgeText({ type: 'courtChange' }), 'CC')
 })

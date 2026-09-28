@@ -1,63 +1,8 @@
+import { matchStates } from './rally-state.js'
 import { athleteStats } from './athletes.js'
 import { receptionStats, servicePoints } from './reception.js'
 
 export const sum = a => a.reduce((s, v) => s + v, 0)
-
-/**
- * Calcola i punti vinti in battuta (Break Point) e i turni per ciascuna delle 6 colonne
- * della griglia dei set (6 righe x 6 colonne di turni servizio).
- */
-function calculateGridPoints(grid) {
-  const points = [0, 0, 0, 0, 0, 0]
-  const turns = [0, 0, 0, 0, 0, 0]
-
-  if (!Array.isArray(grid)) return { turns, points }
-
-  for (let r = 0; r < 6; r++) {
-    for (let c = 0; c < 6; c++) {
-      const idx = r * 6 + c
-      const val = grid[idx]
-
-      if (val === '' || val === null || val === undefined) continue
-      // 'X' nella prima casella indica che la squadra avversaria ha servito per prima nel set
-      if (r === 0 && c === 0 && (val === 'X' || val === 'x')) continue
-
-      let prevVal = 0
-      if (idx > 0) {
-        const prev = grid[idx - 1]
-        prevVal = (prev === 'X' || prev === 'x' || prev === '' || prev == null) ? 0 : Number(prev)
-      }
-
-      const numVal = Number(val)
-      if (!Number.isFinite(numVal)) continue
-
-      const isFirstTurnOfMatch = (r === 0 && c === 0)
-      // Se è il primo turno del set, tutti i punti sono di battuta.
-      // Nei turni successivi, il primo punto è il cambio palla (sideout) ottenuto in ricezione,
-      // quindi i punti break realizzati in battuta sono (progressivo attuale - progressivo precedente - 1).
-      const pts = isFirstTurnOfMatch ? numVal : (numVal - prevVal - 1)
-
-      if (pts >= 0) {
-        turns[c] += 1
-        points[c] += pts
-      }
-    }
-  }
-
-  return { turns, points }
-}
-
-/**
- * Motore di calcolo statistiche completamente nativo JavaScript (senza emulatore di formule Excel).
- * Calcola esattamente:
- * - Le 6 rotazioni (P1-P6): turni totali (TT), punti vinti (BP), media punti per turno, quota %,
- *   turni in ricezione (CP), punti subiti e media subita.
- * - Statistiche cambio palla (CP) e ricezione
- * - Atleti coinvolti, punti fatti, punti subiti, vittorie
- */
-// P1..P6 (as index 0..5) of the analyzed team for a service-grid column, given the starting rotation.
-// Used by the rotation statistics and by the match flow, so both read the same P.
-export const rotationIndexForColumn = (startRotation, column) => ((Number(startRotation) || 1) - column - 1 + 12) % 6
 
 export function analyze(matches) {
   const rotTurns = [0, 0, 0, 0, 0, 0]
@@ -65,18 +10,32 @@ export function analyze(matches) {
   const rotConcededTurns = [0, 0, 0, 0, 0, 0]
   const rotConceded = [0, 0, 0, 0, 0, 0]
 
-  for (const m of matches) {
-    for (const s of (m.sets || []).slice(0, 5)) {
-      const ownRes = calculateGridPoints(s.own || [])
-      const otherRes = calculateGridPoints(s.other || [])
-
-      for (let c = 0; c < 6; c++) {
-        // La rotazione P1..P6 per la colonna c in base alla rotazione iniziale del set
-        const rot = rotationIndexForColumn(s.rotation, c) // indice 0..5 per P1..P6
-        rotTurns[rot] += ownRes.turns[c]
-        rotPoints[rot] += ownRes.points[c]
-        rotConcededTurns[rot] += otherRes.turns[c]
-        rotConceded[rot] += otherRes.points[c]
+  let excludedRallies = 0
+  let excludedBreakPoints = 0
+  let excludedConceded = 0
+  for (const match of matches) {
+    for (const { states } of matchStates(match)) {
+      // Split a service turn only when the effective P changes. Each contiguous portion is one
+      // observed turn segment, so points and denominators always refer to the same configuration.
+      let previous = null
+      for (const state of states) {
+        const P = state.teams.own.P
+        const key = `${state.servingTeam}:${state.cell}:${P}`
+        if (P === null) {
+          excludedRallies++
+          if (state.phase === 'BP' && state.winner === 'own') excludedBreakPoints++
+          if (state.phase === 'CP' && state.winner === 'other') excludedConceded++
+        } else {
+          const i = P - 1
+          if (state.phase === 'BP') {
+            if (key !== previous) rotTurns[i]++
+            if (state.winner === 'own') rotPoints[i]++
+          } else {
+            if (key !== previous) rotConcededTurns[i]++
+            if (state.winner === 'other') rotConceded[i]++
+          }
+        }
+        previous = key
       }
     }
   }
@@ -109,7 +68,10 @@ export function analyze(matches) {
     reception: receptionStats(matches),
     athletesInvolved,
     breakPoints,
-    opponentBreakPoints,
+    opponentBreakPoints: opponentBreakPoints + excludedConceded,
+    excludedRallies,
+    excludedBreakPoints,
+    excludedConceded,
     scored: sum(matches.flatMap(m => m.sets.map(s => s.scoreOwn))),
     conceded: sum(matches.flatMap(m => m.sets.map(s => s.scoreOther))),
     wins: matches.filter(m => m.sets.filter(s => s.scoreOwn > s.scoreOther).length > m.sets.filter(s => s.scoreOther > s.scoreOwn).length).length,
@@ -169,14 +131,13 @@ function substitutionIssues(prefix, team, { lineup, substitutions, timeouts, own
 
 // strict: lineup, substitution and time-out checks. Disabled when restoring backups, so matches saved
 // before these checks existed still load.
-export function validateMatch(m, requireRotations = false, { strict = true } = {}) {
+export function validateMatch(m, { strict = true } = {}) {
   const errors = []
   if (!m.team?.trim() || !m.opponent?.trim() || m.team === m.opponent) errors.push('Indica due squadre diverse.')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || '') || Number.isNaN(Date.parse(m.date))) errors.push('Data gara non valida.')
   if (!Array.isArray(m.sets) || !m.sets.length || m.sets.length > 6) return [...errors, 'Numero di set non valido (da 1 a 6 set).']
   m.sets.forEach((s, i) => {
     const prefix = i === 5 ? 'Set 6 (Golden Set)' : `Set ${i + 1}`
-    if (requireRotations && !(Number.isInteger(+s.rotation) && +s.rotation >= 1 && +s.rotation <= 6)) errors.push(`${prefix}: scegli la posizione iniziale P.`)
     for (const [side, score] of [['own', s.scoreOwn], ['other', s.scoreOther]]) {
       if (!Number.isInteger(score) || score < 0) errors.push(`${prefix}: punteggio non valido.`)
       if (!Array.isArray(s[side]) || s[side].length > 36) { errors.push(`${prefix}: griglia turni non valida.`); continue }

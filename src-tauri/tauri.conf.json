@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Referto Volley",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "identifier": "it.napolitano.refertovolley",
   "build": {
     "frontendDist": "../webapp/dist",
@@ -40,6 +40,29 @@
     "category": "Sports",
     "shortDescription": "Analisi dei referti di pallavolo",
     "license": "AGPL-3.0-or-later",
-    "licenseFile": "../LICENSE"
+    "licenseFile": "../LICENSE",
+    "createUpdaterArtifacts": true,
+    "fileAssociations": [
+      {
+        "ext": [
+          "zrv"
+        ],
+        "name": "Archivio Referto Volley",
+        "description": "Archivio delle gare di Referto Volley",
+        "mimeType": "application/vnd.referto-volley+zip",
+        "role": "Editor"
+      }
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM4OEMyMUY5ODE5Q0M2QkUKUldTK3hweUIrU0dNT0FPZ08yNXdxdk91NzE1MGd5VGpLQWtaQ2ZXMk5IR3BmaTFMQkNyU0RXT1UK",
+      "endpoints": [
+        "https://github.com/napo/analisirefertogara/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { applySetter, parseItems, refreshImportedMatch } from '../src/pdf-parser.js'
+import { parseItems, refreshImportedMatch } from '../src/pdf-parser.js'
 import { analyze, validateMatch } from '../src/analysis.js'
 
 // Text items of the SNUG sample scoresheet (ANGUILL - LIFE F, U14, 10/01/2026) extracted with PDF.js.
@@ -12,7 +12,7 @@ const viewport = { width: fixture.width, height: fixture.height }
 const parse = (input = items) => parseItems(input, viewport.width, viewport.height)
 
 test('SNUG sample imports valid sets and distinct complete named rosters, including liberos', () => {
-  const match = applySetter(parse())
+  const match = parse()
   assert.deepEqual(validateMatch(match), [])
   assert.deepEqual(match.sets.map(s => [s.scoreOwn, s.scoreOther]), [[6, 25], [22, 25], [15, 25]])
   assert.equal(match.roster.length, 13)
@@ -44,13 +44,13 @@ test('SNUG: substitutions and time-outs are read per position', () => {
 test('observations box is kept, also after re-import when edited by hand', () => {
   const match = parse()
   assert.equal(match.notes, 'Alle ore 17.30 si osserva un minuto di silenzio -')
-  const edited = { ...applySetter(match), notes: 'Nota corretta a mano' }
+  const edited = { ...match, notes: 'Nota corretta a mano' }
   assert.equal(refreshImportedMatch(edited, parse()).notes, 'Nota corretta a mano')
   assert.equal(refreshImportedMatch({ ...edited, notes: '' }, parse()).notes, match.notes)
 })
 
 test('substitutions and time-outs are validated', () => {
-  const match = applySetter(parse())
+  const match = parse()
   const withSet = patch => ({ ...match, sets: [{ ...match.sets[0], ...patch }, ...match.sets.slice(1)] })
   const cells = (column, cell) => Array.from({ length: 6 }, (_, i) => i === column ? cell : { in: '', scoreIn: '', scoreOut: '' })
   const starter = match.sets[0].lineup[0]
@@ -61,11 +61,11 @@ test('substitutions and time-outs are validated', () => {
   assert.ok(validateMatch(withSet({ substitutions: cells(1, { in: '5', scoreIn: '4:12', scoreOut: '3:11' }) })).some(e => /rientro in posizione II precede l'entrata/.test(e)))
   assert.ok(validateMatch(withSet({ substitutions: cells(1, { in: starter, scoreIn: '3:11', scoreOut: '' }) })).some(e => new RegExp(`numero ${starter} è tra i titolari`).test(e)))
   // backups saved before these checks still restore
-  assert.deepEqual(validateMatch(withSet({ timeouts: ['3-10x', ''] }), false, { strict: false }), [])
+  assert.deepEqual(validateMatch(withSet({ timeouts: ['3-10x', ''] }), { strict: false }), [])
 })
 
 test('starting lineup numbers must be unique within each team', () => {
-  const match = applySetter(parse())
+  const match = parse()
   const set = match.sets[0]
   // The same number for both teams is allowed
   const shared = { ...match, sets: [{ ...set, opponentLineup: [set.lineup[0], ...set.opponentLineup.slice(1)] }, ...match.sets.slice(1)] }
@@ -120,7 +120,7 @@ test('reimport preserves manually corrected durations', () => {
 })
 
 test('analyze runs successfully on parsed match', () => {
-  const match = applySetter(parse())
+  const match = parse()
   const result = analyze([match])
   assert.equal(result.scored, 43)
   assert.equal(result.conceded, 75)

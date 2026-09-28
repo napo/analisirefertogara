@@ -81,6 +81,7 @@ function EventKey({ flows, layers, team }) {
       {shown.map(([short, label, type]) => (
         <span key={short}><b style={{ color: EVENT_COLORS[type] }}>{short}</b> {label}</span>
       ))}
+      {shown.some(([, , type]) => type === 'substitution' || type === 'doubleChange') && <span>↑ entra · ↓ esce</span>}
       <span>pieno: {team} · contorno: avversaria</span>
     </p>
   )
@@ -108,8 +109,8 @@ function AllSets({ flows, context, match, highlight }) {
           <FlowChart flow={flow} layers={layersFor(flow)} context={context} compact yRange={yRange} />
         </article>
       ))}
-      {flows.some(flow => !flow.rotationKnown) && (
-        <p className="vs-flow-footnote">P non indicate: segna il palleggiatore nell&apos;elenco atleti (colonna &quot;p&quot;) per vedere P1-P6.</p>
+      {flows.some(flow => flow.excludedRotations > 0) && (
+        <p className="vs-flow-footnote">Alcune P non determinate: segna il palleggiatore nell&apos;elenco atleti (colonna &quot;p&quot;) per vedere P1-P6.</p>
       )}
     </div>
   )
@@ -201,15 +202,15 @@ function InteractiveView({ flows, context, match, state }) {
       {!flow.complete && (
         <p className="vs-flow-notice">La sequenza dei rally ricostruita dai turni di servizio non arriva al punteggio finale del set: controlla la griglia dei turni.</p>
       )}
-      {!flow.rotationKnown && effectiveLayers.rotation && (
-        <p className="vs-flow-notice">P non indicate per questo set: segna il palleggiatore nell&apos;elenco atleti (colonna &quot;p&quot;) per vedere P1-P6.</p>
+      {flow.excludedRotations > 0 && effectiveLayers.rotation && (
+        <p className="vs-flow-notice">{flow.excludedRotations} rally con P non determinata: segna il palleggiatore nell&apos;elenco atleti (colonna &quot;p&quot;) per vedere P1-P6.</p>
       )}
 
       <FlowChart flow={flow} layers={effectiveLayers} filters={filters} context={context} />
 
       <EventKey flows={[flow]} layers={effectiveLayers} team={match.team} />
       {effectiveLayers.server && (
-        <p className="vs-flow-footnote">Al servizio: ricavato dalla formazione iniziale del set, come i servizi stimati; le sostituzioni non sono applicate.</p>
+        <p className="vs-flow-footnote">Al servizio: ricostruito rally per rally, comprese sostituzioni e rientri.</p>
       )}
       {flow.unplacedEvents.length > 0 && (
         <p className="vs-flow-footnote">
