@@ -187,7 +187,11 @@ export const GLOSSARY = [
   { id: 'seconda-linea', term: 'Seconda linea', short: 'Atleti che in quel rally occupano i posti 1, 6 e 5. "L#5⇒#11" indica il libero #5 in campo al posto di #11; "L?⇒#11" una presenza del libero non determinabile con certezza: ricostruita dal referto e dalle regole di gioco, ma non collocabile rally per rally.', pdf: true, analysis: true },
   { id: 'p-avversaria', term: 'P avversaria', short: 'Posizione del palleggiatore effettivo della squadra avversaria.', pdf: true, analysis: true },
   { id: 'configurazione-in-campo', term: 'Configurazione in campo', short: 'Combinazione degli atleti e delle rispettive posizioni presenti in campo in un determinato rally.', pdf: true, analysis: true },
-  { id: 'confronto-rotazioni', term: 'Confronto delle rotazioni', short: 'Confronto tra la posizione del palleggiatore della squadra analizzata e quella del palleggiatore avversario nei rally osservati.', pdf: true, analysis: true },
+  { id: 'confronto-rotazioni', term: 'Confronto delle rotazioni', short: 'Ogni P della squadra analizzata contro ogni P avversaria, con i rally in fase BP e in fase CP separati. In verde la P più redditizia, in rosso quella più in difficoltà (almeno 4 rally).', pdf: true, analysis: true },
+  { id: 'formazione', term: 'Formazione', short: 'Chi occupa i sei posti: in alto la prima linea (posti 4, 3, 2, a rete), in basso la seconda linea (posti 5, 6, 1). Il riquadro marcato è il palleggiatore. Nelle intestazioni del confronto è la formazione più frequente in quella P, senza il libero.', pdf: true, analysis: true },
+  { id: 'vinti-meno-persi', term: 'Vinti − persi', short: 'Rally vinti meno rally persi dalla squadra analizzata in quella fase: positivo se ne ha vinti di più, negativo se ne ha persi di più.', pdf: true, analysis: true },
+  { id: 'rispetto-media', term: 'Rispetto alla media', short: 'Rally vinti meno quelli attesi con la percentuale di rally vinti dalla squadra in quella fase nella selezione. Toglie lo svantaggio naturale di chi serve: BP e CP si leggono sulla stessa scala.', pdf: true, analysis: true },
+  { id: 'doppio-cambio', term: 'DC', abbr: 'Doppio cambio', short: 'Due sostituzioni della stessa squadra allo stesso punteggio, di solito palleggiatore e opposto: la P cambia senza una normale rotazione. Nel confronto delle rotazioni sono marcati i rally con in campo chi è entrato per doppio cambio.', pdf: true, analysis: true },
 
 ]
 

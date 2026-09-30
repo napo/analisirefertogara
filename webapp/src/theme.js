@@ -48,15 +48,9 @@ export const EVENT_COLORS = {
 // ECharts default series order for the existing charts (unchanged rendering)
 export const CHART_SERIES_COLORS = [PHASE_COLORS.BP, PHASE_COLORS.CP, APP_COLORS.teal]
 
-// "Confronto delle rotazioni" heatmap: % of rallies won by the analyzed team, diverging around 50%.
-// Bronze (below 50%) and blue (above) poles with a neutral gray midpoint; no red/green, no P1-P6 hues.
-// Validated: poles CVD ΔE 21.3 (protan), normal-vision ΔE 24.3. Tints stop at 80% of a pole so the dark
-// cell text keeps contrast >= 5:1 everywhere. Empty cells (no rally observed) use the plain surface.
-export const HEAT_COLORS = {
-  low: '#b8742a',
-  neutral: '#f0efec',
-  high: '#3f7fc0',
-  empty: '#ffffff',
-  ink: '#142636',
-  maxTint: 0.8,
+// "Confronto delle rotazioni": border of the most profitable P and of the P most in difficulty (same
+// positive / negative colors of the score trend); the selected cell uses a dark outline, never these colors.
+export const COMPARISON_COLORS = {
+  best: TREND_COLORS.positive,
+  worst: TREND_COLORS.negative,
 }

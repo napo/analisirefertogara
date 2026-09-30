@@ -8,6 +8,7 @@ export const PRINT_SECTIONS = [
   { id: 'flow', label: 'Andamento della gara' },
   { id: 'athletes', label: 'Atleti entrati' },
   { id: 'matchup', label: 'Confronto delle rotazioni' },
+  { id: 'matchup-sets', label: 'Confronto delle rotazioni set per set' },
   { id: 'configurations', label: 'Configurazioni in campo' },
   { id: 'glossary', label: 'Glossario' },
 ]

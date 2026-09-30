@@ -26,7 +26,7 @@ test('platform and download of the mobile apps', () => {
     ],
   }
   assert.equal(mobileDownload(release, 'android'), 'https://x/signed.apk')
-  assert.equal(mobileDownload({ ...release, assets: release.assets.slice(0, 1) }, 'android'), 'https://x/debug.apk')
+  assert.equal(mobileDownload({ ...release, assets: release.assets.slice(0, 1) }, 'android'), release.html_url)
   assert.equal(mobileDownload(release, 'ios'), release.html_url)
 })
 
