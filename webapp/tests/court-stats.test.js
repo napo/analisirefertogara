@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { rotationMatrix, courtConfigurations, cellDetail, heatColor } from '../src/court-stats.js'
+import { COMPARISON_MIN_RALLIES, courtConfigurations, courtsOnField, formations, isDoubleChange, rotationComparison } from '../src/court-stats.js'
 import { matchRallyStates, setStates } from '../src/rally-state.js'
 import { swapTeams } from '../src/match-teams.js'
 import { analyze } from '../src/analysis.js'
@@ -10,50 +10,71 @@ const state = (P, otherP, winner='own', phase='BP', columns=['1','2','3','4','5'
   teams: { own: { P, column:0, columns, onCourt: columns, server:'1' }, other: { P:otherP, column:0, columns:['7','8','9','10','11','12'], onCourt:['7','8','9','10','11','12'] } },
 })
 
-test('6×6 matrix plus weighted marginals, empty cell versus zero percent', () => {
-  const states = [state(1,1), ...Array.from({length:9}, () => state(1,2,'other')),state(2,1,'other')]
-  const { cells } = rotationMatrix(states)
+test('comparison: BP and CP apart, vinti − persi, Tutte counted on the rallies', () => {
+  const states = [state(1,1), state(1,1,'other'), state(1,1,'own','CP'), state(1,2,'own','CP'), state(2,1,'other','CP')]
+  const { cells, measure } = rotationComparison(states)
+  assert.equal(measure,'difference')
   assert.equal(cells.length,7)
   assert.ok(cells.every(row => row.length === 7))
-  assert.equal(cells[0][0].percent,100)
-  assert.equal(cells[0][1].percent,0)
-  assert.equal(cells[0][2].percent,null)
-  assert.equal(cells[0][6].percent,10)
-  assert.equal(cells[6][0].percent,50)
-  assert.deepEqual(cells[6][6],{rallies:11,won:1,lost:10,percent:100/11})
+  assert.deepEqual(cells[0][0].BP,{rallies:2,won:1,lost:1,value:0})
+  assert.deepEqual(cells[0][0].CP,{rallies:1,won:1,lost:0,value:1})
+  assert.equal(cells[0][6].CP.value,2)
+  assert.equal(cells[6][0].CP.value,0)
+  assert.equal(cells[6][6].rallies,5)
+  assert.equal(cells[6][6].value,cells[6][6].BP.value+cells[6][6].CP.value)
+  assert.equal(cells[0][2].rallies,0)
 })
 
-test('Tutti/BP/CP recalculate cells, marginal counts and excluded rallies', () => {
-  const s = [state(1,1),state(1,1,'other','CP'),state(null,2,'own','CP'),state(1,null)]
-  assert.equal(rotationMatrix(s).excluded,2)
-  assert.deepEqual(rotationMatrix(s,'BP').cells[6][6],{rallies:1,won:1,lost:0,percent:100})
-  assert.equal(rotationMatrix(s,'CP').cells[6][6].percent,0)
-  assert.equal(rotationMatrix(s,'CP').excluded,1)
-  assert.equal(rotationMatrix(s,'BP').excluded,1)
-  assert.equal(rotationMatrix([...s,{...state(2,2),reliable:false}]).unreliable,1)
+test('comparison: "rispetto alla media" removes the share of rallies won in each phase', () => {
+  // BP: 1 won of 4 (25%); CP: 3 won of 4 (75%)
+  const states = [state(1,1), state(1,1,'other'), state(2,1,'other'), state(2,1,'other'),
+    state(1,1,'own','CP'), state(1,1,'own','CP'), state(2,1,'own','CP'), state(2,1,'other','CP')]
+  const c = rotationComparison(states, { measure: 'average' })
+  assert.deepEqual(c.rates,{BP:0.25,CP:0.75})
+  assert.equal(c.cells[0][0].BP.value,1-0.25*2)
+  assert.equal(c.cells[1][0].CP.value,1-0.75*2)
+  assert.ok(Math.abs(c.cells[6][6].value) < 1e-9)
 })
 
-test('detail separates substitutions in the same P pair, phases and servers', () => {
-  const states = [state(4,1),state(4,1,'other','CP'),state(4,1,'own','BP',['1','2','18','4','5','6'])]
-  const d = cellDetail(states,3,0)
-  assert.deepEqual([d.rallies,d.won,d.lost,d.BP.rallies,d.CP.rallies],[3,2,1,2,1])
-  assert.equal(d.ownFrontRows.length,2)
-  assert.equal(d.ownFrontRows[0].rallies,2)
-  assert.equal(d.otherFrontRows.length,1)
-  assert.equal(d.servers[0].rallies,2)
-  assert.equal(cellDetail(states,3,0,'CP').BP.rallies,0)
-  assert.equal(courtConfigurations(states).length,3)
+test('comparison: most profitable and most in difficulty P need enough rallies; excluded rallies', () => {
+  const many = (P, winner, n) => Array.from({length:n}, () => state(P,1,winner))
+  const states = [...many(1,'own',4), ...many(2,'other',5), ...many(3,'own',3), state(null,1), {...state(4,1),reliable:false}]
+  const c = rotationComparison(states)
+  assert.equal(c.best.P,1)
+  assert.equal(c.worst.P,2)
+  assert.equal(c.excluded,2)
+  assert.equal(c.cells[2][6].rallies,3)
+  assert.equal(COMPARISON_MIN_RALLIES,4)
+  assert.equal(c.extremes.best.P,1)
+  assert.equal(c.extremes.worst.phase,'BP')
+  // one P only: no "most in difficulty"
+  assert.equal(rotationComparison(many(1,'own',6)).worst,null)
+  assert.equal(rotationComparison(many(1,'own',2)).best,null)
 })
 
-test('configurations sorted by observed rallies, unknown P retained; multi-match records aggregate', () => {
+test('comparison: double change rallies marked, excluded or alone', () => {
+  const dc = s => ({...s, teams:{...s.teams, own:{...s.teams.own, doubleChange:true, doubleChangePlayers:['18']}}})
+  const states = [state(1,1), dc(state(4,1)), dc(state(4,1,'other')), state(4,1)]
+  assert.equal(isDoubleChange(states[1]),true)
+  assert.equal(rotationComparison(states).cells[3][0].doubleChange,2)
+  assert.equal(rotationComparison(states,{doubleChange:'exclude'}).cells[3][0].rallies,1)
+  assert.equal(rotationComparison(states,{doubleChange:'exclude'}).excludedDoubleChange,2)
+  assert.equal(rotationComparison(states,{doubleChange:'only'}).cells[6][6].rallies,2)
+})
+
+test('formations (nominal, setter) and courts on field (libero, server); configurations', () => {
+  const s = {...state(4,1), teams:{...state(4,1).teams, own:{...state(4,1).teams.own, setter:{number:'4'}, libero:{column:4, number:'7', replaced:'5', certain:true}, onCourt:['1','2','3','4','7','6']}}}
+  const [formation] = formations([s, s], 'own')
+  assert.deepEqual(formation.positions,['1','2','3','4','5','6'])
+  assert.equal(formation.setter,'4')
+  assert.equal(formation.rallies,2)
+  const [court] = courtsOnField([s], 'own')
+  assert.deepEqual(court.positions[4],{number:'7',libero:true,replaced:'5',certain:true})
+  assert.equal(court.server,'1')
+  assert.equal(courtsOnField([{...s,phase:'CP',servingTeam:'other'}],'own')[0].server,null)
   const states = [state(1,1),state(2,1,'other'),state(2,1,'other'),state(null,1)]
   assert.equal(courtConfigurations(states)[0].P,2)
-  assert.equal(courtConfigurations(states).at(-1).rallies,1)
   assert.ok(courtConfigurations(states).some(g=>g.P===null))
-  const all = [...states,...states.map(s=>({...s,matchId:'b'}))]
-  assert.equal(rotationMatrix(all).cells[6][6].rallies,6)
-  assert.equal(heatColor({rallies:0,percent:null}),'#ffffff')
-  assert.notEqual(heatColor({rallies:2,percent:100}),heatColor({rallies:32,percent:100}))
 })
 
 test('team inversion maps roster, choices, scores, P and service consistently and is reversible', () => {
@@ -97,26 +118,28 @@ const tiebreakMatch = () => {
   }
 }
 
-test('real match: counts of the matrix and of the configurations agree with the original sequence', () => {
+test('real match: counts of the comparison and of the configurations agree with the original sequence', () => {
   const m = tiebreakMatch()
   const states = matchRallyStates(m)
   const total = m.sets.reduce((t, s) => t + s.scoreOwn + s.scoreOther, 0)
   const won = m.sets.reduce((t, s) => t + s.scoreOwn, 0)
   assert.equal(states.length, total)
   assert.equal(states.filter(s => s.winner === 'own').length, won)
-  const { cells, excluded } = rotationMatrix(states)
+  const { cells, excluded } = rotationComparison(states)
   assert.equal(cells[6][6].rallies + excluded, total)
-  // marginals from the rallies: row/column totals equal the sum of their cells' counts (not of percentages)
+  // marginals from the rallies: row/column totals equal the sum of their cells' counts
   for (let i = 0; i < 6; i++) {
-    assert.equal(cells[i][6].rallies, cells[i].slice(0, 6).reduce((t, c) => t + c.rallies, 0))
-    assert.equal(cells[i][6].won, cells[i].slice(0, 6).reduce((t, c) => t + c.won, 0))
-    assert.equal(cells[6][i].won, cells.slice(0, 6).reduce((t, row) => t + row[i].won, 0))
+    for (const phase of ['BP', 'CP']) {
+      assert.equal(cells[i][6][phase].rallies, cells[i].slice(0, 6).reduce((t, c) => t + c[phase].rallies, 0))
+      assert.equal(cells[i][6][phase].won, cells[i].slice(0, 6).reduce((t, c) => t + c[phase].won, 0))
+      assert.equal(cells[6][i][phase].won, cells.slice(0, 6).reduce((t, row) => t + row[i][phase].won, 0))
+    }
   }
   const configurations = courtConfigurations(states)
   assert.equal(configurations.reduce((t, c) => t + c.rallies, 0), states.filter(s => s.teams.own.reliable).length)
   assert.equal(configurations.reduce((t, c) => t + c.won, 0), states.filter(s => s.teams.own.reliable && s.winner === 'own').length)
-  // BP + CP = Tutti
-  assert.equal(rotationMatrix(states, 'BP').cells[6][6].rallies + rotationMatrix(states, 'CP').cells[6][6].rallies, cells[6][6].rallies)
+  // BP + CP = all rallies of the cell
+  assert.equal(cells[6][6].BP.rallies + cells[6][6].CP.rallies, cells[6][6].rallies)
 })
 
 test('real fifth set: the court change at 8 does not reset the rotation', () => {

@@ -53,6 +53,19 @@ export function liberoChains(set, team) {
   return chains.filter(chain => chain.player && chain.liberos.every(Boolean))
 }
 
+// Players entered in a double change of one team in one set: two or more substitutions of that team at
+// the same entry score (the same rule of "Andamento della gara"), e.g. setter and opposite together.
+export function doubleChangeEntrants(set, team) {
+  const cells = ((team === 'own' ? set.substitutions : set.opponentSubstitutions) || [])
+    .filter(cell => normNumber(cell?.in) && /^\s*\d+\s*:\s*\d+\s*$/.test(String(cell?.scoreIn ?? '')))
+  const byScore = new Map()
+  for (const cell of cells) {
+    const key = String(cell.scoreIn).replace(/\s/g, '')
+    byScore.set(key, [...(byScore.get(key) || []), normNumber(cell.in)])
+  }
+  return new Set([...byScore.values()].filter(group => group.length > 1).flat())
+}
+
 // Position (1-6) of the player in column k when the team is in rotation column c: column c serves from
 // position 1, column c+1 is in position 2 (it will serve next), and so on.
 const positionOfColumn = (column, rotationColumn) => ((column - rotationColumn + 6) % 6) + 1
@@ -192,6 +205,7 @@ export function setStates(match, setIndex, { choices = match.setterChoices } = {
   const { rallies } = built
   const setters = { own: setterNumbers(match.roster), other: setterNumbers(match.opponentRoster) }
   const perTeam = {}
+  const entrants = { own: doubleChangeEntrants(set, 'own'), other: doubleChangeEntrants(set, 'other') }
   const unresolved = []
   const ambiguities = []
   for (const team of TEAMS) {
@@ -216,7 +230,10 @@ export function setStates(match, setIndex, { choices = match.setterChoices } = {
       const onCourt = libero ? columns.map((number, k) => (k === libero.column ? (libero.certain ? libero.number : null) : number)) : columns
       // positions 1..6 (index 0..5) of the players physically on court; null = libero exchange uncertain
       const positions = Array.from({ length: 6 }, (_, index) => onCourt[columnOfPosition(index + 1, column)] || null)
-      const side = { column, columns, onCourt, positions, libero, server: court.server[i] || null, setter, P: null, reliable }
+      // doubleChange: a player entered in a double change is on court (the P may come from that change)
+      const doubleChangePlayers = columns.filter(number => entrants[team].has(number))
+      const side = { column, columns, onCourt, positions, libero, server: court.server[i] || null, setter, P: null, reliable,
+        doubleChange: doubleChangePlayers.length > 0, doubleChangePlayers }
       side.P = reliable && setter.number ? positionOfColumn(columns.indexOf(setter.number), column) : null
       teams[team] = side
     }

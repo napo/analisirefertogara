@@ -124,7 +124,7 @@ function MainApp() {
     return next
   })
   const inReport = id => !exportingPdf || includeInPdf(id)
-  const printToggle = id => <PrintToggle checked={includeInPdf(id)} onChange={value => setIncludeInPdf(id, value)} printing={exportingPdf} />
+  const printToggle = (id, label) => <PrintToggle checked={includeInPdf(id)} onChange={value => setIncludeInPdf(id, value)} label={label} printing={exportingPdf} />
   const [showMatchPicker, setShowMatchPicker] = useState(false)
   const [selectedHistoryIds, setSelectedHistoryIds] = useState([])
   const [searchMenuOpen, setSearchMenuOpen] = useState(false)
@@ -169,9 +169,9 @@ function MainApp() {
       const containerTop = el.getBoundingClientRect().top
       const cssWidth = el.offsetWidth
       // Page breaks: after blocks, or inside a table body keeping at least 3 rows before and 2 after the cut
-      const tableRows = [...el.querySelectorAll('tbody')].flatMap(tbody => tbody.closest('.vs-court-matrix-card') ? [] : [...tbody.rows].slice(2, -2))
+      const tableRows = [...el.querySelectorAll('tbody')].flatMap(tbody => tbody.closest('.vs-rc-card') ? [] : [...tbody.rows].slice(2, -2))
       const breakPoints = [...new Set(
-        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, .vs-flow-set, .vs-flow-reading-set, .vs-flow-synthesis'), ...tableRows]
+        [...el.querySelectorAll(':scope > *, .vs-card, .vs-metrics-grid > *, .vs-charts-grid, .vs-flow-set, .vs-flow-reading-set, .vs-flow-synthesis, .vs-rc-splittable > *'), ...tableRows]
           .map(node => Math.round(node.getBoundingClientRect().bottom - containerTop))
       )].sort((a, b) => a - b)
 
