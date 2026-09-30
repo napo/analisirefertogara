@@ -102,6 +102,10 @@ function MainApp() {
     deleteMatch,
     exportBackup,
     importArchive,
+    invertedView,
+    viewInverted,
+    closeInvertedView,
+    savedMatch,
   } = useMatchStore()
 
   const fileInputRef = useRef(null)
@@ -823,10 +827,7 @@ function MainApp() {
                                   type="button"
                                   className="vs-btn vs-btn-sm vs-btn-secondary"
                                   title={`Inverti per analizzare ${m.opponent}`}
-                                  onClick={() => {
-                                    setDraft(swapTeams(m))
-                                    setActiveTab('reports')
-                                  }}
+                                  onClick={() => viewInverted(m)}
                                 >
                                   ⇄ Inverti
                                 </button>
@@ -906,6 +907,9 @@ function MainApp() {
                       {teams.map(t => (
                         <option key={t} value={t}>{t}</option>
                       ))}
+                      {invertedView && !teams.includes(activeTeam) && (
+                        <option value={activeTeam}>{activeTeam} (vista invertita)</option>
+                      )}
                     </select>
                   </label>
 
@@ -914,12 +918,19 @@ function MainApp() {
                     <select
                       value={selectedMatchId}
                       onChange={(e) => {
+                        // leaving the inverted view: the other matches listed are the ones of the team shown
+                        if (invertedView && teams.includes(invertedView.team)) setSelectedTeam(invertedView.team)
                         setSelectedMatchId(e.target.value)
                         if (e.target.value !== 'custom') setShowMatchPicker(false)
                       }}
                     >
+                      {invertedView && (
+                        <option value={invertedView.id}>
+                          {invertedView.date} vs {invertedView.opponent} ({resultStr(invertedView)}) · vista invertita
+                        </option>
+                      )}
                       {/* Mostra prima l'ultima gara caricata o salvata */}
-                      {(() => {
+                      {!invertedView && (() => {
                         const latest = teamMatches.find(m => m.id === latestMatchId)
                         if (!latest) return null
                         return (
@@ -1098,6 +1109,19 @@ function MainApp() {
                   </div>
                 </div>
 
+                {invertedView && (
+                  <div className="vs-notice" role="status" style={{ flexWrap: 'wrap' }}>
+                    <span>
+                      Vista invertita: analisi dal punto di vista di <strong>{invertedView.team}</strong>. La gara resta salvata nell’archivio con {invertedView.opponent} come squadra analizzata.
+                    </span>
+                    {!exportingPdf && (
+                      <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={closeInvertedView}>
+                        Torna a {invertedView.opponent}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Blocco Squadra analizzata / Info gara o aggregato */}
                 {isSingleMatch && visibleMatches[0] ? (
                   <div
@@ -1140,7 +1164,7 @@ function MainApp() {
                         className="vs-btn vs-btn-sm vs-btn-secondary"
                         title="Modifica atleti, nomi e dettagli della gara"
                         onClick={() => {
-                          setDraft(visibleMatches[0])
+                          setDraft(savedMatch(visibleMatches[0]))
                           setActiveTab('reports')
                         }}
                       >
@@ -1149,13 +1173,8 @@ function MainApp() {
                       <button
                         type="button"
                         className="vs-btn vs-btn-sm vs-btn-secondary"
-                        title="Inverti l'analisi per analizzare la squadra avversaria"
-                        onClick={() => {
-                          const cur = visibleMatches[0]
-                          const inverted = swapTeams(cur)
-                          setDraft(inverted)
-                          setActiveTab('reports')
-                        }}
+                        title={invertedView ? `Torna all’analisi di ${visibleMatches[0].opponent}, come salvata` : 'Mostra l’analisi dal punto di vista della squadra avversaria (la gara salvata non cambia)'}
+                        onClick={() => viewInverted(visibleMatches[0])}
                       >
                         ⇄ Analizza {visibleMatches[0].opponent}
                       </button>
@@ -1595,8 +1614,7 @@ function MainApp() {
                                     className="vs-btn vs-btn-sm vs-btn-secondary"
                                     title={`Inverti per analizzare ${m.opponent}`}
                                     onClick={() => {
-                                      setDraft(swapTeams(m))
-                                      setActiveTab('reports')
+                                      viewInverted(m)
                                       window.scrollTo({ top: 0, behavior: 'smooth' })
                                     }}
                                   >

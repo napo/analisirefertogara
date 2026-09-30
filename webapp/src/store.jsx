@@ -6,6 +6,7 @@ import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
 import { emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
 import { emptyFilters, filterMatches } from './match-filters'
+import { swapTeams } from './match-teams.js'
 
 export function createBlankSet(number) {
   return {
@@ -81,8 +82,21 @@ export function MatchStoreProvider({ children }) {
 
   const [latestMatchId, setLatestMatchId] = useState(null)
   const [selectedMatchIds, setSelectedMatchIds] = useState([])
+  // "Inverti": id of the saved match shown from the opponent's point of view. Only a view: the archive
+  // keeps the match as saved; any other selection closes it.
+  const [invertedId, setInvertedId] = useState(null)
+
+  const selectTeam = useCallback(team => {
+    setInvertedId(null)
+    setSelectedTeam(team)
+  }, [])
+  const selectMatch = useCallback(id => {
+    setInvertedId(null)
+    setSelectedMatchId(id)
+  }, [])
 
   const updateFilters = useCallback(next => {
+    setInvertedId(null)
     setFilters(next)
     setSelectedMatchId('all')
     setSelectedMatchIds([])
@@ -121,10 +135,25 @@ export function MatchStoreProvider({ children }) {
     return [...new Set(filteredMatches.map(m => m.team).filter(Boolean))]
   }, [filteredMatches])
 
+  // The inverted view of a saved match, with its own analysis (never persisted)
+  const invertedView = useMemo(() => {
+    const original = invertedId && matches.find(m => m.id === invertedId)
+    if (!original) return null
+    const view = swapTeams(original)
+    let analysis = null
+    try {
+      analysis = analyze([view])
+    } catch (e) {
+      console.warn('Errore calcolo analisi invertita per gara:', view.id, e)
+    }
+    return { ...view, analysis, invertedView: true }
+  }, [invertedId, matches])
+
   const activeTeam = useMemo(() => {
+    if (invertedView) return invertedView.team
     if (teams.includes(selectedTeam)) return selectedTeam
     return teams[0] || ''
-  }, [teams, selectedTeam])
+  }, [teams, selectedTeam, invertedView])
 
   const teamMatches = useMemo(() => {
     return filteredMatches.filter(m => m.team === activeTeam)
@@ -146,6 +175,7 @@ export function MatchStoreProvider({ children }) {
   }, [teamMatches, latestMatchId])
 
   const visibleMatches = useMemo(() => {
+    if (invertedView) return [invertedView]
     if (selectedMatchId === 'all') {
       return teamMatches
     }
@@ -154,7 +184,7 @@ export function MatchStoreProvider({ children }) {
       return filtered
     }
     return teamMatches.filter(m => m.id === selectedMatchId)
-  }, [teamMatches, selectedMatchId, selectedMatchIds])
+  }, [teamMatches, selectedMatchId, selectedMatchIds, invertedView])
 
   // Aggregated analysis for visible matches
   const aggregatedAnalysis = useMemo(() => {
@@ -168,6 +198,7 @@ export function MatchStoreProvider({ children }) {
 
   // Select a subset of matches for aggregated analysis and jump to analysis tab
   const selectMatchesForAnalysis = useCallback((ids) => {
+    setInvertedId(null)
     if (!ids || ids.length === 0) {
       setSelectedMatchIds([])
       setSelectedMatchId('all')
@@ -183,6 +214,7 @@ export function MatchStoreProvider({ children }) {
 
   // Toggle selection of a specific match
   const toggleMatchSelection = useCallback((id) => {
+    setInvertedId(null)
     setSelectedMatchIds(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
       if (next.length === 0) {
@@ -195,6 +227,30 @@ export function MatchStoreProvider({ children }) {
       return next
     })
   }, [])
+
+  // Show the analysis of a saved match from the opponent's point of view, without changing the archive
+  const viewInverted = useCallback(match => {
+    if (!match) return
+    const id = match.invertedView ? null : match.id
+    if (!id) {
+      // already inverted: back to the match as saved
+      const original = matches.find(m => m.id === match.id)
+      setInvertedId(null)
+      if (original) {
+        setSelectedTeam(original.team)
+        setSelectedMatchId(original.id)
+      }
+    } else {
+      setSelectedTeam(match.team)
+      setSelectedMatchId(id)
+      setInvertedId(id)
+    }
+    setActiveTab('analysis')
+  }, [matches])
+  const closeInvertedView = useCallback(() => setInvertedId(null), [])
+
+  // The match as saved in the archive (for the inverted view: the original, not the swapped copy)
+  const savedMatch = useCallback(match => (match?.invertedView ? matches.find(m => m.id === match.id) || null : match), [matches])
 
   // Read a new PDF scoresheet file
   const readPdfFile = useCallback(async (file) => {
@@ -284,6 +340,7 @@ export function MatchStoreProvider({ children }) {
         return [...filtered, savedMatch].sort((a, b) => a.date.localeCompare(b.date))
       })
       setLatestMatchId(customDraft.id)
+      setInvertedId(null)
       setFilters(emptyFilters)
       setSelectedTeam(customDraft.team)
       setSelectedMatchId(customDraft.id)
@@ -300,8 +357,14 @@ export function MatchStoreProvider({ children }) {
     }
   }, [draft])
 
-  // Update existing match
-  const updateMatch = useCallback(async (match) => {
+  // Update existing match. From the inverted view (setters, setter choices) the change is saved on the
+  // match as stored, with the teams swapped back: the archive never takes the inverted perspective.
+  const updateMatch = useCallback(async (input) => {
+    let match = input
+    if (input?.invertedView) {
+      match = swapTeams(input)
+      delete match.invertedView
+    }
     const issues = validateMatch(match)
     if (issues.length) {
       setError(issues.join(' '))
@@ -333,6 +396,7 @@ export function MatchStoreProvider({ children }) {
     try {
       await dbDeleteMatch(id)
       setMatches(prev => prev.filter(m => m.id !== id))
+      setInvertedId(current => (current === id ? null : current))
       if (selectedMatchId === id) setSelectedMatchId('all')
       setMessage('Referto e analisi rimossi dall’archivio locale.')
       return true
@@ -399,9 +463,9 @@ export function MatchStoreProvider({ children }) {
     teams,
     activeTeam,
     selectedTeam,
-    setSelectedTeam,
+    setSelectedTeam: selectTeam,
     selectedMatchId,
-    setSelectedMatchId,
+    setSelectedMatchId: selectMatch,
     latestMatchId,
     setLatestMatchId,
     selectedMatchIds,
@@ -432,12 +496,18 @@ export function MatchStoreProvider({ children }) {
     deleteMatch,
     exportBackup,
     importArchive,
+    invertedView,
+    viewInverted,
+    closeInvertedView,
+    savedMatch,
   }), [
     matches, filteredMatches, filters, updateFilters,
     teams,
     activeTeam,
     selectedTeam,
+    selectTeam,
     selectedMatchId,
+    selectMatch,
     latestMatchId,
     selectedMatchIds,
     sortedTeamMatches,
@@ -462,6 +532,10 @@ export function MatchStoreProvider({ children }) {
     deleteMatch,
     exportBackup,
     importArchive,
+    invertedView,
+    viewInverted,
+    closeInvertedView,
+    savedMatch,
   ])
 
   return (
