@@ -26,11 +26,12 @@ export function compareVersions(a, b) {
   return 0
 }
 
-// Mobile: what to open for a release (signed APK first, then the debug one; the release page otherwise)
+// Mobile: what to open for a release (the signed APK; the release page otherwise). The debug APK is never
+// offered: it is signed with another key and cannot be installed over the app.
 export function mobileDownload(release, platform) {
   if (platform === 'android') {
     const assets = release.assets || []
-    const apk = assets.find(a => /android-universal\.apk$/.test(a.name)) || assets.find(a => /android-universal-debug\.apk$/.test(a.name))
+    const apk = assets.find(a => /android-universal\.apk$/.test(a.name))
     if (apk) return apk.browser_download_url
   }
   return release.html_url

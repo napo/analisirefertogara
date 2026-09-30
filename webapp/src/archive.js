@@ -136,7 +136,8 @@ const MAX_ENTRIES = 5000
 const MAX_EXPANDED = 1024 * 1024 * 1024 // 1 GB once decompressed: beyond this the file is refused
 const MAX_JSON = 64 * 1024 * 1024
 const MAX_RATIO = 200 // compression ratio above which a large entry is treated as a decompression bomb
-const ID = /^[a-f0-9]{64}$/
+// 64 hex characters; 32 for matches imported by earlier versions without crypto.subtle (fallback hash)
+const ID = /^(?:[a-f0-9]{64}|[a-f0-9]{32})$/
 const PDF_PATH = /^pdf\/[A-Za-z0-9._-]+\.pdf$/
 
 // Relative path inside the archive, without "..", absolute paths, drive letters or backslashes
@@ -519,7 +520,7 @@ const SCHEMA = {
       type: 'object',
       required: ['id', 'team', 'opponent', 'date', 'sets'],
       properties: {
-        id: { type: 'string', pattern: '^[a-f0-9]{64}$', description: 'SHA-256 del PDF originale (o identificativo della gara manuale)' },
+        id: { type: 'string', pattern: '^([a-f0-9]{64}|[a-f0-9]{32})$', description: 'SHA-256 del PDF originale (o identificativo della gara manuale; 32 caratteri per gare importate da versioni precedenti senza SHA-256)' },
         sourceFormat: { type: 'string', description: 'FIPAV (NEWBIT), SNUG, TBT (TieBreakTech); assente per le gare manuali' },
         team: { type: 'string', description: 'Squadra analizzata' },
         opponent: { type: 'string' },

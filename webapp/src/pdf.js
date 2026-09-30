@@ -3,28 +3,9 @@ import './polyfills'
 // URL.parse, ...), in the page and in the worker
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { parseItems, supportedSoftwareList } from './pdf-parser.js'
+import { hashBuffer } from './hash.js'
 // Worker created by the app (pdf-worker.js loads the polyfills, then pdf.js); one for the whole session
 GlobalWorkerOptions.workerPort = new Worker(new URL('./pdf-worker.js', import.meta.url), { type: 'module' })
-
-function fallbackHash(bytes) {
-  let first = 2166136261
-  let second = 2246822519
-  for (const byte of bytes) {
-    first = Math.imul(first ^ byte, 16777619)
-    second = Math.imul(second ^ byte, 2246822519)
-  }
-  return [first, second, bytes.length, first ^ second]
-    .map(value => (value >>> 0).toString(16).padStart(8, '0'))
-    .join('')
-}
-
-async function hashBuffer(buffer) {
-  if (globalThis.crypto?.subtle) {
-    const digest = await globalThis.crypto.subtle.digest('SHA-256', buffer)
-    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
-  }
-  return fallbackHash(new Uint8Array(buffer))
-}
 
 // Scoresheets without text (pages printed as images): the TieBreakTech template is read with OCR,
 // loaded only when needed

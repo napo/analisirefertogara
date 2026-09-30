@@ -1,8 +1,8 @@
 // Who is on court in each rally, position by position (I–VI), applying the substitutions of the
 // scoresheet: the starter plays until the entry score of the substitute; the substitute plays until the
 // score at which the starter comes back (exit and re-entry). Only data of the scoresheet are used.
-// Libero replacements carry no score on the scoresheet: they cannot be placed in time and are not applied
-// (the player replaced by the libero is counted on court).
+// Libero replacements carry no score on the scoresheet: they are not applied here (the player replaced by
+// the libero is counted on court); rally-state.js places the libero on top of these nominal occupants.
 import { setRallies } from './rallies.js'
 
 const norm = value => {

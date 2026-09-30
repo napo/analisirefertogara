@@ -29,13 +29,16 @@ export function createBlankSet(number) {
   }
 }
 
+// Today's date (local time) as YYYY-MM-DD
+const today = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+
 export function createBlankMatch() {
   const hash = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join('')
   return {
     id: hash,
     team: '',
     opponent: '',
-    date: '2027-02-20',
+    date: today(),
     location: '',
     venue: '',
     number: '',
@@ -341,7 +344,6 @@ export function MatchStoreProvider({ children }) {
     }
   }, [selectedMatchId])
 
-  // Export JSON backup with embedded PDFs
   // Export the archive (all matches, or the selected ones) as a .zrv file (ZIP: documented JSON, CSV
   // tables, original PDFs)
   const exportBackup = useCallback(async (selected = matches) => {
