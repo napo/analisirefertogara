@@ -116,7 +116,11 @@ function ComparisonGrid({ comparison, team, opponent, selected = null, onSelect 
         <caption className="vs-sr-only">P di {team} (righe) contro P di {opponent} (colonne): rally in fase BP e in fase CP, {measureName(comparison.measure)}</caption>
         <thead>
           <tr>
-            <th scope="col" className="vs-rc-axis">{team} ↓<br />{opponent} →</th>
+            {/* corner split by a diagonal: columns team top right, rows team bottom left */}
+            <th scope="col" className="vs-rc-axis">
+              <span className="vs-rc-axis-cols">P di {opponent} →</span>
+              <span className="vs-rc-axis-rows">↓ P di {team}</span>
+            </th>
             {[0, 1, 2, 3, 4, 5].map(col => (
               <th scope="col" key={col}><PBadge P={col + 1} /><MostFrequentFormation states={comparisonStates(comparison, 6, col)} team="other" /></th>
             ))}

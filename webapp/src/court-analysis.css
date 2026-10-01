@@ -65,7 +65,11 @@
 .vs-rc-grid th { font-size: .8rem; padding: 2px; text-align: center; vertical-align: bottom; color: #142636; }
 .vs-rc-grid th.vs-rc-row { text-align: left; vertical-align: middle; width: 108px; }
 .vs-rc-grid thead th:first-child { width: 108px; }
-.vs-rc-axis { font-size: .7rem !important; font-weight: 400; color: var(--vs-muted) !important; text-align: left !important; vertical-align: middle !important; overflow-wrap: anywhere; }
+.vs-rc-axis { position: relative; height: 5.2rem; padding: 0 !important; font-size: .66rem !important; font-weight: 700; color: #142636 !important; line-height: 1.2;
+  background: linear-gradient(to top right, transparent calc(50% - 1px), #8a959e calc(50% - 1px), #8a959e calc(50% + 1px), transparent calc(50% + 1px)); }
+.vs-rc-axis-cols, .vs-rc-axis-rows { position: absolute; max-width: 72%; overflow-wrap: anywhere; }
+.vs-rc-axis-cols { top: 3px; right: 4px; text-align: right; }
+.vs-rc-axis-rows { bottom: 3px; left: 4px; text-align: left; }
 .vs-rc-rowhead { display: grid; gap: .2rem; justify-items: start; padding: .2rem .35rem; border: 2px solid transparent; border-radius: 8px; }
 .vs-rc-rowhead.best { border-color: #2E7D32; }
 .vs-rc-rowhead.worst { border-color: #C62828; }
