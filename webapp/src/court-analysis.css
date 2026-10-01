@@ -63,11 +63,12 @@
 .vs-rc-dc-key { font-size: .68rem; border: 1px dashed; border-radius: 4px; padding: 0 .25rem; margin-right: .3rem; }
 .vs-rc-grid { border-collapse: separate; border-spacing: 4px; width: 100%; min-width: 780px; table-layout: fixed; font-variant-numeric: tabular-nums; }
 .vs-rc-grid th { font-size: .8rem; padding: 2px; text-align: center; vertical-align: bottom; color: #142636; }
-.vs-rc-grid th.vs-rc-row { text-align: left; vertical-align: middle; width: 108px; }
-.vs-rc-grid thead th:first-child { width: 108px; }
-.vs-rc-axis { position: relative; height: 5.2rem; padding: 0 !important; font-size: .66rem !important; font-weight: 700; color: #142636 !important; line-height: 1.2;
+.vs-rc-grid th.vs-rc-row { text-align: left; vertical-align: middle; width: 132px; }
+.vs-rc-grid thead th:first-child { width: 132px; }
+.vs-rc-axis { position: relative; height: 6.4rem; padding: 0 !important; font-size: .66rem !important; font-weight: 700; color: #142636 !important; line-height: 1.2;
   background: linear-gradient(to top right, transparent calc(50% - 1px), #8a959e calc(50% - 1px), #8a959e calc(50% + 1px), transparent calc(50% + 1px)); }
-.vs-rc-axis-cols, .vs-rc-axis-rows { position: absolute; max-width: 72%; overflow-wrap: anywhere; }
+/* a label anchored to a corner (width w, height h) stays clear of the diagonal while h / height < w / width */
+.vs-rc-axis-cols, .vs-rc-axis-rows { position: absolute; width: 56%; overflow-wrap: anywhere; }
 .vs-rc-axis-cols { top: 3px; right: 4px; text-align: right; }
 .vs-rc-axis-rows { bottom: 3px; left: 4px; text-align: left; }
 .vs-rc-rowhead { display: grid; gap: .2rem; justify-items: start; padding: .2rem .35rem; border: 2px solid transparent; border-radius: 8px; }
@@ -141,4 +142,4 @@ button.vs-rc-cell:focus-visible, button.vs-rc-cell[aria-pressed="true"] { outlin
 .vs-rc-grid.compact .vs-rc-more { display: none; }
 .vs-rc-grid.compact .vs-rc-cell { min-height: 40px; padding: 4px 5px; gap: 3px; }
 .vs-rc-grid.compact .vs-rc-formation { font-size: .62rem; }
-.vs-rc-grid.compact th.vs-rc-row, .vs-rc-grid.compact thead th:first-child { width: 128px; }
+.vs-rc-grid.compact th.vs-rc-row, .vs-rc-grid.compact thead th:first-child { width: 132px; }
