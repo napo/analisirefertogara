@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany } from './storage'
-import { ARCHIVE_MIME, archiveFileName, buildArchive, importSummary, planImport } from './archive.js'
+import { ARCHIVE_EXTENSION, ARCHIVE_MIME, archiveFileName, buildArchive, importSummary, planImport } from './archive.js'
 import { APP_VERSION } from './version.js'
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
 import { emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
 import { emptyFilters, filterMatches } from './match-filters'
 import { swapTeams } from './match-teams.js'
+import { saveFile, savedMessage } from './save-file.js'
 
 export function createBlankSet(number) {
   return {
@@ -415,13 +416,8 @@ export function MatchStoreProvider({ children }) {
     try {
       const bytes = await buildArchive(chosen, { appVersion: APP_VERSION })
       const blob = new Blob([bytes], { type: ARCHIVE_MIME })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = archiveFileName()
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      setMessage(`Archivio esportato: ${chosen.length} ${chosen.length === 1 ? 'gara' : 'gare'}.`)
+      const saved = await saveFile(blob, archiveFileName(), { filters: [{ name: 'Archivio Referto Volley', extensions: [ARCHIVE_EXTENSION] }] })
+      if (saved) setMessage(savedMessage(`Archivio (${chosen.length} ${chosen.length === 1 ? 'gara' : 'gare'})`, saved))
     } catch (e) {
       setError(`Errore durante l’esportazione: ${e.message}`)
     }

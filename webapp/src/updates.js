@@ -67,6 +67,19 @@ export async function checkForUpdate(currentVersion, { fetchImpl = globalThis.fe
   return { kind: 'mobile', version: String(release.tag_name).replace(/^v/i, ''), notes: '', url: mobileDownload(release, platform) }
 }
 
+// Version of the last start: when the app starts with a newer version, it has just been updated
+const LAST_VERSION_SETTING = 'referto-volley.last-version'
+// Returns the version of the previous start (null the first time) and stores the current one
+export function swapLastVersion(currentVersion) {
+  try {
+    const previous = globalThis.localStorage?.getItem(LAST_VERSION_SETTING) || null
+    globalThis.localStorage?.setItem(LAST_VERSION_SETTING, String(currentVersion))
+    return previous
+  } catch {
+    return null
+  }
+}
+
 // Desktop: download, install (the user already confirmed) and restart. onProgress(0..1 or null)
 export async function installUpdate(info, onProgress = () => {}) {
   let total = 0, received = 0

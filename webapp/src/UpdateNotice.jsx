@@ -1,13 +1,20 @@
 // Notice of a new version in the installed apps: the user decides whether to update.
 import { useEffect, useState } from 'react'
 import { APP_VERSION } from './version.js'
-import { checkForUpdate, installUpdate, isTauriApp, openDownload, setUpdateChecksEnabled, updateChecksEnabled } from './updates.js'
+import ExternalLink from './ExternalLink.jsx'
+import { PAYPAL_DONATION_URL } from './config.js'
+import { checkForUpdate, compareVersions, installUpdate, isTauriApp, openDownload, setUpdateChecksEnabled, swapLastVersion, updateChecksEnabled } from './updates.js'
 
 export default function UpdateNotice() {
   const [update, setUpdate] = useState(null)
   const [state, setState] = useState('idle') // idle | installing | error
   const [progress, setProgress] = useState(null)
   const [dismissed, setDismissed] = useState(false)
+  // first start after an update (installed apps only): thank the user once
+  const [thanks, setThanks] = useState(() => {
+    const previous = swapLastVersion(APP_VERSION)
+    return isTauriApp() && Boolean(previous) && compareVersions(APP_VERSION, previous) > 0
+  })
 
   useEffect(() => {
     if (!updateChecksEnabled()) return
@@ -17,6 +24,20 @@ export default function UpdateNotice() {
     return () => { active = false }
   }, [])
 
+  const donation = PAYPAL_DONATION_URL && (
+    <ExternalLink href={PAYPAL_DONATION_URL} className="vs-btn vs-btn-sm vs-btn-secondary">Fai una donazione</ExternalLink>
+  )
+  if (thanks) return (
+    <div className="vs-update-notice" role="status" aria-live="polite">
+      <div>
+        <strong>La nuova versione di Referto Volley è stata aggiornata.</strong> Se il progetto ti piace e vuoi sostenerlo fai una donazione.
+      </div>
+      <div className="vs-update-actions">
+        {donation}
+        <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => setThanks(false)}>Chiudi</button>
+      </div>
+    </div>
+  )
   if (!update || dismissed) return null
   const install = async () => {
     if (update.kind === 'mobile') {
@@ -33,7 +54,7 @@ export default function UpdateNotice() {
   return (
     <div className="vs-update-notice" role="status" aria-live="polite">
       <div>
-        <strong>È disponibile Referto Volley {update.version}</strong> (versione installata: {APP_VERSION}).
+        <strong>Hai una nuova versione ({update.version}). Vuoi aggiornarla?</strong> Versione installata: {APP_VERSION}.
         {state === 'installing' && <span> {progress === null ? 'Scaricamento in corso…' : progress < 1 ? `Scaricamento ${Math.round(progress * 100)}%…` : 'Installazione: l’app si riavvierà.'}</span>}
         {state === 'error' && <span> Aggiornamento non riuscito: riprova più tardi o scarica la nuova versione dalla pagina delle release.</span>}
         {update.kind === 'mobile' && state !== 'error' && <span> Si apre il download: conferma l’installazione sul dispositivo.</span>}
@@ -42,6 +63,7 @@ export default function UpdateNotice() {
         <button type="button" className="vs-btn vs-btn-sm vs-btn-primary" disabled={state === 'installing'} onClick={install}>
           {update.kind === 'mobile' ? 'Scarica la nuova versione' : 'Aggiorna ora'}
         </button>
+        {donation}
         <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" disabled={state === 'installing'} onClick={() => setDismissed(true)}>
           Più tardi
         </button>

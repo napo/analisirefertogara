@@ -25,6 +25,7 @@ import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
 import { AboutProject, PrivacyCard, SupportCard } from './AboutProject.jsx'
 import ExternalLink from './ExternalLink.jsx'
+import { saveFile, savedMessage } from './save-file.js'
 import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
 import './App.css'
 
@@ -295,8 +296,8 @@ function MainApp() {
         ? `${visibleMatches[0].team}_vs_${visibleMatches[0].opponent}_${visibleMatches[0].date}`
         : `${activeTeam}_Aggregato_${visibleMatches.length}_Gare`
       const filename = `Report-Referto-Volley-${matchLabel.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`
-      pdf.save(filename)
-      setMessage(`Report PDF esportato con successo: ${filename}`)
+      const saved = await saveFile(pdf.output('blob'), filename, { filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+      if (saved) setMessage(savedMessage('Report PDF', saved))
     } catch (err) {
       console.error('Errore esportazione PDF:', err)
       setError(`Errore durante l'esportazione del PDF: ${err.message}`)
