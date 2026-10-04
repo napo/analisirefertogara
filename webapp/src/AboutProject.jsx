@@ -2,13 +2,54 @@
 // voluntary support. Links come from config.js; the PayPal button appears only when a link is configured
 // and is a plain link with the PayPal wordmark stored in the app (no PayPal script, widget or remote image:
 // nothing is requested from PayPal until the user opens it).
+import { useEffect, useState } from 'react'
 import ExternalLink from './ExternalLink.jsx'
+import { fetchLatestDownloads } from './downloads.js'
 import paypalLogo from './assets/paypal.svg'
 import {
-  AUTHOR_NAME, AUTHOR_URL, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, SOURCE_REPOSITORY_URL,
+  AUTHOR_NAME, AUTHOR_URL, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, SOURCE_REPOSITORY_URL, WEB_APP_URL,
   externalUrl, releaseUrl,
 } from './config.js'
 import { APP_VERSION } from './version.js'
+
+// Download section: invites to use the web version and lists the packages of the latest GitHub release,
+// read when the page opens (only the release list is requested; nothing about the matches is sent).
+export function DownloadSection({ webUrl = WEB_APP_URL, releasesUrl = `${SOURCE_REPOSITORY_URL}/releases/latest` }) {
+  const [latest, setLatest] = useState(null)
+  useEffect(() => {
+    let active = true
+    // offline or GitHub not reachable: only the link to the releases page is shown
+    fetchLatestDownloads().then(found => { if (active) setLatest(found) }).catch(() => {})
+    return () => { active = false }
+  }, [])
+  const groups = latest?.groups || []
+  return (
+    <>
+      <h2 className="vs-about-heading">Download</h2>
+      <p>
+        Il modo più semplice è usare Referto Volley direttamente dal browser, senza installare nulla:{' '}
+        <ExternalLink href={webUrl}>apri la versione web</ExternalLink>. Se non è possibile, scarica l’applicazione da GitHub
+        {latest ? <> (versione {latest.version})</> : null}:
+      </p>
+      {groups.length > 0 ? (
+        <ul className="vs-about-list">
+          {groups.map(group => (
+            <li key={group.platform}>
+              <strong>{group.platform}</strong>:{' '}
+              {group.files.map((file, index) => (
+                <span key={file.name}>{index > 0 ? ' · ' : ''}<ExternalLink href={file.url}>{file.label}</ExternalLink></span>
+              ))}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p>
+        Tutte le versioni e le istruzioni di installazione sono nella{' '}
+        <ExternalLink href={releasesUrl}>pagina delle release su GitHub</ExternalLink>.
+      </p>
+    </>
+  )
+}
 
 export function AboutProject({ version = APP_VERSION }) {
   return (
@@ -35,6 +76,7 @@ export function AboutProject({ version = APP_VERSION }) {
         <dt>Versione</dt>
         <dd><ExternalLink href={releaseUrl(version)}>{version}</ExternalLink></dd>
       </dl>
+      <DownloadSection />
       <h2 className="vs-about-heading">Origini</h2>
       <p>
         Referto Volley riprende e sviluppa l’idea del foglio Excel realizzato da Andrea Fortunati per analizzare
@@ -66,8 +108,8 @@ export function PrivacyCard() {
           Font, script e risorse sono distribuiti con l’applicazione, non caricati da servizi esterni.
         </li>
         <li>
-          Le applicazioni installate chiedono a GitHub solo il numero dell’ultima versione pubblicata (disattivabile qui sopra):
-          nessun dato delle gare lascia il dispositivo.
+          Le applicazioni installate chiedono a GitHub solo il numero dell’ultima versione pubblicata (disattivabile qui sopra),
+          e la pagina Informazioni legge da GitHub l’elenco dei file da scaricare: nessun dato delle gare lascia il dispositivo.
         </li>
       </ul>
     </div>

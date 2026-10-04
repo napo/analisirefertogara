@@ -68,3 +68,16 @@ test('release scripts: latest.json lists only signed packages, with the platform
   assert.equal(manifest.platforms['darwin-x86_64-app'].signature, 'SIG-INTEL')
   assert.equal(manifest.platforms['linux-x86_64'].signature, 'SIG-APPIMAGE')
 })
+
+import { groupDownloads } from '../src/downloads.js'
+test('downloads: packages of a release grouped by platform, signatures and manifests skipped', () => {
+  const asset = name => ({ name, browser_download_url: `https://example.org/${name}` })
+  const groups = groupDownloads({ assets: [
+    'latest.json', 'Referto.Volley_0.19.0_x64.dmg', 'Referto.Volley_0.19.0_x64-setup.exe.sig', 'Referto.Volley_0.19.0_x64-setup.exe',
+    'Referto.Volley_0.19.0_android-universal.apk', 'Referto.Volley_0.19.0_aarch64.dmg', 'Referto.Volley_0.19.0_amd64.AppImage',
+  ].map(asset) })
+  assert.deepEqual(groups.map(g => g.platform), ['Windows', 'macOS', 'Linux', 'Android'])
+  assert.deepEqual(groups[1].files.map(f => f.label), ['Apple Silicon (M1 e successivi)', 'Intel'])
+  assert.equal(groups[0].files.length, 1)
+  assert.deepEqual(groupDownloads(null), [])
+})

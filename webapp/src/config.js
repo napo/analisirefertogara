@@ -3,6 +3,8 @@
 export const AUTHOR_NAME = 'Maurizio Napolitano'
 export const AUTHOR_URL = 'https://github.com/napo'
 export const SOURCE_REPOSITORY_URL = 'https://github.com/napo/analisirefertogara'
+// Web version (GitHub Pages, see .github/workflows/deploy-pages.yml)
+export const WEB_APP_URL = 'https://napo.github.io/analisirefertogara/'
 export const LICENSE_URL = `${SOURCE_REPOSITORY_URL}/blob/main/LICENSE`
 export const LICENSE_NAME = 'GNU Affero General Public License v3.0 or later'
 export const LICENSE_SPDX = 'AGPL-3.0-or-later'
