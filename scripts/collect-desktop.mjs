@@ -23,7 +23,7 @@ let copied = 0
 for (const path of walk(bundle)) {
   const name = basename(path)
   let destination = null
-  if (/(\.exe|\.msi|\.dmg|\.deb|\.AppImage)(\.sig)?$/.test(name)) destination = clean(name)
+  if (/(\.exe|\.msi|\.dmg|\.deb|\.rpm|\.AppImage)(\.sig)?$/.test(name)) destination = clean(name)
   else if (/\.app\.tar\.gz(\.sig)?$/.test(name)) destination = clean(`Referto Volley_${version}_${arch}.app.tar.gz${name.endsWith('.sig') ? '.sig' : ''}`)
   if (!destination) continue
   copyFileSync(path, join(out, destination))

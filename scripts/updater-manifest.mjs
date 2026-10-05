@@ -17,6 +17,7 @@ const RULES = [
   [/_x64\.app\.tar\.gz$/, ['darwin-x86_64-app', 'darwin-x86_64']],
   [/\.AppImage$/, ['linux-x86_64-appimage', 'linux-x86_64']],
   [/\.deb$/, ['linux-x86_64-deb']],
+  [/\.rpm$/, ['linux-x86_64-rpm']],
 ]
 
 const platforms = {}

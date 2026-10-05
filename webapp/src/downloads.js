@@ -7,8 +7,9 @@ const RULES = [
   { platform: 'Windows', note: 'Installer (.exe / .msi)', test: /\.(exe|msi)$/i, label: name => (/\.msi$/i.test(name) ? 'msi' : 'exe') },
   { platform: 'macOS', note: 'Immagine disco (.dmg)', test: /_aarch64\.dmg$/i, label: () => 'Apple Silicon' },
   { platform: 'macOS', note: 'Immagine disco (.dmg)', test: /_x64\.dmg$/i, label: () => 'Intel' },
-  { platform: 'Linux', note: 'AppImage, .deb', test: /\.AppImage$/i, label: () => 'AppImage' },
-  { platform: 'Linux', note: 'AppImage, .deb', test: /\.deb$/i, label: () => 'deb' },
+  { platform: 'Linux', note: 'AppImage, .deb, .rpm', test: /\.AppImage$/i, label: () => 'AppImage' },
+  { platform: 'Linux', note: 'AppImage, .deb, .rpm', test: /\.deb$/i, label: () => 'deb' },
+  { platform: 'Linux', note: 'AppImage, .deb, .rpm', test: /\.rpm$/i, label: () => 'rpm' },
   { platform: 'Android', note: 'Pacchetto APK', test: /android-universal(-debug)?\.apk$/i, label: () => 'apk' },
   { platform: 'iPhone e iPad', note: 'IPA non firmato (sideloading)', test: /iOS-unsigned\.ipa$/i, label: () => 'ipa' },
 ]
