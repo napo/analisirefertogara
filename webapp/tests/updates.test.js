@@ -77,7 +77,7 @@ test('downloads: packages of a release grouped by platform, signatures and manif
     'Referto.Volley_0.19.0_android-universal.apk', 'Referto.Volley_0.19.0_aarch64.dmg', 'Referto.Volley_0.19.0_amd64.AppImage',
   ].map(asset) })
   assert.deepEqual(groups.map(g => g.platform), ['Windows', 'macOS', 'Linux', 'Android'])
-  assert.deepEqual(groups[1].files.map(f => f.label), ['Apple Silicon (M1 e successivi)', 'Intel'])
+  assert.deepEqual(groups[1].files.map(f => f.label), ['Apple Silicon', 'Intel'])
   assert.equal(groups[0].files.length, 1)
   assert.deepEqual(groupDownloads(null), [])
 })

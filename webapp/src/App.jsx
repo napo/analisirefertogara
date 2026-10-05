@@ -23,7 +23,7 @@ import AthletesTable from './AthletesTable'
 import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './GlossaryView'
 import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
-import { AboutProject, PrivacyCard, SupportCard } from './AboutProject.jsx'
+import { AboutProject, DownloadSection, PrivacyCard, SupportCard } from './AboutProject.jsx'
 import ExternalLink from './ExternalLink.jsx'
 import { saveFile, savedMessage } from './save-file.js'
 import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
@@ -1714,6 +1714,8 @@ function MainApp() {
             <SupportCard />
 
             <AboutProject />
+
+            <DownloadSection />
 
             <div className="vs-card">
               <h2 className="vs-card-title">Come funziona l’analisi</h2>

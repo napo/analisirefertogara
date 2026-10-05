@@ -78,15 +78,10 @@ export function UpdateSettings() {
   const app = isTauriApp()
   return (
     <div className="vs-card">
-      <h2 className="vs-card-title">Aggiornamenti delle applicazioni</h2>
+      <h2 className="vs-card-title">Aggiornamenti</h2>
       <p>
-        Le applicazioni per Windows, macOS, Linux, Android e iPhone controllano all’avvio se è uscita una nuova versione.
-        Viene chiesto a GitHub solo il numero dell’ultima versione pubblicata: nessun dato delle gare lascia il dispositivo.
-        Se c’è una novità compare un avviso e sei tu a decidere se aggiornare.
-      </p>
-      <p>
-        Su Windows, macOS e Linux l’aggiornamento viene scaricato, verificato con la firma del progetto e installato, poi l’app si riavvia.
-        Su Android e iPhone l’avviso apre il download della nuova versione, da installare come la prima volta. La versione web è sempre aggiornata.
+        Le app installate controllano all’avvio se c’è una nuova versione e ti avvisano: decidi tu se aggiornare.
+        Viene letto da GitHub solo il numero dell’ultima versione, nessun dato delle gare lascia il dispositivo.
       </p>
       {app ? (
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>

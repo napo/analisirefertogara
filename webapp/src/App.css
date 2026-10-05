@@ -1977,3 +1977,13 @@
   .vs-about-facts { grid-template-columns: 1fr; gap: 0.1rem; }
   .vs-about-facts dd { margin-bottom: 0.4rem; }
 }
+
+/* Informazioni: download cards per platform */
+.vs-download-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0 1rem; }
+.vs-download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.vs-download-card { padding: .8rem 1rem; border: 1px solid var(--vs-border); border-left: 4px solid var(--vs-accent); border-radius: var(--vs-radius); background: var(--vs-surface); }
+.vs-download-card h3 { margin: 0 0 .15rem; font-size: 1rem; color: var(--vs-heading); }
+.vs-download-card p { margin: 0 0 .6rem; font-size: .85rem; color: var(--vs-muted); }
+.vs-download-chips { display: flex; gap: .4rem; flex-wrap: wrap; }
+.vs-download-chip { padding: .15rem .7rem; border: 1px solid var(--vs-accent); border-radius: 999px; font-size: .8rem; color: var(--vs-accent); text-decoration: none; }
+.vs-download-chip:hover, .vs-download-chip:focus-visible { background: var(--vs-bg); }

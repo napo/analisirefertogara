@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import ExternalLink from './ExternalLink.jsx'
 import { fetchLatestDownloads } from './downloads.js'
+import { isTauriApp } from './updates.js'
 import paypalLogo from './assets/paypal.svg'
 import {
   AUTHOR_NAME, AUTHOR_URL, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, SOURCE_REPOSITORY_URL, WEB_APP_URL,
@@ -12,8 +13,8 @@ import {
 } from './config.js'
 import { APP_VERSION } from './version.js'
 
-// Download section: invites to use the web version and lists the packages of the latest GitHub release,
-// read when the page opens (only the release list is requested; nothing about the matches is sent).
+// Download section: the packages of the latest GitHub release as one card per platform, read when the page
+// opens (only the release list is requested; nothing about the matches is sent).
 export function DownloadSection({ webUrl = WEB_APP_URL, releasesUrl = `${SOURCE_REPOSITORY_URL}/releases/latest` }) {
   const [latest, setLatest] = useState(null)
   useEffect(() => {
@@ -23,31 +24,36 @@ export function DownloadSection({ webUrl = WEB_APP_URL, releasesUrl = `${SOURCE_
     return () => { active = false }
   }, [])
   const groups = latest?.groups || []
+  const date = latest?.date && new Date(latest.date).toLocaleDateString('it-IT')
   return (
-    <>
-      <h2 className="vs-about-heading">Download</h2>
-      <p>
-        Il modo più semplice è usare Referto Volley direttamente dal browser, senza installare nulla:{' '}
-        <ExternalLink href={webUrl}>apri la versione web</ExternalLink>. Se non è possibile, scarica l’applicazione da GitHub
-        {latest ? <> (versione {latest.version})</> : null}:
-      </p>
-      {groups.length > 0 ? (
-        <ul className="vs-about-list">
+    <div className="vs-card vs-download" id="download">
+      <h2 className="vs-card-title">Scarica</h2>
+      {latest && <p className="vs-card-subtitle">Ultima release: v{latest.version}{date ? ` (${date})` : ''}</p>}
+      <div className="vs-download-actions">
+        {isTauriApp() && <ExternalLink href={webUrl} className="vs-btn vs-btn-primary">Apri la versione web</ExternalLink>}
+        <ExternalLink href={releasesUrl} className={`vs-btn ${isTauriApp() ? 'vs-btn-secondary' : 'vs-btn-primary'}`}>Tutte le release su GitHub</ExternalLink>
+      </div>
+      {groups.length > 0 && (
+        <div className="vs-download-grid">
           {groups.map(group => (
-            <li key={group.platform}>
-              <strong>{group.platform}</strong>:{' '}
-              {group.files.map((file, index) => (
-                <span key={file.name}>{index > 0 ? ' · ' : ''}<ExternalLink href={file.url}>{file.label}</ExternalLink></span>
-              ))}
-            </li>
+            <div className="vs-download-card" key={group.platform}>
+              <h3>{group.platform}</h3>
+              <p>{group.note}</p>
+              <div className="vs-download-chips">
+                {group.files.map(file => (
+                  <ExternalLink key={file.name} href={file.url} className="vs-download-chip" title={file.name}>{file.label}</ExternalLink>
+                ))}
+              </div>
+            </div>
           ))}
-        </ul>
-      ) : null}
-      <p>
-        Tutte le versioni e le istruzioni di installazione sono nella{' '}
-        <ExternalLink href={releasesUrl}>pagina delle release su GitHub</ExternalLink>.
+        </div>
+      )}
+      <p className="vs-card-subtitle">
+        Le build sono prodotte da GitHub Actions a partire dal codice sorgente pubblico. Le build per Windows e macOS non sono
+        firmate da uno sviluppatore registrato: al primo avvio il sistema può mostrare un avviso. Su Android consenti
+        l’installazione dal browser o dal file manager.
       </p>
-    </>
+    </div>
   )
 }
 
@@ -76,7 +82,6 @@ export function AboutProject({ version = APP_VERSION }) {
         <dt>Versione</dt>
         <dd><ExternalLink href={releaseUrl(version)}>{version}</ExternalLink></dd>
       </dl>
-      <DownloadSection />
       <h2 className="vs-about-heading">Origini</h2>
       <p>
         Referto Volley riprende e sviluppa l’idea del foglio Excel realizzato da Andrea Fortunati per analizzare
