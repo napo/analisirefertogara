@@ -118,7 +118,7 @@ Per firma, installazione e limiti delle build consulta [docs/builds.md](docs/bui
 
 La preview PNG da 1200 × 630 è collegata ai metadati Open Graph e Twitter. Può essere usata anche in **Settings → General → Social preview** del repository GitHub. Il logo è riutilizzato anche per le icone Tauri di tutte le piattaforme.
 
-I font variabili Montserrat, Roboto e Rubik e le rispettive licenze sono in `webapp/public/fonts`. Per rigenerare la preview con Python e Pillow:
+I font variabili Montserrat, Roboto e Rubik e le rispettive licenze sono in `webapp/public/fonts`. La preview mette il referto di esempio dietro e il report PDF prodotto dall’app davanti, entrambi presi dai file di esempio nella radice del repository. Per rigenerarla servono Python, Pillow e `pdftoppm` (Poppler):
 
 ```sh
 npm run tauri -- icon webapp/public/favicon.svg
