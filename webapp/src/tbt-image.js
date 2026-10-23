@@ -201,6 +201,39 @@ export function cleanText(image, { charHeight = 22 } = {}) {
   return kept ? { data, width: image.width, height: image.height } : null
 }
 
+// Struck-through text (ended libero exchanges): the line crosses the upper half of the text, as thick as the
+// strokes of the digits, broken only between characters. The rows of the band are whitened except where a
+// stroke of a digit crosses it (ink right above and right below the band).
+export function removeStrike(image) {
+  const { width, height } = image
+  const ink = (x, y) => image.data[y * width + x] < DARK
+  const rows = [], counts = []
+  let first = width, last = -1
+  for (let y = 0; y < height; y++) {
+    let count = 0
+    for (let x = 0; x < width; x++) if (ink(x, y)) { count++; first = Math.min(first, x); last = Math.max(last, x) }
+    counts.push(count)
+    if (count) rows.push(y)
+  }
+  const top = rows[0], bottom = rows.at(-1)
+  // an exchange has at least three characters ("3-6"): wider than tall
+  if (rows.length < 5 || last - first < bottom - top) return image
+  // a full row of the band, away from the top and bottom rows of the digits (also long horizontal strokes)
+  const full = y => y > top + 1 && y < top + (bottom - top) * 0.6 && counts[y] >= (last - first + 1) * 0.75
+  const band = rows.filter(full)
+  if (!band.length || band.at(-1) - band[0] > 3) return image
+  const data = image.data.slice()
+  const above = band[0] - 1, below = band.at(-1) + 1
+  for (const y of band) {
+    for (let x = 0; x < width; x++) {
+      const crossing = [-1, 0, 1].some(dx => x + dx >= 0 && x + dx < width && ink(x + dx, above)) &&
+        [-1, 0, 1].some(dx => x + dx >= 0 && x + dx < width && ink(x + dx, below))
+      if (!crossing) data[y * width + x] = 255
+    }
+  }
+  return { data, width, height }
+}
+
 // Very small print (page 2): bilinear upscale of the gray levels, then a contrast stretch (gray `low` →
 // black, `high` → white). The OCR engine reads the smooth outlines much better than blocky binarized
 // pixels. A wider horizontal scale and a darker range separate bold digits that touch ("27").

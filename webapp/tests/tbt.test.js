@@ -2,17 +2,20 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { chooseIncreasing, decodeLiberoEntry, parseTbt, valueCost } from '../src/tbt-parser.js'
-import { cleanCell, openInk } from '../src/tbt-image.js'
+import { cleanCell, openInk, removeStrike } from '../src/tbt-image.js'
 import { isTbtPage } from '../src/tbt-reader.js'
 import { validateMatch } from '../src/analysis.js'
 
-// OCR readings (tbt-reader.js with tesseract.js) of two TieBreakTech scoresheets, with every candidate
+// OCR readings (tbt-reader.js with tesseract.js) of TieBreakTech scoresheets, with every candidate
 // reading of each cell. Anonymized: names of athletes and liberos, city, venue, match number and date;
-// in the Under 14 match also the team names and abbreviations. Numbers and scores are the original ones.
+// in the Under 14 match and in the version 2 scoresheet also the team names and abbreviations. Numbers
+// and scores are the original ones.
 const load = name => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)))
 const u14 = parseTbt(load('tbt-u14-readings.json'))
 const serieD = parseTbt(load('tbt-seried-readings.json'))
 const tiebreak = parseTbt(load('tbt-tiebreak-readings.json'))
+// version 2 of the template: one page, libero exchanges in the "LIBERO / UNDER" columns
+const v2 = parseTbt(load('tbt-v2-readings.json'))
 const turns = cells => cells.filter(value => value !== '')
 const subs = list => list.map(s => (s.in ? `${s.in} ${s.scoreIn}>${s.scoreOut}` : ''))
 const numbers = roster => roster.map(p => p.number)
@@ -131,6 +134,43 @@ test('TBT: five sets, court change of the fifth set, small circled letters', () 
   assert.deepEqual(validateMatch(tiebreak), [])
 })
 
+test('TBT version 2: header with full team names and date, result table', () => {
+  assert.equal(v2.team, 'SQUADRA GAMMA VOLLEY ASD')
+  assert.equal(v2.opponent, 'POL. SQUADRA DELTA88')
+  assert.equal(v2.date, '2026-01-17')
+  assert.equal(v2.number, '4321')
+  assert.equal(v2.gender, 'Femminile')
+  assert.equal(v2.championship, 'Terza divisione')
+  assert.deepEqual(v2.sets.map(s => [s.scoreOwn, s.scoreOther, s.durationMinutes]), [[25, 14, 19], [25, 19, 27], [25, 7, 21]])
+  assert.equal(v2.durationMinutes, 67)
+})
+
+test('TBT version 2: panels with smaller cells', () => {
+  assert.deepEqual(v2.sets[0].lineup, ['99', '31', '13', '10', '23', '42'])
+  assert.deepEqual(v2.sets[1].opponentLineup, ['13', '15', '8', '3', '21', '1'])
+  assert.deepEqual(turns(v2.sets[0].own), ['X', 1, 2, 4, 5, 9, 11, 16, 17, 18, 21, 23, 25])
+  assert.deepEqual(turns(v2.sets[0].other), [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14])
+  assert.deepEqual(turns(v2.sets[1].own), [3, 4, 6, 8, 13, 14, 15, 23, 24, 25])
+  assert.deepEqual(turns(v2.sets[1].other), ['X', 2, 3, 4, 5, 6, 7, 8, 10, 19])
+  assert.deepEqual(turns(v2.sets[2].own), ['X', 2, 13, 17, 20, 23, 24, 25])
+  assert.deepEqual(subs(v2.sets[0].substitutions), ['', '1 19:11>', '5 22:13>', '', '8 19:11>', '9 21:11>'])
+  assert.deepEqual(subs(v2.sets[1].opponentSubstitutions), ['20 11:24>', '', '2 6:14>', '', '4 8:18>', ''])
+  assert.deepEqual(v2.sets[1].timeouts, ['24:19', ''])
+  assert.deepEqual(v2.sets[1].opponentTimeouts, ['5:13', '8:22'])
+})
+
+test('TBT version 2: libero exchanges of the panels (struck-through ones too) and rosters', () => {
+  const chains = list => list.filter(r => r.step === 1).map(r => r.raw)
+  assert.deepEqual(chains(v2.sets[0].liberoReplacements), ['99-2', '10-2', '99-2', '10-2'])
+  assert.deepEqual(chains(v2.sets[0].opponentLiberoReplacements), ['13-6', '3-6', '13-6', '3-6', '13-6'])
+  assert.deepEqual(chains(v2.sets[1].liberoReplacements), ['99-2', '12-2', '99-2-16', '12-16'])
+  assert.deepEqual(chains(v2.sets[1].opponentLiberoReplacements), ['13-45', '3-45', '13-45'])
+  assert.deepEqual(chains(v2.sets[2].liberoReplacements), ['10-2', '99-2-16', '10-16'])
+  assert.deepEqual(numbers(v2.roster), [1, 5, 8, 9, 10, 12, 13, 23, 31, 42, 99, 2, 16])
+  assert.deepEqual(numbers(v2.opponentRoster), [1, 2, 3, 4, 8, 13, 15, 18, 20, 21, 46, 6, 45])
+  assert.deepEqual(validateMatch(v2), [])
+})
+
 // Synthetic images: a bold digit-like block crossed by a thin diagonal stroke
 const image = (width, height, paint) => {
   const data = new Uint8Array(width * height).fill(255)
@@ -152,4 +192,19 @@ test('TBT images: template check rejects blank and black pages', () => {
   assert.equal(isTbtPage(image(3309, 2339, () => false)), false)
   assert.equal(isTbtPage(image(3309, 2339, () => true)), false)
   assert.equal(isTbtPage(image(3309, 3309, () => false)), false)
+  assert.equal(isTbtPage(image(3076, 2174, () => false)), false)
+})
+
+test('TBT images: strike-through line removed, crossing strokes kept', () => {
+  // two bars 2 px wide, 10 px high, struck through at rows 3-4 from x = 2 to x = 17
+  const struck = image(20, 14, (x, y) => (y >= 2 && y < 12 && (x === 4 || x === 5 || x === 12 || x === 13)) || ((y === 4 || y === 5) && x >= 2 && x < 18))
+  const clean = removeStrike(struck)
+  const at = (x, y) => clean.data[y * 20 + x]
+  assert.equal(at(8, 4), 255)
+  assert.equal(at(16, 5), 255)
+  assert.equal(at(4, 4), 0)
+  assert.equal(at(13, 5), 0)
+  // nothing to remove: the image is returned as it is
+  const plain = image(20, 14, (x, y) => y >= 2 && y < 12 && (x === 4 || x === 5))
+  assert.equal(removeStrike(plain), plain)
 })

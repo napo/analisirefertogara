@@ -3,8 +3,8 @@
 // image = grayscale { data, width, height }. The same code runs in the browser (tesseract.js on a canvas)
 // and in Node tests. Numeric cells keep all candidate readings: tbt-parser.js picks the ones that respect
 // the rules of the scoresheet (increasing progressions, final points).
-import { DARK, cleanCell, cleanText, cropGray, glyphImage, glyphShape, inkRatio, openInk, scaledImage, shapeSimilarity, smoothImage, splitPair, components } from './tbt-image.js'
-import { HEADER, LIBERO_PAGE, PAGE1_WIDTH, PAGE2_WIDTH, RESULT, ROSTER, SET_PANELS, SIGNATURE_ROWS, cellRows } from './tbt-layout.js'
+import { DARK, cleanCell, cleanText, cropGray, glyphImage, glyphShape, inkRatio, openInk, removeStrike, scaledImage, shapeSimilarity, smoothImage, splitPair, components } from './tbt-image.js'
+import { LAYOUTS, LIBERO_PAGE, PAGE2_WIDTH } from './tbt-layout.js'
 
 const DIGITS = '0123456789'
 const PSM_LINE = 7
@@ -17,16 +17,22 @@ const ENTRY_VARIANTS = [
 ]
 const RESTORE = 2 // steps of ink given back after removing the thin strokes (more would regrow the "/" marks)
 
-// Is this image the TBT page 1 template? The horizontal grid lines must be where expected.
-export function isTbtPage(image) {
-  const s = image.width / PAGE1_WIDTH
-  if (Math.abs(image.height / image.width - 2339 / 3309) > 0.01) return false
+// Which version of the TBT page 1 template is this image (tbt-layout.js)? The horizontal grid lines must be
+// where expected. null: not a TBT page.
+export function detectLayout(image) {
   // mostly white paper (an image decoded as all black would match every line)
   let ink = 0
   for (let i = 0; i < image.data.length; i += 97) if (image.data[i] < DARK) ink++
-  if (ink > image.data.length / 97 * 0.3) return false
-  const x0 = Math.round(530 * s), x1 = Math.round(1030 * s)
-  const hits = SIGNATURE_ROWS.filter(y => {
+  if (ink > image.data.length / 97 * 0.3) return null
+  return LAYOUTS.find(layout => Math.abs(image.height / image.width - layout.ratio) <= 0.01 && signatureMatches(image, layout)) || null
+}
+
+export const isTbtPage = image => detectLayout(image) !== null
+
+function signatureMatches(image, { width, signature }) {
+  const s = image.width / width
+  const x0 = Math.round(signature.x[0] * s), x1 = Math.round(signature.x[1] * s)
+  const hits = signature.rows.filter(y => {
     const row = Math.round(y * s)
     for (let dy = -2; dy <= 2; dy++) {
       let dark = 0
@@ -36,7 +42,7 @@ export function isTbtPage(image) {
     }
     return false
   })
-  return hits.length >= SIGNATURE_ROWS.length - 2
+  return hits.length >= signature.rows.length - 2
 }
 
 // Holes of a glyph (white areas enclosed by ink): "A" has one, "B" two
@@ -175,8 +181,8 @@ export function createReader(ocr) {
     return { text: result.text.replace(/\s+/g, ' ').trim(), confidence: result.confidence }
   }
 
-  async function readSide(image, scale, side, top, rounds) {
-    const { rows, turns, timeouts } = cellRows(rounds)
+  async function readSide(image, scale, layout, side, top, rounds) {
+    const { rows, turns, timeouts } = layout.cellRows(rounds)
     const cell = (c, [a, b], inset = 3) => [side.cols[c] + inset, top + a + inset, side.cols[c + 1] - 1, top + b - inset]
     const result = { lineup: [], entrants: [], scoreIn: [], scoreOut: [], turns: Array(36).fill(null), timeouts: [] }
     for (let c = 0; c < 6; c++) {
@@ -204,26 +210,34 @@ export function createReader(ocr) {
   }
 
   async function readPage1(image, onProgress = () => {}) {
-    const scale = image.width / PAGE1_WIDTH
-    const header = {}
-    for (const [key, rect] of Object.entries(HEADER)) {
+    const layout = detectLayout(image)
+    if (!layout) throw Error('Referto TieBreakTech: modello del referto non riconosciuto.')
+    const scale = image.width / layout.width
+    const header = { version: layout.version }
+    for (const [key, rect] of Object.entries(layout.header)) {
       if (key.startsWith('gender')) continue
       if (['day', 'month', 'year', 'number'].includes(key)) {
         const read = await readDigits(image, rect, scale)
         header[key] = { text: read.text, confidence: read.confidence }
-      } else header[key] = await readText(image, rect, scale)
+      } else if (key === 'date') {
+        // "dd/mm/yyyy" in one field (version 2): split into the fields of version 1
+        const read = await readText(image, rect, scale, { whitelist: `${DIGITS}/` })
+        const parts = read.text.replace(/\s/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)?.slice(1) || ['', '', '']
+        for (const [i, part] of ['day', 'month', 'year'].entries()) header[part] = { text: parts[i], confidence: read.confidence }
+      } else if (key.startsWith('team')) header[key] = await rosterName(image, rect, scale)
+      else header[key] = await readText(image, rect, scale)
     }
-    const male = inkRatio(box(image, HEADER.genderMale, scale)), female = inkRatio(box(image, HEADER.genderFemale, scale))
+    const male = inkRatio(box(image, layout.header.genderMale, scale)), female = inkRatio(box(image, layout.header.genderFemale, scale))
     header.gender = Math.abs(male - female) > 0.03 ? (female > male ? 'Femminile' : 'Maschile') : ''
     onProgress('risultato')
 
     const result = {
-      letters: RESULT.letters.map(rect => readLetter(image, rect, scale)),
+      letters: layout.result.letters.map(rect => readLetter(image, rect, scale)),
       abbreviations: [],
       rows: [],
     }
-    for (const rect of RESULT.abbreviations) result.abbreviations.push(await readText(image, rect, scale))
-    for (const row of RESULT.rows) {
+    for (const rect of layout.result.abbreviations) result.abbreviations.push(await readText(image, rect, scale))
+    for (const row of layout.result.rows) {
       result.rows.push({
         left: await readNumber(image, row.left, scale),
         right: await readNumber(image, row.right, scale),
@@ -232,47 +246,76 @@ export function createReader(ocr) {
     }
 
     const sets = []
-    for (const panel of SET_PANELS) {
+    // version 2: libero exchanges of each set, as page 2 of version 1 gives them
+    const liberos = layout.liberoRows ? [] : null
+    for (const panel of layout.setPanels) {
       onProgress(`set ${panel.set}`)
       const letters = panel.sides.map(side => readLetter(image, side.letter, scale))
-      const lineupInk = panel.sides.some(side => inkRatio(box(image, [side.cols[0], panel.top, side.cols[6], panel.top + 40], scale)) > 0.02)
-      if (!lineupInk) { sets.push({ set: panel.set, played: false }); continue }
+      const { rows, turns } = layout.cellRows(panel.rounds || 4)
+      const lineupInk = panel.sides.some(side => inkRatio(box(image, [side.cols[0], panel.top, side.cols[6], panel.top + rows.lineup[1]], scale)) > 0.02)
+      if (!lineupInk) {
+        sets.push({ set: panel.set, played: false })
+        liberos?.push(panel.sides.map(() => ({ letter: null, entries: [] })))
+        continue
+      }
       const sides = []
-      for (const side of panel.sides) sides.push(await readSide(image, scale, side, panel.top, panel.rounds || 4))
+      for (const side of panel.sides) sides.push(await readSide(image, scale, layout, side, panel.top, panel.rounds || 4))
       const entry = { set: panel.set, played: true, letters, sides }
+      const columns = []
+      if (liberos) for (const [i, side] of panel.sides.entries()) columns.push({ letter: letters[i], entries: await readLiberoColumn(image, scale, layout, side, panel.top) })
       if (panel.courtChange) {
         const cc = panel.courtChange
-        const used = inkRatio(box(image, [cc.cols[0], panel.top + 162, cc.cols[6], panel.top + 284], scale)) > 0.02
+        const used = inkRatio(box(image, [cc.cols[0], panel.top + turns[0][0], cc.cols[6], panel.top + turns.at(-1)[1]], scale)) > 0.02
         if (used) {
           entry.courtChange = {
             letter: readLetter(image, cc.letter, scale),
             points: await readNumber(image, cc.points, scale),
-            side: await readSide(image, scale, cc, panel.top, 3),
+            side: await readSide(image, scale, layout, cc, panel.top, panel.rounds || 4),
           }
+          // the exchanges after the court change continue those of the team
+          const column = columns.find(c => c.letter && c.letter === entry.courtChange.letter)
+          if (column) column.entries.push(...await readLiberoColumn(image, scale, layout, cc, panel.top))
         }
       }
       sets.push(entry)
+      liberos?.push(columns)
     }
 
     onProgress('atleti')
-    const roster = { letters: ROSTER.letters.map(rect => readLetter(image, rect, scale)), teams: [[], []] }
-    const rows = rosterRows(image, scale)
-    for (const [team, columns] of ROSTER.columns.entries()) {
+    const { roster: table } = layout
+    const roster = { letters: table.letters.map(rect => readLetter(image, rect, scale)), teams: [[], []] }
+    const rows = rosterRows(image, scale, table)
+    for (const [team, columns] of table.columns.entries()) {
       for (const [y0, y1] of rows) {
         const number = await rosterNumber(image, [columns.number[0] + 2, y0 + 3, columns.number[1] - 2, y1 - 3], scale)
         if (number.empty) continue
         const name = await rosterName(image, [columns.name[0] + 4, y0 + 4, columns.name[1] - 4, y1 - 4], scale)
         roster.teams[team].push({ number, name })
       }
-      for (const [role, [y0, y1]] of ROSTER.liberoRows.entries()) {
+      for (const [role, [y0, y1]] of table.liberoRows.entries()) {
         const number = await rosterNumber(image, [columns.number[0] + 2, y0 + 2, columns.number[1] - 2, y1 - 2], scale)
         if (number.empty) continue
-        const name = await rosterName(image, [columns.name[0] + 4, y0 + 2, columns.name[1] - 70, y1 - 2], scale)
+        const name = await rosterName(image, [columns.name[0] + 4, y0 + 2, columns.name[1] - table.liberoNameTrim, y1 - 2], scale)
         roster.teams[team].push({ number, name, libero: `L${role + 1}` })
       }
     }
     rosterTemplates(roster.teams.flat())
-    return { header, result, sets, roster }
+    return liberos ? { header, result, sets, roster, liberos } : { header, result, sets, roster }
+  }
+
+  // "LIBERO / UNDER" column of a team panel (version 2): one exchange per row, the left column first.
+  // Ended exchanges are struck through with a thin line, removed before reading.
+  async function readLiberoColumn(image, scale, layout, side, top) {
+    const entries = []
+    for (let c = 0; c < 2; c++) {
+      for (let r = 1; r < layout.liberoRows.length; r++) {
+        const rect = [side.libero[c] + 3, top + layout.liberoRows[r - 1] + 3, side.libero[c + 1] - 3, top + layout.liberoRows[r] - 3]
+        const candidates = await readSmall(image, rect, scale, { whitelist: `${DIGITS}-`, variants: ENTRY_VARIANTS, prepare: removeStrike })
+        if (!candidates.length) return entries
+        entries.push({ candidates, extent: inkExtent(box(image, rect, scale)) / scale })
+      }
+    }
+    return entries
   }
 
   // Jersey numbers of the roster: small thin print. Readings of the glyphs and of smooth enlargements
@@ -329,10 +372,10 @@ export function createReader(ocr) {
   }
 
   // Row lines of the roster table (detected: the rows are not evenly spaced)
-  function rosterRows(image, scale) {
-    const x0 = Math.round(2610 * scale), x1 = Math.round(2840 * scale)
+  function rosterRows(image, scale, table) {
+    const x0 = Math.round(table.lineX[0] * scale), x1 = Math.round(table.lineX[1] * scale)
     const lines = []
-    for (let y = Math.round(ROSTER.area[0] * scale); y < Math.round(ROSTER.area[1] * scale); y++) {
+    for (let y = Math.round(table.area[0] * scale); y < Math.round(table.area[1] * scale); y++) {
       let dark = 0
       for (let x = x0; x < x1; x++) if (image.data[y * image.width + x] < 110) dark++
       if (dark > (x1 - x0) * 0.85 && (!lines.length || y - lines.at(-1) > 6 * scale)) lines.push(y)
@@ -355,9 +398,9 @@ export function createReader(ocr) {
 
   // Page 2 is printed very small (~7 px characters): gray crops upscaled smoothly, read with several
   // scales/modes; candidates sorted by votes (the parser checks them against the rosters)
-  // variants: [scale, psm, smoothImage options]
-  async function readSmall(image, rect, scale, { whitelist = '', variants = [[6, PSM_LINE], [8, PSM_LINE], [10, PSM_LINE]] } = {}) {
-    const crop = box(image, rect, scale)
+  // variants: [scale, psm, smoothImage options]; prepare: applied to the crop first
+  async function readSmall(image, rect, scale, { whitelist = '', variants = [[6, PSM_LINE], [8, PSM_LINE], [10, PSM_LINE]], prepare = crop => crop } = {}) {
+    const crop = prepare(box(image, rect, scale))
     if (crop.data.filter(v => v < DARK).length < 8) return []
     const candidates = []
     for (const [factor, psm, options = {}] of variants) {

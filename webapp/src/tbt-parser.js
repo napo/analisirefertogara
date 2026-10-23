@@ -133,13 +133,17 @@ export function parseTbt({ page1, page2 = null }) {
   }]
   const warn = (set, team, expected, found, zone, message) => warnings.push({ set, team, expected, found, zone, message })
 
-  // Team names: page 2 has them in full, page 1 only the abbreviations of the result table
+  // Team names in full: on page 2 (version 1) or in the header of page 1 (version 2); otherwise the
+  // abbreviations of the result table
   const resultLetters = fillLetters(page1.result.letters)
   const abbreviation = letter => page1.result.abbreviations[resultLetters.indexOf(letter)]?.text || ''
   const names = {
-    A: cleanName(page2?.teams?.A?.text) || abbreviation('A') || 'Squadra A',
-    B: cleanName(page2?.teams?.B?.text) || abbreviation('B') || 'Squadra B',
+    A: cleanName(page2?.teams?.A?.text) || cleanName(page1.header.teamA?.text) || abbreviation('A') || 'Squadra A',
+    B: cleanName(page2?.teams?.B?.text) || cleanName(page1.header.teamB?.text) || abbreviation('B') || 'Squadra B',
   }
+  // Libero exchanges: page 2 (version 1) or the "LIBERO / UNDER" columns of page 1 (version 2)
+  const liberoSets = page2?.sets || page1.liberos || []
+  const liberoZone = (set, row) => (page2 ? `Referto aggiuntivo · set ${set} · riga ${row}` : `Set ${set} · LIBERO / UNDER · riga ${row}`)
 
   // Final result: the pair of readings that is a valid set score
   const scores = []
@@ -172,10 +176,10 @@ export function parseTbt({ page1, page2 = null }) {
   const playersOf = letter => rosters[letter].map(p => p.number)
   const liberosOf = letter => rosters[letter].filter(p => p.libero).map(p => p.number)
 
-  // Libero page: entries { candidates, extent }; print widths from the rows read with near unanimity
+  // Libero exchanges: entries { candidates, extent }; print widths from the rows read with near unanimity
   const entryOf = entry => (Array.isArray(entry) ? { candidates: entry, extent: 0 } : entry)
   const strongRows = []
-  for (const [index, columns] of (page2?.sets || []).entries()) {
+  for (const [index, columns] of liberoSets.entries()) {
     const panel = page1.sets[index]
     if (!panel?.played) continue
     const columnLetters = fillLetters(columns.map(c => c.letter), panel.set, fillLetters(panel.letters, panel.set))
@@ -215,7 +219,7 @@ export function parseTbt({ page1, page2 = null }) {
         `Set ${index + 1} · prima casella dei turni`, 'Squadra al servizio a inizio set non determinabile.')
     }
     const liberos = { A: [], B: [] }
-    const columns = (page2?.sets?.[index] || []).map(column => ({ ...column, entries: column.entries.map(entryOf) }))
+    const columns = (liberoSets[index] || []).map(column => ({ ...column, entries: column.entries.map(entryOf) }))
     const columnLetters = fillLetters(columns.map(c => c.letter), panel.set, letters)
     columns.forEach((column, c) => {
       const letter = columnLetters[c]
@@ -225,12 +229,12 @@ export function parseTbt({ page1, page2 = null }) {
       column.entries.forEach(({ candidates: readings, extent }, row) => {
         const decoded = decodeLiberoEntry(readings, players, liberosOf(letter), widths && { extent, ...widths })
         if (!decoded) {
-          warn(index + 1, names[letter], 'giocatore-libero', readings[0]?.text || '', `Referto aggiuntivo · set ${index + 1} · riga ${row + 1}`,
+          warn(index + 1, names[letter], 'giocatore-libero', readings[0]?.text || '', liberoZone(index + 1, row + 1),
             'Ingresso del libero non leggibile: non importato.')
           return
         }
         if (decoded.text !== readings[0].text) {
-          warn(index + 1, names[letter], decoded.tokens.join('-'), readings[0].text, `Referto aggiuntivo · set ${index + 1} · riga ${row + 1}`, 'Lettura corretta con i numeri dei liberi.')
+          warn(index + 1, names[letter], decoded.tokens.join('-'), readings[0].text, liberoZone(index + 1, row + 1), 'Lettura corretta con i numeri dei liberi.')
         }
         const raw = decoded.tokens.join('-')
         for (let step = 1; step < decoded.tokens.length; step++) {
