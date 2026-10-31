@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Google Drive: one way to sign in per platform (src/sync/auth-*.js), the files in src/sync/drive.js. */
 import { GOOGLE_OAUTH } from '../config.js'
 import { DRIVE_SCOPE, DriveClient } from './drive.js'

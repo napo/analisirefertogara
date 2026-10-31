@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Synchronisation with a cloud service chosen by the user, one line in the card of the local archive: the services
 // to connect or the state; the explicit consent opens only at the choice of a service. Hidden where the project
 // has no client for the platform.

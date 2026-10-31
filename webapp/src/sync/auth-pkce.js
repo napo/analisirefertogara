@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Sign-in of the installed apps (RFC 8252): the page of the service opens in
  * the system browser, never inside the app (Google refuses embedded web views)

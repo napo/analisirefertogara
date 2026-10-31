@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * OneDrive through Microsoft Graph, only what synchronisation needs. The app
  * asks for the Files.ReadWrite.AppFolder scope: it sees only its own folder,

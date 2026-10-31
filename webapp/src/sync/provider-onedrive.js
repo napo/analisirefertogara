@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** OneDrive of personal Microsoft accounts: PKCE sign-in on the web and on the desktop, the files in src/sync/onedrive.js. */
 import { ONEDRIVE_OAUTH } from '../config.js'
 import { ONEDRIVE_SCOPE, OneDriveClient } from './onedrive.js'

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Which platform the synchronisation runs on, and the HTTP client it uses there. */
 import { isTauriApp, mobilePlatform } from '../updates.js'
 export function syncPlatform() {

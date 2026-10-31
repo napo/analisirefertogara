@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Dropbox: PKCE sign-in on the web and on the desktop, the files in src/sync/dropbox.js. */
 import { DROPBOX_OAUTH } from '../config.js'
 import { DROPBOX_SCOPE, DropboxClient } from './dropbox.js'

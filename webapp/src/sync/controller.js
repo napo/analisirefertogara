@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * When to synchronise, and the state shown to the user. Synchronisation runs
  * only after the user connected a service on this device: at start, a few seconds

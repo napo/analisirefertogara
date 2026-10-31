@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Frequent questions by topic: one closed answer per question, with the links that answer needs
 import ContactEmail from './ContactEmail.jsx'
 import ExternalLink from './ExternalLink.jsx'
@@ -12,6 +15,7 @@ export const FAQ_GROUPS = [
       { id: 'what', q: 'A cosa serve Referto Volley?', a: ['Legge il PDF del referto di gara e ne ricava l’analisi: il rendimento della squadra nelle diverse rotazioni, nelle fasi di break point e di cambio palla, l’andamento della gara e le statistiche delle atlete e degli atleti.'] },
       { id: 'cost', q: 'Quanto costa?', a: ['Niente. Referto Volley è software libero e i sorgenti sono pubblici. Se vuoi aiutare lo sviluppo puoi fare una donazione: è facoltativa e non sblocca funzioni.'] },
       { id: 'download', q: 'Dove si scarica?', a: ['Non serve installare nulla: la versione web si apre dal browser. Ci sono anche le app per Windows, macOS, Linux e Android. Ogni versione ha il proprio archivio: per avere gli stessi dati altrove esporta un archivio o usa la sincronizzazione.'] },
+      { id: 'ai', q: 'Il progetto è sviluppato con l’intelligenza artificiale?', a: ['Sì, il progetto è sviluppato facendo uso di agenti AI. Questo non vuol dire che non ci sia impegno: idee, scelte, prove sul campo e guida del lavoro restano umane.', 'L’intelligenza artificiale serve a scrivere il codice, non è dentro l’app: i referti sono letti sul dispositivo e non vengono inviati a servizi di questo tipo.'] },
       { id: 'warning', q: 'Perché Windows, Apple o Android dicono che il software è pericoloso?', a: ['Perché l’autore non è registrato come sviluppatore riconosciuto presso di loro. L’avviso dice che l’app non è firmata da quei produttori, non che sia stato trovato qualcosa di dannoso. Le versioni sono prodotte da GitHub Actions a partire dal codice pubblico, che chiunque può controllare.'] },
     ],
   },

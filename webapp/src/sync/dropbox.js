@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Dropbox API (v2), only what synchronisation needs. The app has the "App
  * folder" permission: it sees only its own folder, visible in the user's

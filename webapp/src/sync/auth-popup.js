@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * The way back of a PKCE sign-in in the web version: the page of the service
  * opens in a window, which comes back to public/oauth-callback.html; that page

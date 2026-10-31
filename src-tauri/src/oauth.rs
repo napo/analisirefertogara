@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 //! Sign-in to a cloud service on the desktop (RFC 8252, loopback redirect): the app
 //! listens on 127.0.0.1, on a free port or on the one the service requires, the system
 //! browser shows the page of the service and then sends the browser to that address with the authorisation code, which the web view

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Google sign-in on Android: the Authorization API of Google Play services,
  * through the Kotlin plugin in src-tauri/plugins/google-auth. Account and

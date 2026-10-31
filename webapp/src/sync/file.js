@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // The archive file on the cloud service: a .zrv file like the exported ones (archive.js), so the user can also
 // download it and import it by hand. The PDFs are separate files next to it (pdfs.js): they weigh megabytes and
 // this file travels whole at every change. Inside it, what only synchronisation needs: the deletions. Reading

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Maurizio Napolitano <maurizio.napolitano@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /**
  * Google Drive REST API (v3), only what synchronisation needs. The app asks
  * for the drive.file scope: it sees only the files it created, a
