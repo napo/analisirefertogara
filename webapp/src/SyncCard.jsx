@@ -1,5 +1,6 @@
-// Synchronisation with a cloud service chosen by the user: what it does, the explicit consent before connecting,
-// then its state and the way to disconnect. Hidden where the project has no client for the platform.
+// Synchronisation with a cloud service chosen by the user, one line in the card of the local archive: the services
+// to connect or the state; the explicit consent opens only at the choice of a service. Hidden where the project
+// has no client for the platform.
 import { useState } from 'react'
 import dropboxIcon from './assets/services/dropbox.svg'
 import googleDriveIcon from './assets/services/google-drive.svg'
@@ -85,14 +86,13 @@ export default function SyncCard() {
   if (status.state === 'off') {
     const service = SERVICES[chosen.id]
     return (
-      <section className="vs-card vs-sync">
-        <h2 className="vs-card-title">Sincronizza i dati</h2>
-        <p>Una copia delle gare e dei referti PDF nel tuo spazio cloud, sempre aggiornata: se cambi dispositivo o ne usi più di uno, ritrovi gli stessi dati.</p>
-        <p>{EXCLUSIVE}</p>
+      <section className="vs-sync" aria-label="Sincronizzazione">
         {step === 'confirm' ? (
           <div className="vs-sync-confirm">
             <h3>Prima di collegare {service.name}</h3>
+            <p>Una copia delle gare e dei referti PDF nel tuo spazio cloud, sempre aggiornata: se cambi dispositivo o ne usi più di uno, ritrovi gli stessi dati.</p>
             <ul>{service.points.map(point => <li key={point}>{point}</li>)}</ul>
+            <p>{EXCLUSIVE}</p>
             {failed && <p className="vs-sync-warning" role="alert">Accesso a {service.account} non riuscito o annullato. Puoi riprovare.</p>}
             <div className="vs-sync-actions">
               <button type="button" className="vs-btn vs-btn-primary" onClick={connect} disabled={busy}>Continua con {service.account}</button>
@@ -100,12 +100,13 @@ export default function SyncCard() {
             </div>
           </div>
         ) : (
-          <div className="vs-sync-actions">
+          <div className="vs-sync-line">
+            <span>Solo su questo dispositivo</span>
             {PROVIDERS.filter(provider => provider.available(syncPlatform())).map(provider => (
               <button
                 key={provider.id}
                 type="button"
-                className="vs-btn vs-btn-secondary"
+                className="vs-btn vs-btn-sm vs-btn-secondary"
                 onClick={() => {
                   setChosen(provider)
                   setFailed(false)
@@ -127,13 +128,18 @@ export default function SyncCard() {
   const problem = status.state === 'paused' ? problemText(service, 'sign-in') : status.state === 'error' && status.problem ? problemText(service, status.problem) : null
   const when = new Date(status.lastSyncedAt || 0).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })
   return (
-    <section className="vs-card vs-sync">
-      <h2 className="vs-card-title">Sincronizza i dati</h2>
-      <p className="vs-sync-status" aria-live="polite">
+    <section className="vs-sync" aria-label="Sincronizzazione">
+      <div className="vs-sync-line" aria-live="polite">
         <span className={`vs-sync-dot ${status.state}`} aria-hidden="true" />
         <strong>Collegato a {service.name}</strong>
         <span>{status.state === 'syncing' ? 'Sincronizzazione in corso…' : status.lastSyncedAt ? `Ultima sincronizzazione: ${when}` : 'Non ancora sincronizzato'}</span>
-      </p>
+        {step !== 'disconnect' && (
+          <>
+            <button type="button" className="vs-btn vs-btn-primary vs-btn-sm" onClick={() => run(() => sync.syncNow(true))} disabled={busy || status.state === 'syncing'}>Sincronizza ora</button>
+            <button type="button" className="vs-btn vs-btn-secondary vs-btn-sm" onClick={() => setStep('disconnect')} disabled={busy}>Scollega</button>
+          </>
+        )}
+      </div>
       {problem && <p className="vs-sync-warning" role="alert">{problem}{status.detail && ` (${status.detail})`}</p>}
       {status.conflicts > 0 && (
         <p>{status.conflicts === 1 ? 'Una gara era stata modificata su due dispositivi: trovi entrambe le versioni nell’elenco.' : `${status.conflicts} gare erano state modificate su due dispositivi: trovi entrambe le versioni nell’elenco.`}</p>
@@ -142,6 +148,7 @@ export default function SyncCard() {
         <div className="vs-sync-confirm">
           <h3>Scollegare {service.name}?</h3>
           <p>Su questo dispositivo i dati restano tutti; smettono solo di essere copiati su {service.name}.</p>
+          <p>{EXCLUSIVE}</p>
           <label className="vs-sync-check">
             <input type="checkbox" checked={deleteRemote} onChange={e => setDeleteRemote(e.target.checked)} />
             <span>{service.deleteRemote}</span>
@@ -151,12 +158,7 @@ export default function SyncCard() {
             <button type="button" className="vs-btn vs-btn-secondary" onClick={() => setStep('idle')} disabled={busy}>Annulla</button>
           </div>
         </div>
-      ) : (
-        <div className="vs-sync-actions">
-          <button type="button" className="vs-btn vs-btn-primary vs-btn-sm" onClick={() => run(() => sync.syncNow(true))} disabled={busy || status.state === 'syncing'}>Sincronizza ora</button>
-          <button type="button" className="vs-btn vs-btn-secondary vs-btn-sm" onClick={() => setStep('disconnect')} disabled={busy}>Scollega</button>
-        </div>
-      )}
+      ) : null}
     </section>
   )
 }

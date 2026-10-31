@@ -30,7 +30,7 @@ import SyncCard from './SyncCard.jsx'
 import { fieldId, flaggedFields } from './import-flags.js'
 import { liberoLines, liberoLinesPatch, validLiberoLine } from './libero-lines.js'
 import { saveFile, savedMessage } from './save-file.js'
-import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
+import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, PRIVACY_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
 import './App.css'
 
 echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, CanvasRenderer])
@@ -725,6 +725,7 @@ function MainApp() {
                   </button>
                 </div>
               </div>
+              <SyncCard />
 
               {!matches.length ? (
                 <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--vs-muted)' }}>
@@ -1441,7 +1442,6 @@ function MainApp() {
         {/* TAB 3: STORICO GARE */}
         {activeTab === 'history' && (
           <section>
-            <SyncCard />
             <div className="vs-card">
               <div className="vs-card-header">
                 <div>
@@ -1819,6 +1819,8 @@ function MainApp() {
           <div className="vs-footer-meta">
             <span>Analisi dei PDF sul dispositivo · Archivio locale tramite IndexedDB</span>
             <span style={{ display: 'block', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+              <ExternalLink href={PRIVACY_URL}>Privacy</ExternalLink>
+              {' · '}
               <ExternalLink href={LICENSE_URL}>Licenza {LICENSE_SPDX}</ExternalLink>
               {' · '}
               <ExternalLink href={SOURCE_REPOSITORY_URL}>Codice sorgente</ExternalLink>

@@ -27,14 +27,14 @@ export const PRIVACY_URL = `${WEB_APP_URL}privacy.html`
 // None of these is a secret: an installed app cannot keep one (RFC 8252). An empty id hides that service on that
 // platform; with all of them empty the synchronisation is not offered and nothing contacts the services.
 export const GOOGLE_OAUTH = {
-  web: '',
+  web: '1092510479765-bv4982s2gptr7bg3kddaj7dags94a81h.apps.googleusercontent.com',
   // The desktop "secret" is public for Google but stays out of the repository (secret scanning): build time only
-  desktop: { clientId: '', clientSecret: import.meta.env?.VITE_GOOGLE_DESKTOP_CLIENT_SECRET ?? '' },
-  android: '', // found by Play services from package and certificate: only tells that the client exists
+  desktop: { clientId: '1092510479765-fp6nv5treugi026dnjluabmrpgpcpkmh.apps.googleusercontent.com', clientSecret: import.meta.env?.VITE_GOOGLE_DESKTOP_CLIENT_SECRET ?? '' },
+  android: '1092510479765-6rul40sp93nvj7549ott7a0vh7d2juof.apps.googleusercontent.com', // found by Play services from package and certificate: only tells that the client exists
   ios: '',
 }
-export const DROPBOX_OAUTH = { appKey: '' }
-export const ONEDRIVE_OAUTH = { clientId: '' }
+export const DROPBOX_OAUTH = { appKey: 'hei5xukcq5rtuv9' }
+export const ONEDRIVE_OAUTH = { clientId: 'd35b4146-b1d2-42b7-a750-a241c5c15974' }
 
 // A configured external link: http(s) only, otherwise null (no broken button)
 export function externalUrl(value) {

@@ -14,6 +14,7 @@ import { DropboxClient } from '../src/sync/dropbox.js'
 import { OneDriveClient } from '../src/sync/onedrive.js'
 import { StorageError } from '../src/sync/storage.js'
 import { PROVIDERS, syncAvailable } from '../src/sync/providers.js'
+import { DROPBOX_OAUTH, GOOGLE_OAUTH, ONEDRIVE_OAUTH } from '../src/config.js'
 
 const sample = parseTbt(JSON.parse(readFileSync(new URL('./fixtures/tbt-13-athletes-readings.json', import.meta.url))))
 const hex = c => c.repeat(64)
@@ -223,9 +224,14 @@ test('Sync: forgetting keeps the matches and the choice of the service is cleare
   assert.equal(archive.matches.size, 1)
 })
 
-test('Sync: hidden until the project has a client for a service', () => {
+test('Sync: a service is offered only where the project has a client for it', () => {
   assert.deepEqual(PROVIDERS.map(p => p.id), ['google-drive', 'dropbox', 'onedrive'])
-  assert.equal(syncAvailable('web'), false)
-  assert.equal(syncAvailable('desktop'), false)
-  assert.equal(syncAvailable('android'), false)
+  const offered = platform => PROVIDERS.filter(p => p.available(platform)).map(p => p.id)
+  assert.equal(offered('web').includes('dropbox'), Boolean(DROPBOX_OAUTH.appKey))
+  assert.equal(offered('desktop').includes('dropbox'), Boolean(DROPBOX_OAUTH.appKey))
+  assert.equal(offered('web').includes('google-drive'), Boolean(GOOGLE_OAUTH.web))
+  assert.equal(offered('web').includes('onedrive'), Boolean(ONEDRIVE_OAUTH.clientId))
+  // Dropbox needs an app link on mobile, still to be built
+  assert.equal(offered('android').includes('dropbox'), false)
+  assert.equal(syncAvailable('ios'), false)
 })

@@ -2145,6 +2145,26 @@
 /* Sincronizzazione con il servizio cloud */
 .vs-sync {
   margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #D0D7DE;
+  font-size: 0.88rem;
+}
+
+.vs-sync-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.vs-sync-line img {
+  vertical-align: -3px;
+  margin-right: 0.3rem;
+}
+
+.vs-sync-confirm h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
 }
 
 .vs-sync-actions {
@@ -2179,13 +2199,6 @@
   border-radius: 0.5rem;
   background: #FFF8E1;
   color: #6D4C00;
-}
-
-.vs-sync-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .vs-sync-dot {
