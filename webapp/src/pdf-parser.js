@@ -1,3 +1,5 @@
+import { swapWarningSides } from './import-flags.js'
+
 // Scoresheet software whose PDF format can be imported; add new importers here
 export const SUPPORTED_SOFTWARE = ['NEWBIT', 'SNUG', 'TieBreakTech']
 
@@ -331,14 +333,6 @@ export function parseItems(items, width, height, operatorList = null, options = 
         return value
       })
 
-      if (grid.slice(36).some(v => v !== '')) {
-        throw Error(
-          'Il referto supera i sei giri gestiti dal modello Excel. Nessun dato è stato troncato.',
-        )
-      }
-
-      grid.length = 36
-
       if (
         grid[0] === '' &&
         typeof grid[1] === 'number'
@@ -409,6 +403,7 @@ export function parseItems(items, width, height, operatorList = null, options = 
     sets.push({
       number: i + 1,
       rotation: '',
+      opponentOnLeft: sides[0] === other,
 
       own: own.grid,
       other: other.grid,
@@ -540,6 +535,7 @@ export function parseItems(items, width, height, operatorList = null, options = 
       : pick(136.9, 92.54, 3).some(w => /x/i.test(w.text)) ? 'Maschile' : '',
     team: teams[0],
     opponent: teams[1],
+    sheetTeams: { own: { letter: 'A' }, other: { letter: 'B' } },
     date,
 
     location: location || '',
@@ -759,8 +755,8 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
     warnings.push({ set, team, expected, found, zone, message })
   const teamOfSide = (panel, side) => teams[side === panel.ownSide ? 0 : 1]
   const readTurnGrid = (panelY, startX) => {
-    const cells = Array(36).fill('')
-    const zones = Array(36).fill(null)
+    const cells = Array(48).fill('')
+    const zones = Array(48).fill(null)
     const overflow = []
     for (const w of words.filter(w =>
       w.x > startX - 15 && w.x < startX + 165 &&
@@ -772,7 +768,7 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
       const round = Math.round((w.y - (panelY + 56.2)) / 14) + 1 + (slot % 2) * 4
       const zone = { x: Math.round(w.x * 10) / 10, y: Math.round(w.y * 10) / 10 }
       const cell = (round - 1) * 6 + column
-      if (round < 1 || cell >= 36) { overflow.push({ value: Number(w.text), zone }); continue }
+      if (round < 1 || cell >= 48) { overflow.push({ value: Number(w.text), zone }); continue }
       cells[cell] = Number(w.text)
       zones[cell] = zone
     }
@@ -920,11 +916,12 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
   })
 
   const sets = scores.map((score, index) => {
-    const own = progressions[index]?.own || Array(36).fill('')
-    const other = progressions[index]?.other || Array(36).fill('')
+    const own = progressions[index]?.own || Array(48).fill('')
+    const other = progressions[index]?.other || Array(48).fill('')
     return {
       number: index + 1,
       rotation: '',
+      opponentOnLeft: panelRows[index].ownSide === 1,
       own,
       other,
       substituteNumbers: substitutes[index]?.own || [],
@@ -955,6 +952,7 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
     gender,
     team: teams[0],
     opponent: teams[1],
+    sheetTeams: { own: { letter: teamLetters[0] }, other: { letter: teamLetters[1] } },
     date: dateText.split('/').reverse().join('-'),
     location: (text(64.4, 78.6, 30) || '').toLocaleLowerCase('it-IT').replace(/^./, value => value.toUpperCase()),
     venue: text(273.5, 78.6, 30),
@@ -1032,8 +1030,11 @@ export function refreshImportedMatch(existing, parsed) {
     event: existing.event || parsed.event,
     gender: existing.gender || parsed.gender,
     number: existing.number || parsed.number,
+    ...(parsed.sheetTeams ? { sheetTeams: reversed ? { own: parsed.sheetTeams.other, other: parsed.sheetTeams.own } : parsed.sheetTeams } : {}),
     sets: existing.sets.map((set, index) => ({
       ...set,
+      // side of the teams on the sheet, also for matches saved before it was recorded
+      ...(parsed.sets[index]?.opponentOnLeft === undefined ? {} : { opponentOnLeft: reversed ? !parsed.sets[index].opponentOnLeft : parsed.sets[index].opponentOnLeft }),
       ...(repairTeams && parsed.sets[index] ? {
         ...parsed.sets[index],
         rotation: '',
@@ -1058,7 +1059,7 @@ export function refreshImportedMatch(existing, parsed) {
     })),
     roster: merge(reversed ? parsed.opponentRoster : parsed.roster, existing.roster),
     opponentRoster: merge(reversed ? parsed.roster : parsed.opponentRoster, existing.opponentRoster),
-    importWarnings: parsed.importWarnings || [],
+    importWarnings: (reversed ? swapWarningSides(parsed.importWarnings) : parsed.importWarnings) || [],
     notes: existing.notes?.trim() ? existing.notes : parsed.notes || '',
   }
 }

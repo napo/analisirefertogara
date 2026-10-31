@@ -2,9 +2,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { chooseIncreasing, decodeLiberoEntry, parseTbt, valueCost } from '../src/tbt-parser.js'
-import { cleanCell, openInk, removeStrike } from '../src/tbt-image.js'
+import { cleanCell, openInk, removeRings, removeStrike } from '../src/tbt-image.js'
 import { isTbtPage } from '../src/tbt-reader.js'
 import { validateMatch } from '../src/analysis.js'
+import { fieldId, flaggedFields } from '../src/import-flags.js'
+import { swapTeams } from '../src/match-teams.js'
+import { liberoLines, liberoLinesPatch, liberoReplacementsOf } from '../src/libero-lines.js'
+import { liberoChains } from '../src/rally-state.js'
 
 // OCR readings (tbt-reader.js with tesseract.js) of TieBreakTech scoresheets, with every candidate
 // reading of each cell. Anonymized: names of athletes and liberos, city, venue, match number and date;
@@ -16,6 +20,10 @@ const serieD = parseTbt(load('tbt-seried-readings.json'))
 const tiebreak = parseTbt(load('tbt-tiebreak-readings.json'))
 // version 2 of the template: one page, libero exchanges in the "LIBERO / UNDER" columns
 const v2 = parseTbt(load('tbt-v2-readings.json'))
+// version 2 with team B on the left of the header and of the roster, thin digits in the substitutions
+const swapped = parseTbt(load('tbt-v2-swapped-readings.json'))
+// version 1, a team with 13 athletes and one libero; thin roster digits misread
+const thirteen = parseTbt(load('tbt-13-athletes-readings.json'))
 const turns = cells => cells.filter(value => value !== '')
 const subs = list => list.map(s => (s.in ? `${s.in} ${s.scoreIn}>${s.scoreOut}` : ''))
 const numbers = roster => roster.map(p => p.number)
@@ -171,6 +179,111 @@ test('TBT version 2: libero exchanges of the panels (struck-through ones too) an
   assert.deepEqual(validateMatch(v2), [])
 })
 
+test('TBT version 2: team names follow the circled letters of the header, not their side', () => {
+  assert.equal(swapped.team, 'SQUADRA ZETA VOLLEY')
+  assert.equal(swapped.opponent, 'SQUADRA ETA')
+  assert.deepEqual(swapped.sets[0].lineup, ['6', '20', '14', '40', '25', '21'])
+  assert.equal(swapped.roster[0].name, 'ATLETA A 1')
+  assert.deepEqual(numbers(swapped.roster), [5, 6, 8, 9, 12, 14, 16, 20, 21, 22, 25, 40, 1, 2])
+  assert.deepEqual(numbers(swapped.opponentRoster), [1, 3, 5, 8, 9, 14, 16, 17, 22, 23, 29, 30, 4, 12])
+  // without the letters: the abbreviation of the result table is the beginning of the name
+  const readings = load('tbt-v2-swapped-readings.json')
+  delete readings.page1.header.letters
+  const byAbbreviation = parseTbt(readings)
+  assert.equal(byAbbreviation.team, 'SQUADRA ZETA VOLLEY')
+  assert.equal(byAbbreviation.opponent, 'SQUADRA ETA')
+})
+
+test('TBT version 2: thin substitutes and time-outs, wrapped libero exchanges, unread service turns', () => {
+  assert.deepEqual(subs(swapped.sets[0].substitutions), ['', '16 21:22>', '', '9 21:20>', '5 21:22>', ''])
+  assert.deepEqual(subs(swapped.sets[0].opponentSubstitutions), ['', '', '', '', '', '14 24:22>'])
+  assert.deepEqual(swapped.sets[0].timeouts, ['20:19', '21:23'])
+  assert.deepEqual(swapped.sets[3].timeouts, ['3:7', '7:14'])
+  // numbers in a ring cut by the edges of the cell
+  assert.equal(swapped.sets[2].opponentSubstitutions[0].in, '22')
+  assert.deepEqual(subs(swapped.sets[1].substitutions)[0], '9 19:11>20:12')
+  assert.deepEqual(subs(swapped.sets[2].substitutions)[2], '12 9:8>13:16')
+  const chains = list => [...new Set(list.map(r => r.raw))]
+  assert.deepEqual(chains(swapped.sets[0].liberoReplacements), ['6-1-2-1-2-1', '40-1-2-1-2-1', '40-1-2-1', '6-1-2'])
+  // wrapped inside a number: "9-12-4-1" + "2-4-12"
+  assert.ok(chains(swapped.sets[0].opponentLiberoReplacements).includes('9-12-4-12-4-12'))
+  // first column read blank on a whole row of a panel: the following rows are still read
+  assert.deepEqual(chains(swapped.sets[3].liberoReplacements), ['6-2-1-2-1', '9-1-2', '6-2', '9-2'])
+  // two cells seen as empty between 3 and 7: the sequence gives their values
+  assert.deepEqual(turns(swapped.sets[3].own), [0, 2, 3, 4, 5, 6, 7, 9, 10])
+  assert.ok(swapped.importWarnings.some(w => /giro 1 pos. V$/.test(w.zone) && w.expected === 5 && /ricavato dalla sequenza/.test(w.message)))
+  assert.deepEqual(validateMatch(swapped), [])
+})
+
+test('TBT: 13th athlete beside the libero title, her only libero is the first one', () => {
+  assert.deepEqual(numbers(thirteen.opponentRoster), [1, 3, 5, 7, 8, 10, 11, 12, 14, 16, 21, 22, 23, 2])
+  assert.equal(thirteen.opponentRoster.at(-1).name, 'LIBERO B 1 - L1')
+  assert.deepEqual(thirteen.sets[0].opponentLineup, ['21', '1', '11', '14', '23', '3'])
+  assert.deepEqual(validateMatch(thirteen), [])
+})
+
+test('TBT: roster numbers checked with the panels, lineup numbers with the roster and the libero exchanges', () => {
+  // 8 and 9 read as 5 and 0 in the thin print of the roster, bold and right in the lineups
+  assert.deepEqual(numbers(thirteen.roster), [8, 9, 16, 44, 66, 67, 71, 73, 84, 89, 92, 76, 70])
+  assert.deepEqual(thirteen.sets[0].lineup, ['8', '71', '16', '92', '67', '73'])
+  // "4" close to 9 and 44: only 44 starts the libero exchanges of the set
+  assert.deepEqual(thirteen.sets[1].lineup, ['73', '89', '92', '44', '84', '71'])
+  assert.ok(thirteen.importWarnings.some(w => w.expected === 44 && /elenco atleti/.test(w.message)))
+  assert.equal(thirteen.sets[1].liberoReplacements.filter(r => r.step === 1 && r.player === 44).length, 2)
+})
+
+test('TBT: uncertain values are flagged on their field until they change', () => {
+  const set = swapped.sets[3]
+  const flags = flaggedFields(swapped.importWarnings, 4, set)
+  assert.ok(flags.has(fieldId('own', 4)))
+  assert.match(flags.get(fieldId('own', 4)), /ricavato dalla sequenza/)
+  const own = [...set.own]
+  own[4] = 8
+  assert.equal(flaggedFields(swapped.importWarnings, 4, { ...set, own }).has(fieldId('own', 4)), false)
+  // other sets are not affected
+  assert.equal(flaggedFields(swapped.importWarnings, 1, swapped.sets[0]).has(fieldId('own', 4)), false)
+  // lineup of the opponent key, and the same field seen from the other team
+  const lineup = flaggedFields(thirteen.importWarnings, 2, thirteen.sets[1])
+  assert.ok(lineup.has(fieldId('lineup', 3)))
+  const view = swapTeams(thirteen)
+  assert.ok(flaggedFields(view.importWarnings, 2, view.sets[1]).has(fieldId('opponentLineup', 3)))
+})
+
+test('Side of the teams on the sheet, set by set, also seen from the other team', () => {
+  // team A on the left in sets 1 and 3 of both scoresheets
+  assert.deepEqual(thirteen.sets.map(s => s.opponentOnLeft), [false, true, false])
+  assert.deepEqual(swapped.sets.map(s => s.opponentOnLeft), [false, true, false, true])
+  assert.deepEqual(swapTeams(swapped).sets.map(s => s.opponentOnLeft), [true, false, true, false])
+})
+
+test('Libero rows: the chains of the sheet, editable, and the exchanges of the statistics', () => {
+  const set = swapped.sets[0]
+  const lines = liberoLines(set, 'own')
+  assert.deepEqual(lines, ['6-1-2-1-2-1', '40-1-2-1-2-1', '6-1-2-1-2-1', '40-1-2-1', '6-1-2'])
+  assert.deepEqual(liberoReplacementsOf(lines).map(r => [r.row, r.step, r.player, r.libero]), set.liberoReplacements.map(r => [r.row, r.step, r.player, r.libero]))
+  // an unread row keeps its place and is flagged until it is written
+  const first = thirteen.sets[0]
+  assert.equal(liberoLines(first, 'own')[0], '')
+  assert.ok(flaggedFields(thirteen.importWarnings, 1, first).has(fieldId('liberoReplacements', 0)))
+  const next = liberoLines(first, 'own')
+  next[0] = '73-76-70-76'
+  const edited = { ...first, ...liberoLinesPatch('own', next) }
+  assert.deepEqual(liberoChains(edited, 'own')[0], { player: '73', liberos: ['76', '70', '76'] })
+  assert.equal(flaggedFields(thirteen.importWarnings, 1, edited).has(fieldId('liberoReplacements', 0)), false)
+  // incomplete rows are not used
+  assert.deepEqual(liberoReplacementsOf(['73-', '', '9']), [])
+  // rows read from the libero box (NEWBIT)
+  assert.deepEqual(liberoLines({ libero: { onCourt: ['5', ''], entered: ['1', ''], otherEntered: ['2', ''] } }, 'own'), ['5-1-2'])
+})
+
+test('Service turns up to the eighth round, three rows in the fifth set of version 1', () => {
+  assert.equal(thirteen.sets[0].own.length, 48)
+  assert.equal(tiebreak.sets[4].turnRows, 3)
+  assert.equal(tiebreak.sets[3].turnRows, undefined)
+  assert.equal(swapped.sets[0].turnRows, undefined)
+  assert.deepEqual(swapTeams(thirteen).sheetTeams, { own: thirteen.sheetTeams.other, other: thirteen.sheetTeams.own })
+})
+
 // Synthetic images: a bold digit-like block crossed by a thin diagonal stroke
 const image = (width, height, paint) => {
   const data = new Uint8Array(width * height).fill(255)
@@ -193,6 +306,16 @@ test('TBT images: template check rejects blank and black pages', () => {
   assert.equal(isTbtPage(image(3309, 2339, () => true)), false)
   assert.equal(isTbtPage(image(3309, 3309, () => false)), false)
   assert.equal(isTbtPage(image(3076, 2174, () => false)), false)
+})
+
+test('TBT images: a ring taller than a digit is removed, thin digits are kept', () => {
+  // bar 3 px wide (digit) touching a line 1 px wide and 20 px high (ring); a thin 1 px digit apart
+  const cell = image(30, 24, (x, y) => (x === 5 && y < 20) || (x >= 6 && x < 9 && y >= 8 && y < 18) || (x === 20 && y >= 6 && y < 18))
+  const clean = removeRings(cell, 15)
+  const at = (x, y) => clean.data[y * 30 + x]
+  assert.equal(at(5, 2), 255)
+  assert.equal(at(7, 12), 0)
+  assert.equal(at(20, 10), 0)
 })
 
 test('TBT images: strike-through line removed, crossing strokes kept', () => {

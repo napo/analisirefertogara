@@ -6,8 +6,8 @@
 // page 2 ("Referto aggiuntivo", reference width 1080 px). Measured on two real scoresheets: the grid lines
 // coincide to the pixel, the template is fixed.
 // Version 2 ("ver: 26.10.x"): a single page, smaller cells, a "LIBERO / UNDER" column in every team panel
-// with the libero exchanges, full team names in the header, a different result table. Measured on one
-// scoresheet (3076 px image).
+// with the libero exchanges, full team names in the header, a different result table. Measured on two
+// scoresheets (3076 px image).
 
 export const PAGE2_WIDTH = 1080
 
@@ -34,6 +34,8 @@ const PANELS_V1 = {
 
 const V1 = {
   version: 1,
+  // substitutes, score at the change and time-outs: height of the digits, thin marks to remove
+  substitutionPrint: { charHeight: 24, open: true },
   width: 3309,
   ratio: 2339 / 3309,
   // Horizontal lines that identify the template (checked before reading anything), over the x range
@@ -77,7 +79,7 @@ const V1 = {
   // Roster table (bottom right): columns of jersey numbers and names for the two teams
   roster: {
     letters: [letterBox(2595, 1265), letterBox(3125, 1265)],
-    area: [1340, 1845], // y range of the athletes rows (row lines are detected)
+    area: [1340, 1870], // y range of the athletes rows (row lines are detected); a 13th athlete sits beside the libero title of the other team
     lineX: [2610, 2840], // x range where the row lines are looked for
     columns: [{ number: [2548, 2588], name: [2584, 2858] }, { number: [2862, 2900], name: [2898, 3170] }],
     liberoRows: [[1866, 1900], [1900, 1936]],
@@ -105,6 +107,8 @@ const panelV2 = (side, x, y) => ({ ...scaled(side), letter: letterBox(...scaled(
 
 const V2 = {
   version: 2,
+  // thin digits, smaller than those of the service turns: opening would break them
+  substitutionPrint: { charHeight: 18, open: false },
   width: 3076 * V2_SCALE,
   ratio: 2174 / 3076,
   signature: scaled({ x: [280, 700], rows: [361, 396, 430.5, 465, 500, 534.5, 569, 604, 638.5, 673, 742.5, 777, 812, 846.5, 881, 916, 950.5, 985, 1020, 1054.5] }),
@@ -143,9 +147,11 @@ const V2 = {
     number: [695, 138, 830, 172],
     genderMale: [343, 177, 367, 201],
     genderFemale: [528, 177, 552, 201],
-    teamA: [140, 244, 755, 271], // above the underline of the field
-    teamB: [905, 244, 1520, 271],
+    teamLeft: [140, 244, 755, 271], // above the underline of the field
+    teamRight: [905, 244, 1520, 271],
   }),
+  // circled letters beside the team names: either team can be on the left
+  headerLetters: [letterBox(...scaled([105, 265, 26, 24])), letterBox(...scaled([1555, 265, 26, 24]))],
   roster: {
     letters: [letterBox(...scaled([2406, 1096])), letterBox(...scaled([3004, 1096]))],
     ...scaled({

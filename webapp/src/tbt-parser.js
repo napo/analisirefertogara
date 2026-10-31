@@ -3,11 +3,13 @@
 // progressions strictly increasing and ending with the set points, jersey numbers present in the rosters,
 // libero exchanges made of a player and the liberos of the team). Every correction becomes an import warning.
 import { emptySubstitutions, emptyTimeouts, liberoFields } from './pdf-parser.js'
+import { withFieldValues } from './import-flags.js'
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI']
 // Digits the OCR engine confuses with each other on this print
 const CONFUSION = { 0: '869', 1: '74', 2: '73', 3: '8592', 4: '19', 5: '6389', 6: '5809', 7: '12', 8: '36905', 9: '8305' }
 const UNREADABLE = 8
+const UNSEEN = 1.5 // cost of a jersey number of the roster not seen in the panels
 
 const texts = cell => (!cell || cell.empty ? [] : (cell.candidates || []).map(c => c.text))
 const topNumber = cell => {
@@ -31,11 +33,11 @@ export function valueCost(readings, value) {
 }
 
 // Strictly increasing sequence of values in [0, max] (last = `last` when given), one per cell, of minimum
-// total cost. cells: arrays of readings. Returns { values, costs } or null.
-export function chooseIncreasing(cells, { max, last = null }) {
+// total cost. cells: arrays of readings; penalty(v): added to the cost of a value. Returns { values, costs } or null.
+export function chooseIncreasing(cells, { max, last = null, penalty = () => 0 }) {
   const n = cells.length
   if (!n) return { values: [], costs: [] }
-  const costs = cells.map(readings => Array.from({ length: max + 1 }, (_, v) => valueCost(readings, v)))
+  const costs = cells.map(readings => Array.from({ length: max + 1 }, (_, v) => valueCost(readings, v) + penalty(v)))
   const dp = costs.map(() => Array(max + 1).fill(Infinity)), from = costs.map(() => Array(max + 1).fill(-1))
   for (let v = 0; v <= max; v++) dp[0][v] = costs[0][v]
   for (let i = 1; i < n; i++) {
@@ -127,19 +129,20 @@ function printWidths(rows) {
 }
 
 export function parseTbt({ page1, page2 = null }) {
-  const warnings = [{
+  let warnings = [{
     set: null, team: '', expected: '', found: '', zone: 'Intero referto',
     message: 'Referto TieBreakTech letto con il riconoscimento ottico dei caratteri (OCR): controlla i dati importati.',
   }]
-  const warn = (set, team, expected, found, zone, message) => warnings.push({ set, team, expected, found, zone, message })
+  const warn = (set, team, expected, found, zone, message, field = undefined) => warnings.push({ set, team, expected, found, zone, message, ...(field ? { field } : {}) })
 
   // Team names in full: on page 2 (version 1) or in the header of page 1 (version 2); otherwise the
   // abbreviations of the result table
   const resultLetters = fillLetters(page1.result.letters)
   const abbreviation = letter => page1.result.abbreviations[resultLetters.indexOf(letter)]?.text || ''
+  const headerNames = readHeaderNames(page1.header, abbreviation)
   const names = {
-    A: cleanName(page2?.teams?.A?.text) || cleanName(page1.header.teamA?.text) || abbreviation('A') || 'Squadra A',
-    B: cleanName(page2?.teams?.B?.text) || cleanName(page1.header.teamB?.text) || abbreviation('B') || 'Squadra B',
+    A: cleanName(page2?.teams?.A?.text) || headerNames.A || abbreviation('A') || 'Squadra A',
+    B: cleanName(page2?.teams?.B?.text) || headerNames.B || abbreviation('B') || 'Squadra B',
   }
   // Libero exchanges: page 2 (version 1) or the "LIBERO / UNDER" columns of page 1 (version 2)
   const liberoSets = page2?.sets || page1.liberos || []
@@ -162,17 +165,18 @@ export function parseTbt({ page1, page2 = null }) {
   if (!scores.length) throw Error('Referto TieBreakTech: risultato finale non leggibile.')
 
   // Rosters: the column of each team is the one containing its starting players
+  // (and the numbers of the panels, in a bold print read better than the thin one of the roster)
   const lineupReadings = { A: new Set(), B: new Set() }
   for (const set of page1.sets.filter(s => s.played)) {
     const letters = fillLetters(set.letters, set.set)
-    set.sides.forEach((side, i) => side.lineup.forEach(cell => { const n = topNumber(cell); if (n !== '') lineupReadings[letters[i]].add(n) }))
+    set.sides.forEach((side, i) => [...side.lineup, ...side.entrants].forEach(cell => { const n = topNumber(cell); if (n !== '') lineupReadings[letters[i]].add(n) }))
   }
   const columnScore = (column, letter) => page1.roster.teams[column].filter(p => texts(p.number).some(t => lineupReadings[letter].has(Number(t)))).length
   const rosterLetters = page1.roster.letters.every(Boolean) && page1.roster.letters[0] !== page1.roster.letters[1]
     ? page1.roster.letters
     : columnScore(0, 'A') + columnScore(1, 'B') >= columnScore(0, 'B') + columnScore(1, 'A') ? ['A', 'B'] : ['B', 'A']
   const rosters = {}
-  for (const [column, letter] of rosterLetters.entries()) rosters[letter] = readRoster(page1.roster.teams[column], letter, page2?.liberos?.[letter], names[letter], warn)
+  for (const [column, letter] of rosterLetters.entries()) rosters[letter] = readRoster(page1.roster.teams[column], letter, page2?.liberos?.[letter], names[letter], lineupReadings[letter], warn)
   const playersOf = letter => rosters[letter].map(p => p.number)
   const liberosOf = letter => rosters[letter].filter(p => p.libero).map(p => p.number)
 
@@ -207,11 +211,19 @@ export function parseTbt({ page1, page2 = null }) {
       sides[letter] = mergeCourtChange(sides[letter], panel.courtChange.side, (what, kept, found) =>
         warn(5, names[letter], kept, found, `Set 5 · CAMBIO CAMPO · ${what}`, 'Valore diverso nella copia dopo il cambio campo: tenuto quello del riquadro principale.'))
     }
+    const columns = (liberoSets[index] || []).map(column => ({ ...column, entries: column.entries.map(entryOf) }))
+    const columnLetters = fillLetters(columns.map(c => c.letter), panel.set, letters)
+    // the first number of a libero exchange is a player on court in this set
+    const liberoHeads = { A: new Set(), B: new Set() }
+    columns.forEach((column, c) => column.entries.forEach(({ candidates }) => {
+      const head = candidates[0]?.text.match(/^\d+(?=-)/)
+      if (head) liberoHeads[columnLetters[c]].add(Number(head[0]))
+    }))
     const team = {}
     for (const letter of ['A', 'B']) {
       team[letter] = readTeamSet(sides[letter], {
-        set: index + 1, team: names[letter], final: score[letter], other: score[letter === 'A' ? 'B' : 'A'],
-        players: playersOf(letter).filter(n => !liberosOf(letter).includes(n)), warn,
+        set: index + 1, team: names[letter], letter, final: score[letter], other: score[letter === 'A' ? 'B' : 'A'],
+        players: playersOf(letter).filter(n => !liberosOf(letter).includes(n)), liberoHeads: liberoHeads[letter], warn,
       })
     }
     if ((team.A.turns[0] === 'X') === (team.B.turns[0] === 'X')) {
@@ -219,8 +231,6 @@ export function parseTbt({ page1, page2 = null }) {
         `Set ${index + 1} · prima casella dei turni`, 'Squadra al servizio a inizio set non determinabile.')
     }
     const liberos = { A: [], B: [] }
-    const columns = (liberoSets[index] || []).map(column => ({ ...column, entries: column.entries.map(entryOf) }))
-    const columnLetters = fillLetters(columns.map(c => c.letter), panel.set, letters)
     columns.forEach((column, c) => {
       const letter = columnLetters[c]
       // the player replaced by a libero is on court in this set: a starter or a substitute who entered
@@ -230,11 +240,11 @@ export function parseTbt({ page1, page2 = null }) {
         const decoded = decodeLiberoEntry(readings, players, liberosOf(letter), widths && { extent, ...widths })
         if (!decoded) {
           warn(index + 1, names[letter], 'giocatore-libero', readings[0]?.text || '', liberoZone(index + 1, row + 1),
-            'Ingresso del libero non leggibile: non importato.')
+            'Ingresso del libero non leggibile: non importato.', { key: letter === 'A' ? 'liberoReplacements' : 'opponentLiberoReplacements', index: row })
           return
         }
         if (decoded.text !== readings[0].text) {
-          warn(index + 1, names[letter], decoded.tokens.join('-'), readings[0].text, liberoZone(index + 1, row + 1), 'Lettura corretta con i numeri dei liberi.')
+          warn(index + 1, names[letter], decoded.tokens.join('-'), readings[0].text, liberoZone(index + 1, row + 1), 'Lettura corretta con i numeri dei liberi.', { key: letter === 'A' ? 'liberoReplacements' : 'opponentLiberoReplacements', index: row })
         }
         const raw = decoded.tokens.join('-')
         for (let step = 1; step < decoded.tokens.length; step++) {
@@ -246,6 +256,9 @@ export function parseTbt({ page1, page2 = null }) {
     sets.push({
       number: index + 1,
       rotation: '',
+      opponentOnLeft: letters[0] === 'B',
+      // version 1 prints three rows of turns in the fifth set (1/4, 2/5, 3/6)
+      ...(index === 4 && page1.header.version !== 2 ? { turnRows: 3 } : {}),
       own: team.A.turns,
       other: team.B.turns,
       substituteNumbers: team.A.substitutions.map(s => s.in).filter(Boolean),
@@ -265,12 +278,13 @@ export function parseTbt({ page1, page2 = null }) {
       durationMinutes: score.durationMinutes,
     })
   }
+  for (const set of sets) warnings = withFieldValues(warnings, set.number, set)
 
   const header = page1.header
   const date = [header.year?.text, header.month?.text, header.day?.text]
   const rosterOut = letter => rosters[letter].map(p => ({ number: p.number, name: p.libero ? `${p.name} - ${p.libero}` : p.name }))
   return {
-    parserVersion: 1,
+    parserVersion: 2,
     sourceFormat: 'TBT',
     progressionsImported: true,
     durationMinutes: scores.reduce((total, s) => total + (Number(s.durationMinutes) || 0), 0),
@@ -279,6 +293,7 @@ export function parseTbt({ page1, page2 = null }) {
     gender: header.gender || '',
     team: names.A,
     opponent: names.B,
+    sheetTeams: { own: { letter: 'A', code: abbreviation('A') }, other: { letter: 'B', code: abbreviation('B') } },
     date: date.every(part => /^\d+$/.test(part || '')) ? `${date[0]}-${date[1].padStart(2, '0')}-${date[2].padStart(2, '0')}` : '',
     location: capitalize(header.city?.text),
     venue: header.venue?.text || '',
@@ -294,6 +309,16 @@ export function parseTbt({ page1, page2 = null }) {
 
 const capitalize = text => (text || '').toLocaleLowerCase('it-IT').replace(/(^|\s)\S/g, value => value.toUpperCase())
 const cleanName = text => (text || '').replace(/[^\p{L}\d '.-]/gu, ' ').replace(/\s+/g, ' ').trim()
+
+// Team names of the header (version 2) by letter: either team can be on the left. Without the circled
+// letters, the abbreviation of the result table is the beginning of the name.
+function readHeaderNames(header, abbreviation) {
+  const left = cleanName(header.teamLeft?.text), right = cleanName(header.teamRight?.text)
+  const [first, second] = header.letters || []
+  const opens = (name, letter) => Boolean(abbreviation(letter)) && name.startsWith(cleanName(abbreviation(letter)))
+  const swapped = first || second ? fillLetters([first, second])[0] === 'B' : opens(left, 'B') || opens(right, 'A')
+  return swapped ? { A: right, B: left } : { A: left, B: right }
+}
 
 // Circled letters of a pair of columns: one missing is the other one; both missing: A on the left in the
 // odd sets (the teams change side every set), or the letters of the matching page 1 panel
@@ -325,39 +350,41 @@ function mergeCourtChange(main, extra, onConflict) {
   }
 }
 
-function readRoster(entries, letter, page2Liberos, teamName, warn) {
+function readRoster(entries, letter, page2Liberos, teamName, onCourt, warn) {
   const players = entries.filter(p => !p.libero)
-  const chosen = chooseIncreasing(players.map(p => texts(p.number)), { max: 99 })
+  // a number seen in the panels is preferred to a similar one never seen there
+  const chosen = chooseIncreasing(players.map(p => texts(p.number)), { max: 99, penalty: v => (onCourt.has(v) ? 0 : UNSEEN) })
   const roster = players.map((p, i) => {
     const number = chosen ? chosen.values[i] : topNumber(p.number)
-    if (chosen && chosen.costs[i] > 0) {
+    if (chosen && String(number) !== texts(p.number)[0]) {
       warn(null, teamName, number, texts(p.number)[0] ?? '', `Elenco atleti · squadra ${letter} · riga ${i + 1}`, 'Numero di maglia corretto con l\'ordine crescente dell\'elenco.')
     }
     return { number, name: cleanName(p.name.text) }
   })
-  for (const p of entries.filter(e => e.libero)) {
-    const role = Number(p.libero.slice(1)) - 1
+  // a team with 13 athletes has its only libero on the second row: the first libero of the team
+  for (const [role, p] of entries.filter(e => e.libero).entries()) {
     const fromPage2 = page2Liberos?.[role]
     const page2Number = fromPage2?.number?.find(c => /^\d{1,2}$/.test(c.text))?.text
     const number = page2Number !== undefined ? Number(page2Number) : topNumber(p.number)
     if (number === '' || roster.some(r => r.number === number)) continue
     const name = cleanName(p.name.text) || cleanName(fromPage2?.name?.text)
-    roster.push({ number, name: cleanName(fromPage2?.name?.text) || name, libero: p.libero })
+    roster.push({ number, name: cleanName(fromPage2?.name?.text) || name, libero: `L${role + 1}` })
   }
   return roster
 }
 
-function readTeamSet(side, { set, team, final, other, players, warn }) {
+function readTeamSet(side, { set, team, letter, final, other, players, liberoHeads, warn }) {
   const zone = `Set ${set} · ${team}`
+  // fields of the set of this team, as they are in the match
+  const keys = letter === 'A'
+    ? { turns: 'own', lineup: 'lineup', substitutions: 'substitutions', timeouts: 'timeouts' }
+    : { turns: 'other', lineup: 'opponentLineup', substitutions: 'opponentSubstitutions', timeouts: 'opponentTimeouts' }
   // Service turns
-  const turns = Array(36).fill('')
+  const turns = Array(48).fill('')
   const filled = side.turns.map((cell, i) => (cell && !cell.empty ? i : -1)).filter(i => i >= 0)
-  let cells = filled
-  if (filled[0] === 0 && texts(side.turns[0]).includes('X')) { turns[0] = 'X'; cells = filled.slice(1) }
-  const last = filled.at(-1)
-  for (let i = 0; i < (last ?? -1); i++) {
-    if (!filled.includes(i)) warn(set, team, 'turno compilato', 'casella vuota', `${zone} · turni, giro ${Math.floor(i / 6) + 1} pos. ${ROMAN[i % 6]}`, 'Casella vuota in mezzo alla sequenza dei turni.')
-  }
+  // the turns have no holes: a cell seen as empty before the last one has a value that was not read
+  let cells = Array.from({ length: (filled.at(-1) ?? -1) + 1 }, (_, i) => i)
+  if (filled[0] === 0 && texts(side.turns[0]).includes('X')) { turns[0] = 'X'; cells = cells.slice(1) }
   const readings = cells.map(i => texts(side.turns[i]).filter(t => t !== 'X'))
   const chosen = chooseIncreasing(readings, { max: final, last: final })
   if (!chosen && cells.length) {
@@ -369,36 +396,53 @@ function readTeamSet(side, { set, team, final, other, players, warn }) {
     const read = readings[k][0] ?? ''
     if (chosen && String(value) !== read) {
       warn(set, team, value, read || 'illeggibile', `${zone} · turni, giro ${Math.floor(cell / 6) + 1} pos. ${ROMAN[cell % 6]}`,
-        chosen.costs[k] >= UNREADABLE ? 'Valore illeggibile: ricavato dalla sequenza dei turni.' : 'Lettura corretta con la sequenza dei turni e il punteggio finale.')
+        chosen.costs[k] >= UNREADABLE ? 'Valore illeggibile: ricavato dalla sequenza dei turni.' : 'Lettura corretta con la sequenza dei turni e il punteggio finale.',
+        { key: keys.turns, index: cell })
     }
   })
 
   // Starting players and substitutes: jersey numbers of the roster
   const used = new Set()
-  const jersey = (cell, what) => {
+  const inRoster = cell => texts(cell).filter(t => /^\d+$/.test(t)).map(Number).find(n => players.includes(n) && !used.has(n))
+  // only one free athlete of the roster close to the reading ("4" for 44 when 84 is already on court), or
+  // only one of them in the libero exchanges of the set
+  const closest = list => {
+    const close = players.filter(n => !used.has(n) && valueCost(list.map(String), n) < UNREADABLE)
+    const exchanged = close.filter(n => liberoHeads.has(n))
+    return close.length === 1 ? close[0] : exchanged.length === 1 ? exchanged[0] : undefined
+  }
+  const jersey = (cell, what, field) => {
     const list = texts(cell).filter(t => /^\d+$/.test(t)).map(Number)
-    const number = list.find(n => players.includes(n) && !used.has(n)) ?? list[0]
+    const repaired = inRoster(cell) === undefined ? closest(list) : undefined
+    const number = inRoster(cell) ?? repaired ?? list[0]
+    if (repaired !== undefined) warn(set, team, repaired, list[0], `${zone} · ${what}`, 'Numero corretto con l\'elenco atleti.', field)
     if (number === undefined) {
-      if (!cell?.empty) warn(set, team, 'numero di maglia', 'illeggibile', `${zone} · ${what}`, 'Numero non leggibile: non importato.')
+      if (!cell?.empty) warn(set, team, 'numero di maglia', 'illeggibile', `${zone} · ${what}`, 'Numero non leggibile: non importato.', field)
       return ''
     }
-    if (!players.includes(number)) warn(set, team, 'numero dell\'elenco atleti', number, `${zone} · ${what}`, 'Numero non presente nell\'elenco atleti.')
+    if (!players.includes(number)) warn(set, team, 'numero dell\'elenco atleti', number, `${zone} · ${what}`, 'Numero non presente nell\'elenco atleti.', field)
     used.add(number)
     return String(number)
   }
-  const lineup = side.lineup.map((cell, i) => jersey(cell, `titolare pos. ${ROMAN[i]}`))
-  const pair = (cell, what, max) => {
+  // the cells read exactly first: they leave fewer free athletes for the others
+  const exact = side.lineup.map(cell => {
+    const number = inRoster(cell)
+    if (number !== undefined) used.add(number)
+    return number
+  })
+  const lineup = side.lineup.map((cell, i) => (exact[i] !== undefined ? String(exact[i]) : jersey(cell, `titolare pos. ${ROMAN[i]}`, { key: keys.lineup, index: i })))
+  const pair = (cell, what, max, field) => {
     if (!cell || cell.empty) return ''
-    if (!cell.value) { warn(set, team, 'punteggio a:b', 'illeggibile', `${zone} · ${what}`, 'Punteggio non leggibile: non importato.'); return '' }
+    if (!cell.value) { warn(set, team, 'punteggio a:b', 'illeggibile', `${zone} · ${what}`, 'Punteggio non leggibile: non importato.', field); return '' }
     const [a, b] = cell.value.split(':').map(Number)
-    if (a > max[0] || b > max[1]) warn(set, team, `≤ ${max[0]}:${max[1]}`, cell.value, `${zone} · ${what}`, 'Punteggio oltre il risultato del set.')
+    if (a > max[0] || b > max[1]) warn(set, team, `≤ ${max[0]}:${max[1]}`, cell.value, `${zone} · ${what}`, 'Punteggio oltre il risultato del set.', field)
     return cell.value
   }
   const substitutions = emptySubstitutions().map((empty, i) => ({
-    in: side.entrants[i]?.empty ? '' : jersey(side.entrants[i], `sostituzione pos. ${ROMAN[i]}`),
-    scoreIn: pair(side.scoreIn[i], `punteggio di entrata pos. ${ROMAN[i]}`, [final, other]),
-    scoreOut: pair(side.scoreOut[i], `punteggio di uscita pos. ${ROMAN[i]}`, [final, other]),
+    in: side.entrants[i]?.empty ? '' : jersey(side.entrants[i], `sostituzione pos. ${ROMAN[i]}`, { key: keys.substitutions, index: i, part: 'in' }),
+    scoreIn: pair(side.scoreIn[i], `punteggio di entrata pos. ${ROMAN[i]}`, [final, other], { key: keys.substitutions, index: i, part: 'scoreIn' }),
+    scoreOut: pair(side.scoreOut[i], `punteggio di uscita pos. ${ROMAN[i]}`, [final, other], { key: keys.substitutions, index: i, part: 'scoreOut' }),
   }))
-  const timeouts = emptyTimeouts().map((empty, i) => pair(side.timeouts[i], `time-out ${i + 1}`, [final, other]))
+  const timeouts = emptyTimeouts().map((empty, i) => pair(side.timeouts[i], `time-out ${i + 1}`, [final, other], { key: keys.timeouts, index: i }))
   return { turns, lineup, substitutions, timeouts }
 }

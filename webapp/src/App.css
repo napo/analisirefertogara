@@ -789,6 +789,13 @@
   color: #C62828;
 }
 
+/* Valore dedotto o non letto dall'import: il testo resta leggibile */
+.vs-grid-table input.vs-import-flag,
+.vs-timeouts input.vs-import-flag {
+  outline: 2px solid #B45309;
+  outline-offset: -2px;
+}
+
 /* Andamento della gara */
 .vs-flow-head {
   display: flex;
@@ -1987,3 +1994,150 @@
 .vs-download-chips { display: flex; gap: .4rem; flex-wrap: wrap; }
 .vs-download-chip { padding: .15rem .7rem; border: 1px solid var(--vs-accent); border-radius: 999px; font-size: .8rem; color: var(--vs-accent); text-decoration: none; }
 .vs-download-chip:hover, .vs-download-chip:focus-visible { background: var(--vs-bg); }
+
+/* Griglia del set con la forma del referto: squadra, righe, turni a due metà, "T" e libero a destra */
+.vs-sheet-team-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--vs-heading);
+}
+
+.vs-sheet-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.vs-sheet-code {
+  font-weight: 800;
+}
+
+.vs-sheet-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.vs-sheet-panel {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.vs-sheet-panel > .vs-table-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.vs-grid-table.vs-sheet-grid {
+  table-layout: fixed;
+  min-width: 25rem;
+}
+
+.vs-sheet-col-label {
+  width: 3.1rem;
+}
+
+.vs-sheet-col-t {
+  width: 2.9rem;
+}
+
+.vs-grid-table.vs-sheet-grid th,
+.vs-grid-table.vs-sheet-grid td {
+  padding: 2px 1px;
+  height: 2.1rem;
+  white-space: normal;
+}
+
+.vs-sheet-grid tbody th {
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.vs-grid-table.vs-sheet-grid input,
+.vs-grid-table.vs-sheet-grid input.vs-score-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 3px 0;
+  font-size: 0.74rem;
+}
+
+.vs-sheet-grid td.vs-sheet-half1 {
+  border-right: 1px dotted #9AA5B1;
+}
+
+.vs-sheet-grid td.vs-sheet-half2 {
+  border-right: 1px solid #5F6B76;
+}
+
+.vs-grid-table.vs-sheet-grid .vs-sheet-t {
+  text-align: center;
+  border-left: 2px solid var(--vs-heading);
+  font-size: 0.75rem;
+}
+
+.vs-sheet-libero {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 4.9rem;
+  border: 1px solid #D0D7DE;
+  border-left: 2px solid var(--vs-heading);
+}
+
+.vs-sheet-libero-title {
+  padding: 0.3rem 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.vs-sheet-libero textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 2.1rem;
+  box-sizing: border-box;
+  padding: 1px 2px;
+  border: none;
+  border-top: 1px solid #D0D7DE;
+  border-radius: 0;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.vs-sheet-libero textarea.vs-import-flag {
+  outline: 2px solid #B45309;
+  outline-offset: -2px;
+}
+
+.vs-sheet-libero textarea[aria-invalid="true"] {
+  outline: 2px solid #C62828;
+  outline-offset: -2px;
+}
+
+@media (max-width: 640px) {
+  .vs-sheet-panel {
+    flex-direction: column;
+  }
+
+  .vs-sheet-libero {
+    flex: 0 0 auto;
+    border-left: 1px solid #D0D7DE;
+    border-top: 2px solid var(--vs-heading);
+  }
+}

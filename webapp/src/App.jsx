@@ -23,8 +23,10 @@ import AthletesTable from './AthletesTable'
 import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './GlossaryView'
 import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
-import { AboutProject, DownloadSection, PrivacyCard, SupportCard } from './AboutProject.jsx'
+import { AboutProject, DownloadSection, PrivacyCard, SupportCard, TbtImportNotice } from './AboutProject.jsx'
 import ExternalLink from './ExternalLink.jsx'
+import { fieldId, flaggedFields } from './import-flags.js'
+import { liberoLines, liberoLinesPatch, validLiberoLine } from './libero-lines.js'
 import { saveFile, savedMessage } from './save-file.js'
 import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
 import './App.css'
@@ -44,10 +46,6 @@ async function svgToPng(svg, size) {
 }
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
-// At least the 6 rows of the scoresheet box; more are kept (fifth set: rows of the court-change panel)
-const liberoValues = (libero, key) => Array.isArray(libero?.[key])
-  ? [...libero[key], '', '', '', '', '', ''].slice(0, Math.max(6, libero[key].length))
-  : Array(6).fill(libero?.[key] || '')
 const resultStr = m => `${m.sets.filter(s => s.scoreOwn > s.scoreOther).length} – ${m.sets.filter(s => s.scoreOther > s.scoreOwn).length}`
 const isFemaleTeamOrMatch = (matchOrList, activeTeam = '') => {
   const list = Array.isArray(matchOrList) ? matchOrList : [matchOrList].filter(Boolean)
@@ -678,7 +676,7 @@ function MainApp() {
                   <p className="vs-dropzone-progress" role="status" aria-live="polite">{progress}</p>
                 )}
                 <div style={{ marginTop: '1rem', fontSize: '0.82rem', color: 'var(--vs-muted)' }}>
-                  <span>Sono supportati i modelli PDF dei software prodotti da {supportedSoftwareList()}</span>
+                  <span>Sono supportati i modelli PDF dei software prodotti da {supportedSoftwareList()}. I referti TieBreakTech hanno una lettura meno affidabile: i dati vanno controllati.</span>
                 </div>
               </div>
             )}
@@ -1870,6 +1868,8 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         </button>
       </div>
 
+      {draft.sourceFormat === 'TBT' && <TbtImportNotice />}
+
       <div className="vs-review-grid">
         {draft.isManual ? (
           <>
@@ -2274,7 +2274,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           index={index}
           team={draft.team || 'Squadra analizzata'}
           opponent={draft.opponent || 'Squadra avversaria'}
-          female={isFemaleTeamOrMatch(draft, draft.team)}
+          sheetTeams={draft.sheetTeams}
+          canSwapSides={Boolean(draft.isManual)}
+          warnings={draft.importWarnings}
           update={(patch) => {
             setDraft(d => {
               const next = { ...d, sets: d.sets.map((s, i) => i === index ? { ...s, ...patch } : s) }
@@ -2328,11 +2330,13 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
 
       {draft.importWarnings?.length > 0 && (
         <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '0.5rem', color: '#6D4C00', fontSize: '0.85rem' }}>
-          <strong>Dati del PDF da controllare:</strong> alcuni valori non sono stati letti come previsto o non sono coerenti tra loro. L’app non li ha corretti: confrontali con il PDF originale.
+          <strong>Dati del PDF da controllare:</strong> {draft.sourceFormat === 'TBT'
+            ? 'alcuni valori non sono stati letti con certezza: l’app li ha ricavati dagli altri dati del referto, quando possibile. Confrontali con il PDF originale.'
+            : 'alcuni valori non sono stati letti come previsto o non sono coerenti tra loro. L’app non li ha corretti: confrontali con il PDF originale.'}
           <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.25rem' }}>
             {draft.importWarnings.map((warning, i) => (
               <li key={i}>
-                {warning.set ? `Set ${warning.set}` : 'Referto'}{warning.team ? ` · ${warning.team}` : ''}: {warning.message} Atteso: {String(warning.expected)}; trovato: {String(warning.found)}.
+                {warning.set ? `Set ${warning.set}` : 'Referto'}{warning.team ? ` · ${warning.team}` : ''}: {warning.message}{warning.expected !== '' || warning.found !== '' ? ` Atteso: ${String(warning.expected)}; trovato: ${String(warning.found)}.` : ''}
                 <span style={{ display: 'block', fontSize: '0.76rem', opacity: 0.8 }}>Zona del PDF: {warning.zone}</span>
               </li>
             ))}
@@ -2393,12 +2397,53 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
   )
 }
 
+// Libero exchanges of a team in a set, one per row as on the sheet ("73-70-76"): long ones wrap on two lines
+function LiberoColumn({ setNumber, name, lines: initial, flagOf, onChange, onCommit }) {
+  const [lines, setLines] = useState(initial)
+  const rows = Math.max(9, lines.length + 1)
+  return (
+    <div className="vs-sheet-libero">
+      <div className="vs-sheet-libero-title">Libero</div>
+      {Array.from({ length: rows }, (_, row) => {
+        const value = lines[row] ?? ''
+        const incomplete = value.trim() !== '' && !validLiberoLine(value)
+        return (
+          <textarea
+            key={row}
+            rows="2"
+            aria-label={`Set ${setNumber}, ${name}, ingresso del libero, riga ${row + 1}`}
+            aria-invalid={incomplete || undefined}
+            className={flagOf(row) && !incomplete ? 'vs-import-flag' : undefined}
+            title={incomplete ? 'Scrivi il giocatore e i liberi separati da un trattino, es. 73-70-76: finché non è completa la riga non viene usata' : flagOf(row) || 'Giocatore che esce e liberi che entrano in sequenza, es. 73-70-76'}
+            value={value}
+            onChange={e => {
+              if (!/^[\d\s-]*$/.test(e.target.value)) return
+              const next = Array.from({ length: Math.max(lines.length, row + 1) }, (_, i) => lines[i] ?? '')
+              next[row] = e.target.value
+              setLines(next)
+              onChange(next)
+            }}
+            onBlur={e => onCommit(e.target.value)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
 // Subcomponent: Set Details & 6x6 Turns Grid
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI']
 const LINEUP_HINT = 'Giocatori titolari: numeri di maglia della formazione iniziale del set nelle posizioni I–VI, come nella riga "Giocatori titolari N°" del referto'
 
 const SUBSTITUTION_HINT = 'Sostituzioni: nella colonna della posizione I–VI il numero di chi entra al posto del titolare (riga "Riserve N°" del referto) e i punteggi di entrata e di rientro del titolare ("Punteggio al cambio")'
 
-function SetEditor({ set: s, index, team, opponent, female = false, update, onLineupCommit }) {
+function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = false, warnings, update, onLineupCommit }) {
+  const turnRows = s.turnRows || 4
+  const flags = flaggedFields(warnings, index + 1, s)
+  // Outline of a value the import deduced or could not read, with the reason
+  const flagOf = (key, i, part) => flags.get(fieldId(key, i, part))
+  // Same order as the sheet: the teams change side from set to set
+  const inSheetOrder = pair => (s.opponentOnLeft ? [...pair].reverse() : pair)
   const isGoldenSet = index === 5
   const isTieBreak = index === 4
   const setLabel = isGoldenSet ? 'Set 6 — Golden Set (a 15 punti)' : isTieBreak ? 'Set 5 — Tie-break (a 15 punti)' : `Set ${index + 1}`
@@ -2408,29 +2453,22 @@ function SetEditor({ set: s, index, team, opponent, female = false, update, onLi
       <summary className="vs-set-summary">
         <span>{setLabel}</span>
         <span style={{ color: 'var(--vs-orange)', fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>
-          {s.scoreOwn} – {s.scoreOther}
+          {inSheetOrder([s.scoreOwn, s.scoreOther]).join(' – ')}
         </span>
       </summary>
       <div className="vs-set-body">
         <div className="vs-review-grid" style={{ marginBottom: '1rem' }}>
-          <div className="vs-field">
-            <label>Punti {team}</label>
-            <input
-              type="number"
-              min="0"
-              value={s.scoreOwn}
-              onChange={(e) => update({ scoreOwn: e.target.value === '' ? '' : +e.target.value })}
-            />
-          </div>
-          <div className="vs-field">
-            <label>Punti {opponent}</label>
-            <input
-              type="number"
-              min="0"
-              value={s.scoreOther}
-              onChange={(e) => update({ scoreOther: e.target.value === '' ? '' : +e.target.value })}
-            />
-          </div>
+          {inSheetOrder([['scoreOwn', team], ['scoreOther', opponent]]).map(([field, name]) => (
+            <div className="vs-field" key={field}>
+              <label>Punti {name}</label>
+              <input
+                type="number"
+                min="0"
+                value={s[field]}
+                onChange={(e) => update({ [field]: e.target.value === '' ? '' : +e.target.value })}
+              />
+            </div>
+          ))}
           <div className="vs-field">
             <label>Durata set (minuti)</label>
             <input
@@ -2446,13 +2484,19 @@ function SetEditor({ set: s, index, team, opponent, female = false, update, onLi
           </div>
         </div>
 
+        {canSwapSides && (
+          <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => update({ opponentOnLeft: !s.opponentOnLeft })}>
+            Inverti i lati in questo set
+          </button>
+        )}
+
         <div className="vs-set-data-layout">
           <div className="vs-turn-grid">
-            {[
-              { key: 'own', liberoKey: 'libero', lineupKey: 'lineup', subsKey: 'substitutions', subNumbersKey: 'substituteNumbers', timeoutsKey: 'timeouts', name: team },
-              { key: 'other', liberoKey: 'opponentLibero', lineupKey: 'opponentLineup', subsKey: 'opponentSubstitutions', subNumbersKey: 'opponentSubstituteNumbers', timeoutsKey: 'opponentTimeouts', name: opponent },
-            ].map(({ key, liberoKey, lineupKey, subsKey, subNumbersKey, timeoutsKey, name }) => {
-              const libero = s[liberoKey] || {}
+            {inSheetOrder([
+              { key: 'own', liberoReplacementsKey: 'liberoReplacements', lineupKey: 'lineup', subsKey: 'substitutions', subNumbersKey: 'substituteNumbers', timeoutsKey: 'timeouts', name: team },
+              { key: 'other', liberoReplacementsKey: 'opponentLiberoReplacements', lineupKey: 'opponentLineup', subsKey: 'opponentSubstitutions', subNumbersKey: 'opponentSubstituteNumbers', timeoutsKey: 'opponentTimeouts', name: opponent },
+            ]).map(({ key, liberoReplacementsKey, lineupKey, subsKey, subNumbersKey, timeoutsKey, name }) => {
+              const sheet = sheetTeams?.[key]
               const duplicates = duplicateLineupNumbers(s[lineupKey])
               const isDuplicate = value => duplicates.has(String(Number(String(value ?? '').trim() || NaN)))
               const substitutions = Array.from({ length: 6 }, (_, c) => ({ in: '', scoreIn: '', scoreOut: '', ...(s[subsKey]?.[c] || {}) }))
@@ -2469,11 +2513,11 @@ function SetEditor({ set: s, index, team, opponent, female = false, update, onLi
                 update(patch)
               }
               const scoreHint = `Punteggio come sul referto: prima i punti di ${name}, poi quelli dell'avversaria (es. 12:16)`
-              const scoreInput = (label, value, onChange) => (
+              const scoreInput = (label, value, onChange, flag) => (
                 <input
-                  className="vs-score-input"
+                  className={`vs-score-input${flag ? ' vs-import-flag' : ''}`}
                   aria-label={label}
-                  title={scoreHint}
+                  title={flag || scoreHint}
                   placeholder="–:–"
                   value={value}
                   maxLength={5}
@@ -2482,145 +2526,133 @@ function SetEditor({ set: s, index, team, opponent, female = false, update, onLi
                   onBlur={e => { const normalized = normalizeScore(e.target.value); if (normalized && normalized !== e.target.value) onChange(normalized) }}
                 />
               )
-              const liberoFields = {
-                onCourt: liberoValues(libero, 'onCourt'),
-                entered: liberoValues(libero, 'entered'),
-                otherEntered: liberoValues(libero, 'otherEntered'),
-              }
               return (
-                <div key={key}>
-                  <h4 style={{ fontSize: '0.9rem', marginBottom: '0.35rem', color: 'var(--vs-heading)' }}>
-                    {name}
+                <div key={key} className="vs-sheet-team">
+                  <h4 className="vs-sheet-team-head">
+                    {sheet?.letter && <span className="vs-sheet-letter">{sheet.letter}</span>}
+                    {sheet?.code && <span className="vs-sheet-code">{sheet.code}</span>}
+                    <span className={sheet?.code ? 'vs-sheet-name' : 'vs-sheet-code'}>{name}</span>
                   </h4>
-                  <div className="vs-table-wrap">
-                <table className="vs-grid-table">
-                  <thead>
-                    <tr>
-                      <th>Pos.</th>
-                      {['I', 'II', 'III', 'IV', 'V', 'VI'].map(v => <th key={v}>{v}</th>)}
-                      <th colSpan="3">{female ? 'Atlete' : 'Atleti'}</th>
-                    </tr>
-                    <tr className="vs-lineup-row" title={LINEUP_HINT}>
-                      <th scope="row">Titolari</th>
-                      {Array.from({ length: 6 }, (_, c) => (
-                        <td key={c}>
-                          <input
-                            aria-label={`Set ${index + 1}, ${name}, giocatore titolare in posizione ${['I', 'II', 'III', 'IV', 'V', 'VI'][c]}`}
-                            className={isDuplicate(s[lineupKey]?.[c]) ? 'vs-lineup-duplicate' : undefined}
-                            aria-invalid={isDuplicate(s[lineupKey]?.[c]) || undefined}
-                            title={isDuplicate(s[lineupKey]?.[c]) ? `Il numero ${s[lineupKey][c]} è già tra i titolari di ${name}` : LINEUP_HINT}
-                            placeholder="N°"
-                            inputMode="numeric"
-                            value={s[lineupKey]?.[c] ?? ''}
-                            maxLength={3}
-                            onChange={(e) => {
-                              const text = e.target.value.trim()
-                              if (text !== '' && !/^\d+$/.test(text)) return
-                              const lineup = Array.from({ length: 6 }, (_, i) => s[lineupKey]?.[i] ?? '')
-                              lineup[c] = text
-                              update({ [lineupKey]: lineup })
-                            }}
-                            onBlur={(e) => { if (lineupKey === 'lineup') onLineupCommit?.(e.target.value) }}
-                          />
-                        </td>
-                      ))}
-                      <td colSpan="3" className="vs-lineup-note">formazione iniziale</td>
-                    </tr>
-                    <tr className="vs-sub-row" title={SUBSTITUTION_HINT}>
-                      <th scope="row">Riserve N°</th>
-                      {substitutions.map((cell, c) => (
-                        <td key={c}>
-                          <input
-                            aria-label={`Set ${index + 1}, ${name}, riserva entrata in posizione ${['I', 'II', 'III', 'IV', 'V', 'VI'][c]}`}
-                            title={SUBSTITUTION_HINT}
-                            placeholder="N°"
-                            inputMode="numeric"
-                            value={cell.in}
-                            maxLength={3}
-                            onChange={e => {
-                              const text = e.target.value.trim()
-                              if (text === '' || /^\d+$/.test(text)) updateSubstitution(c, 'in', text)
-                            }}
-                            onBlur={e => { if (lineupKey === 'lineup') onLineupCommit?.(e.target.value) }}
-                          />
-                        </td>
-                      ))}
-                      <td colSpan="3" className="vs-sub-note">sostituzioni</td>
-                    </tr>
-                    {[['scoreIn', 'Entrata', 'punteggio quando entra la riserva'], ['scoreOut', 'Rientro', 'punteggio quando rientra il titolare']].map(([field, label, description]) => (
-                      <tr key={field} className="vs-sub-row vs-sub-score-row" title={`${label}: ${description}. ${scoreHint}`}>
-                        <th scope="row">{label}</th>
-                        {substitutions.map((cell, c) => (
-                          <td key={c}>
-                            {scoreInput(`Set ${index + 1}, ${name}, posizione ${['I', 'II', 'III', 'IV', 'V', 'VI'][c]}, ${description}`, cell[field], value => updateSubstitution(c, field, value))}
-                          </td>
-                        ))}
-                        <td colSpan="3" className="vs-sub-note">{description}</td>
-                      </tr>
-                    ))}
-                    <tr className="vs-grid-spacer" aria-hidden="true"><td colSpan="10" /></tr>
-                    <tr className="vs-grid-section-head">
-                      <th scope="col">Turni</th>
-                      <th scope="colgroup" colSpan="6">Punteggio per rotazione</th>
-                      <th scope="colgroup" colSpan="3" className="vs-libero-start">Ingressi libero</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: 6 }, (_, r) => (
-                      <tr key={r}>
-                        <th>{r + 1}</th>
-                        {Array.from({ length: 6 }, (_, c) => {
-                          const cellIdx = r * 6 + c
-                          const cellVal = s[key][cellIdx] ?? ''
-                          return (
-                            <td key={c}>
-                              <input
-                                aria-label={`Set ${index + 1}, ${name}, giro ${r + 1}, colonna ${c + 1}`}
-                                value={cellVal}
-                                maxLength={3}
-                                onChange={(e) => {
-                                  const text = e.target.value.toUpperCase()
-                                  if (text !== '' && text !== 'X' && !/^\d+$/.test(text)) return
-                                  const arr = [...s[key]]
-                                  arr[cellIdx] = text === '' || text === 'X' ? text : +text
-                                  update({ [key]: arr })
-                                }}
-                              />
-                            </td>
-                          )
-                        })}
-                        {Object.entries(liberoFields).map(([field, values]) => (
-                          <td key={field} className={field === 'onCourt' ? 'vs-libero-start' : undefined}>
-                            <input
-                              aria-label={`Set ${index + 1}, ${name}, giro ${r + 1}, libero ${field}`}
-                              value={values[r]}
-                              maxLength={3}
-                              onChange={event => {
-                                const values = liberoValues(libero, field)
-                                values[r] = event.target.value
-                                update({ [liberoKey]: { ...libero, [field]: values } })
-                              }}
-                              onBlur={event => { if (liberoKey === 'libero') onLineupCommit?.(event.target.value) }}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-                  <div className="vs-timeouts" title={`Time-out richiesti da ${name}. ${scoreHint}`}>
-                    <span className="vs-timeouts-label">Time-out "T"</span>
-                    {timeouts.map((value, i) => (
-                      <label key={i}>
-                        {i + 1}°
-                        {scoreInput(`Set ${index + 1}, ${name}, ${i + 1}° time-out`, value, next => {
-                          const list = [...timeouts]
-                          list[i] = next
-                          update({ [timeoutsKey]: list })
-                        })}
-                      </label>
-                    ))}
+                  <div className="vs-sheet-panel">
+                    <div className="vs-table-wrap">
+                      <table className="vs-grid-table vs-sheet-grid">
+                        <colgroup>
+                          <col className="vs-sheet-col-label" />
+                          {Array.from({ length: 12 }, (_, i) => <col key={i} />)}
+                          <col className="vs-sheet-col-t" />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th scope="col">Ordine</th>
+                            {ROMAN.map(v => <th key={v} scope="col" colSpan="2">{v}</th>)}
+                            <th className="vs-sheet-t" aria-hidden="true" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="vs-lineup-row" title={LINEUP_HINT}>
+                            <th scope="row">Titolari N°</th>
+                            {Array.from({ length: 6 }, (_, c) => (
+                              <td key={c} colSpan="2">
+                                <input
+                                  aria-label={`Set ${index + 1}, ${name}, giocatore titolare in posizione ${ROMAN[c]}`}
+                                  className={isDuplicate(s[lineupKey]?.[c]) ? 'vs-lineup-duplicate' : flagOf(lineupKey, c) ? 'vs-import-flag' : undefined}
+                                  aria-invalid={isDuplicate(s[lineupKey]?.[c]) || undefined}
+                                  title={isDuplicate(s[lineupKey]?.[c]) ? `Il numero ${s[lineupKey][c]} è già tra i titolari di ${name}` : flagOf(lineupKey, c) || LINEUP_HINT}
+                                  placeholder="N°"
+                                  inputMode="numeric"
+                                  value={s[lineupKey]?.[c] ?? ''}
+                                  maxLength={3}
+                                  onChange={(e) => {
+                                    const text = e.target.value.trim()
+                                    if (text !== '' && !/^\d+$/.test(text)) return
+                                    const lineup = Array.from({ length: 6 }, (_, i) => s[lineupKey]?.[i] ?? '')
+                                    lineup[c] = text
+                                    update({ [lineupKey]: lineup })
+                                  }}
+                                  onBlur={(e) => { if (lineupKey === 'lineup') onLineupCommit?.(e.target.value) }}
+                                />
+                              </td>
+                            ))}
+                            <td className="vs-sheet-t" />
+                          </tr>
+                          <tr className="vs-sub-row" title={SUBSTITUTION_HINT}>
+                            <th scope="row">Riserve N°</th>
+                            {substitutions.map((cell, c) => (
+                              <td key={c} colSpan="2">
+                                <input
+                                  aria-label={`Set ${index + 1}, ${name}, riserva entrata in posizione ${ROMAN[c]}`}
+                                  className={flagOf(subsKey, c, 'in') ? 'vs-import-flag' : undefined}
+                                  title={flagOf(subsKey, c, 'in') || SUBSTITUTION_HINT}
+                                  placeholder="N°"
+                                  inputMode="numeric"
+                                  value={cell.in}
+                                  maxLength={3}
+                                  onChange={e => {
+                                    const text = e.target.value.trim()
+                                    if (text === '' || /^\d+$/.test(text)) updateSubstitution(c, 'in', text)
+                                  }}
+                                  onBlur={e => { if (lineupKey === 'lineup') onLineupCommit?.(e.target.value) }}
+                                />
+                              </td>
+                            ))}
+                            <td className="vs-sheet-t" />
+                          </tr>
+                          {[['scoreIn', 'punteggio quando entra la riserva'], ['scoreOut', 'punteggio quando rientra il titolare']].map(([field, description], row) => (
+                            <tr key={field} className="vs-sub-row vs-sub-score-row" title={`${description}. ${scoreHint}`}>
+                              {row === 0 && <th scope="row" rowSpan="2">Punteggio al cambio</th>}
+                              {substitutions.map((cell, c) => (
+                                <td key={c} colSpan="2">
+                                  {scoreInput(`Set ${index + 1}, ${name}, posizione ${ROMAN[c]}, ${description}`, cell[field], value => updateSubstitution(c, field, value), flagOf(subsKey, c, field))}
+                                </td>
+                              ))}
+                              <td className="vs-sheet-t" />
+                            </tr>
+                          ))}
+                          {Array.from({ length: turnRows }, (_, r) => (
+                            <tr key={r} className="vs-sheet-turns">
+                              <th scope="row">{r + 1}° {r + 1 + turnRows}°</th>
+                              {Array.from({ length: 6 }, (_, c) => [r, r + turnRows].map((round, half) => {
+                                const cellIdx = round * 6 + c
+                                return (
+                                  <td key={`${c}-${half}`} className={half ? 'vs-sheet-half2' : 'vs-sheet-half1'}>
+                                    <input
+                                      aria-label={`Set ${index + 1}, ${name}, giro ${round + 1}, colonna ${c + 1}`}
+                                      className={flagOf(key, cellIdx) ? 'vs-import-flag' : undefined}
+                                      title={flagOf(key, cellIdx)}
+                                      value={s[key][cellIdx] ?? ''}
+                                      maxLength={3}
+                                      onChange={(e) => {
+                                        const text = e.target.value.toUpperCase()
+                                        if (text !== '' && text !== 'X' && !/^\d+$/.test(text)) return
+                                        const arr = Array.from({ length: 48 }, (_, i) => s[key][i] ?? '')
+                                        arr[cellIdx] = text === '' || text === 'X' ? text : +text
+                                        update({ [key]: arr })
+                                      }}
+                                    />
+                                  </td>
+                                )
+                              }))}
+                              <td className="vs-sheet-t" title={`Time-out richiesti da ${name}. ${scoreHint}`}>
+                                {r === turnRows - 3 && <strong>"T"</strong>}
+                                {r > turnRows - 3 && scoreInput(`Set ${index + 1}, ${name}, ${r - turnRows + 3}° time-out`, timeouts[r - turnRows + 2], next => {
+                                  const list = [...timeouts]
+                                  list[r - turnRows + 2] = next
+                                  update({ [timeoutsKey]: list })
+                                }, flagOf(timeoutsKey, r - turnRows + 2))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <LiberoColumn
+                      setNumber={index + 1}
+                      name={name}
+                      lines={liberoLines(s, key)}
+                      flagOf={row => flagOf(liberoReplacementsKey, row)}
+                      onChange={lines => update(liberoLinesPatch(key, lines))}
+                      onCommit={text => { if (key === 'own') onLineupCommit?.(text) }}
+                    />
                   </div>
                   {duplicates.size > 0 && (
                     <p className="vs-lineup-error" role="alert">

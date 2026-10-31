@@ -13,6 +13,8 @@ export function createBlankSet(number) {
   return {
     number,
     rotation: '',
+    // A on the left in the odd sets, as on a paper scoresheet
+    opponentOnLeft: number % 2 === 0,
     scoreOwn: 0,
     scoreOther: 0,
     durationMinutes: '',
@@ -26,8 +28,8 @@ export function createBlankSet(number) {
     opponentTimeouts: emptyTimeouts(),
     libero: { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
     opponentLibero: { onCourt: Array(6).fill(''), entered: Array(6).fill(''), otherEntered: Array(6).fill('') },
-    own: Array(36).fill(''),
-    other: Array(36).fill(''),
+    own: Array(48).fill(''),
+    other: Array(48).fill(''),
   }
 }
 
@@ -52,6 +54,7 @@ export function createBlankMatch() {
     notes: '',
     fileName: 'Compilazione manuale',
     isManual: true,
+    sheetTeams: { own: { letter: 'A' }, other: { letter: 'B' } },
     referees: {
       first: '',
       firstCity: '',

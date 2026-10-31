@@ -140,7 +140,7 @@ export function validateMatch(m, { strict = true } = {}) {
     const prefix = i === 5 ? 'Set 6 (Golden Set)' : `Set ${i + 1}`
     for (const [side, score] of [['own', s.scoreOwn], ['other', s.scoreOther]]) {
       if (!Number.isInteger(score) || score < 0) errors.push(`${prefix}: punteggio non valido.`)
-      if (!Array.isArray(s[side]) || s[side].length > 36) { errors.push(`${prefix}: griglia turni non valida.`); continue }
+      if (!Array.isArray(s[side]) || s[side].length > 48) { errors.push(`${prefix}: griglia turni non valida.`); continue }
       const cells = s[side], last = cells.findLastIndex(v => v !== '' && v !== null)
       if (last < 0) { errors.push(`${prefix}: turni mancanti.`); continue }
       for (let j = 0; j <= last; j++) {

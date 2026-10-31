@@ -98,6 +98,27 @@ export function openInk(image, radius = 1, restore = 0) {
   return { data: out, width, height }
 }
 
+// A ring drawn over a thin number, even when it touches the number and is cut by the edges of the cell: in
+// the components taller than a digit only the ink inside a block of 2×2 pixels stays (the ring is one pixel
+// wide), with the ink right next to it (the thin joints of the digit). The other components, thin digits
+// included, are left as they are.
+export function removeRings(image, maxDigitHeight) {
+  const { data, width, height } = image
+  const ink = (x, y) => x >= 0 && y >= 0 && x < width && y < height && data[y * width + x] < DARK
+  const out = data.slice()
+  for (const c of components(image)) {
+    if (c.h <= maxDigitHeight) continue
+    const inBlock = (x, y) => ink(x, y) && [[-1, -1], [1, -1], [-1, 1], [1, 1]].some(([dx, dy]) => ink(x + dx, y) && ink(x, y + dy) && ink(x + dx, y + dy))
+    for (const i of c.pixels) {
+      const x = i % width, y = (i / width) | 0
+      let near = false
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) near ||= inBlock(x + dx, y + dy)
+      if (!near) out[i] = 255
+    }
+  }
+  return { data: out, width, height }
+}
+
 // Keep the ink of printed values: characters of about `charHeight` px; drops the small corner digits,
 // the "/" marks of the scoresheet grid and the separator ":" printed in empty score boxes. Rings around a
 // value are removed keeping what is inside. Returns { image, glyphs } or null when the cell is empty.

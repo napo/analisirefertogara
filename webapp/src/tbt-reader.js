@@ -3,7 +3,7 @@
 // image = grayscale { data, width, height }. The same code runs in the browser (tesseract.js on a canvas)
 // and in Node tests. Numeric cells keep all candidate readings: tbt-parser.js picks the ones that respect
 // the rules of the scoresheet (increasing progressions, final points).
-import { DARK, cleanCell, cleanText, cropGray, glyphImage, glyphShape, inkRatio, openInk, removeStrike, scaledImage, shapeSimilarity, smoothImage, splitPair, components } from './tbt-image.js'
+import { DARK, cleanCell, cleanText, cropGray, glyphImage, glyphShape, inkRatio, openInk, removeRings, removeStrike, scaledImage, shapeSimilarity, smoothImage, splitPair, components } from './tbt-image.js'
 import { LAYOUTS, LIBERO_PAGE, PAGE2_WIDTH } from './tbt-layout.js'
 
 const DIGITS = '0123456789'
@@ -15,6 +15,8 @@ const ENTRY_VARIANTS = [
   [6, PSM_LINE], [8, PSM_LINE], [10, PSM_LINE],
   [12, PSM_LINE, { scaleY: 7, low: 0, high: 160 }], [10, PSM_LINE, { scaleY: 8, low: 0, high: 120 }], [14, PSM_LINE, { scaleY: 8, low: 30, high: 200 }],
 ]
+const BAND_DARK = 110 // gray level below which a pixel is ink on the gray band of a table header
+const MIN_LINE = 4 // pixel rows of a line of text in the "LIBERO / UNDER" column
 const RESTORE = 2 // steps of ink given back after removing the thin strokes (more would regrow the "/" marks)
 
 // Which version of the TBT page 1 template is this image (tbt-layout.js)? The horizontal grid lines must be
@@ -71,7 +73,7 @@ function holes(image, glyph) {
         if (!ink[j] && !seen[j]) { seen[j] = 1; stack.push(j) }
       }
     }
-    if (!border && size > 6) count++
+    if (!border && size > 2) count++
   }
   return count
 }
@@ -80,15 +82,20 @@ export function createReader(ocr) {
   const box = (image, rect, scale) => cropGray(image, rect[0] * scale, rect[1] * scale, rect[2] * scale, rect[3] * scale)
 
   // Circled team letter: largest glyph inside the circle, classified by its holes (large letters in the
-  // set panels 1-4, small ones in the fifth set and in the rosters)
+  // set panels 1-4, small ones in the fifth set and in the rosters). On the gray band of the version 2 roster
+  // the band itself counts as ink at the usual threshold: a darker one separates the letter.
   function readLetter(image, rect, scale) {
     const crop = box(image, rect, scale)
-    const glyphs = components(crop).filter(c => c.h > crop.height * 0.18 && c.h < crop.height * 0.8 && c.w < crop.width * 0.8 &&
-      c.minX > 0 && c.minY > 0 && c.maxX < crop.width - 1 && c.maxY < crop.height - 1)
-    if (!glyphs.length) return null
-    const glyph = glyphs.sort((a, b) => b.pixels.length - a.pixels.length)[0]
-    const n = holes(crop, glyph)
-    return n === 1 ? 'A' : n === 2 ? 'B' : null
+    for (const threshold of [DARK, BAND_DARK]) {
+      const glyphs = components(crop, threshold).filter(c => c.h > crop.height * 0.18 && c.h < crop.height * 0.8 && c.w < crop.width * 0.8 &&
+        c.minX > 0 && c.minY > 0 && c.maxX < crop.width - 1 && c.maxY < crop.height - 1)
+      if (!glyphs.length) continue
+      const glyph = glyphs.sort((a, b) => b.pixels.length - a.pixels.length)[0]
+      const n = holes(crop, glyph)
+      if (n === 1) return 'A'
+      if (n === 2) return 'B'
+    }
+    return null
   }
 
   async function ocrGlyphs(cleaned, glyphs, whitelist) {
@@ -112,8 +119,8 @@ export function createReader(ocr) {
   // A number (or "X") in a cell: candidates from single glyphs, the cleaned group and the raw lower part
   // open: remove thin strokes first (the "/" mark drawn over the values of the service turns);
   // accept(component, scale): which ink belongs to this cell
-  async function readNumber(image, rect, scale, { allowX = false, ocrTop = 0, charHeight = 24, open = false, accept = () => true } = {}) {
-    const crop = open ? openInk(box(image, rect, scale), Math.max(1, Math.round(scale)), RESTORE) : box(image, rect, scale)
+  async function readNumber(image, rect, scale, { allowX = false, ocrTop = 0, charHeight = 24, open = false, prepare = crop => crop, accept = () => true } = {}) {
+    const crop = open ? openInk(box(image, rect, scale), Math.max(1, Math.round(scale)), RESTORE) : prepare(box(image, rect, scale))
     const cleaned = cleanCell(crop, { charHeight: charHeight * scale, accept: c => accept(c, scale) })
     if (!cleaned) return { empty: true }
     const whitelist = DIGITS + (allowX ? 'X' : '')
@@ -144,23 +151,38 @@ export function createReader(ocr) {
   }
 
   // Digits of one side of a pair: a single digit is read in single-character mode (word mode often
-  // returns nothing for it)
+  // returns nothing for it). A reading with fewer digits than glyphs lost one: the glyphs are then read one
+  // by one, smoothly enlarged (the thin digits of version 2).
   async function readGroup(cleaned, group) {
     const modes = group.length === 1 ? [PSM_CHAR, PSM_WORD] : [PSM_WORD, PSM_CHAR]
-    let read = null
+    let read = null, shorter = null
     for (const psm of modes) {
       if (psm === PSM_CHAR && group.length > 2) continue
       const result = await ocr(glyphImage(cleaned, group, { pad: psm === PSM_CHAR ? 8 : 12 }), { whitelist: DIGITS, psm })
       read = { text: result.text.replace(/\s+/g, ''), confidence: result.confidence }
-      if (/^\d{1,2}$/.test(read.text) && read.text.length <= group.length) return read
+      if (/^\d{1,2}$/.test(read.text) && read.text.length === group.length) return read
+      if (/^\d{1,2}$/.test(read.text) && read.text.length < group.length) shorter ??= read
     }
-    return read
+    if (group.length > 2) return shorter || read
+    let text = '', confidence = 100
+    for (const glyph of group) {
+      const crop = cropGray(cleaned.image, glyph.minX - 2, glyph.minY - 2, glyph.maxX + 3, glyph.maxY + 3)
+      for (const [factor, psm] of [[3, PSM_CHAR], [6, PSM_CHAR]]) {
+        const one = await ocr(smoothImage(crop, { scale: factor, pad: 12 }), { whitelist: DIGITS, psm })
+        const digit = one.text.replace(/\s+/g, '')
+        if (digit.length !== 1) continue
+        text += digit
+        confidence = Math.min(confidence, one.confidence)
+        break
+      }
+    }
+    return text.length === group.length ? { text, confidence } : shorter || read
   }
 
   // "a : b" (substitution scores, time-outs): the two numbers are read separately
-  async function readPair(image, rect, scale) {
+  async function readPair(image, rect, scale, charHeight = 24) {
     const crop = box(image, rect, scale)
-    const cleaned = cleanCell(crop, { charHeight: 24 * scale })
+    const cleaned = cleanCell(crop, { charHeight: charHeight * scale })
     if (!cleaned) return { empty: true }
     const groups = splitPair(cleaned.glyphs)
     if (groups) {
@@ -183,20 +205,27 @@ export function createReader(ocr) {
 
   async function readSide(image, scale, layout, side, top, rounds) {
     const { rows, turns, timeouts } = layout.cellRows(rounds)
+    const { charHeight, open } = layout.substitutionPrint
     const cell = (c, [a, b], inset = 3) => [side.cols[c] + inset, top + a + inset, side.cols[c + 1] - 1, top + b - inset]
-    const result = { lineup: [], entrants: [], scoreIn: [], scoreOut: [], turns: Array(36).fill(null), timeouts: [] }
+    const result = { lineup: [], entrants: [], scoreIn: [], scoreOut: [], turns: Array(48).fill(null), timeouts: [] }
     for (let c = 0; c < 6; c++) {
       // open: drop the thin ring drawn around a number (captain, player who cannot re-enter)
       result.lineup.push(await readNumber(image, cell(c, rows.lineup), scale, { open: true }))
-      result.entrants.push(await readNumber(image, cell(c, rows.entrant), scale, { open: true }))
-      result.scoreIn.push(await readPair(image, cell(c, rows.scoreIn), scale))
-      result.scoreOut.push(await readPair(image, cell(c, rows.scoreOut), scale))
+      const prepare = crop => removeRings(crop, charHeight * scale * 1.3)
+      const entrant = await readNumber(image, cell(c, rows.entrant), scale, { open, charHeight, prepare })
+      // thin digits: the smooth enlargements add their readings
+      if (!open && !entrant.empty) {
+        const smooth = await readSmall(image, cell(c, rows.entrant), scale, { whitelist: DIGITS, prepare, variants: [[3, PSM_LINE], [4, PSM_LINE], [5, PSM_LINE], [3, PSM_CHAR], [4, PSM_CHAR]] })
+        entrant.candidates = [...smooth, ...entrant.candidates]
+      }
+      result.entrants.push(entrant)
+      result.scoreIn.push(await readPair(image, cell(c, rows.scoreIn), scale, charHeight))
+      result.scoreOut.push(await readPair(image, cell(c, rows.scoreOut), scale, charHeight))
     }
     const halfRounds = turns.length // 4 (rounds 1-4 | 5-8) or 3 (1-3 | 4-6)
     for (const [row, [a, b]] of turns.entries()) {
       for (const half of [0, 1]) {
         const round = row + 1 + half * halfRounds
-        if (round > 6) continue
         for (let c = 0; c < 6; c++) {
           // the values may overflow the half-cell line: crops overlap, a value belongs to the half where it starts
           const x0 = side.cols[c] + (half ? 44 : 3), x1 = side.cols[c] + (half ? 84 : 54)
@@ -205,7 +234,7 @@ export function createReader(ocr) {
         }
       }
     }
-    for (const [a, b] of timeouts) result.timeouts.push(await readPair(image, [side.t[0] + 6, top + a + 3, side.t[1] - 6, top + b - 3], scale))
+    for (const [a, b] of timeouts) result.timeouts.push(await readPair(image, [side.t[0] + 6, top + a + 3, side.t[1] - 6, top + b - 3], scale, charHeight))
     return result
   }
 
@@ -214,6 +243,7 @@ export function createReader(ocr) {
     if (!layout) throw Error('Referto TieBreakTech: modello del referto non riconosciuto.')
     const scale = image.width / layout.width
     const header = { version: layout.version }
+    if (layout.headerLetters) header.letters = layout.headerLetters.map(rect => readLetter(image, rect, scale))
     for (const [key, rect] of Object.entries(layout.header)) {
       if (key.startsWith('gender')) continue
       if (['day', 'month', 'year', 'number'].includes(key)) {
@@ -288,7 +318,9 @@ export function createReader(ocr) {
     for (const [team, columns] of table.columns.entries()) {
       for (const [y0, y1] of rows) {
         const number = await rosterNumber(image, [columns.number[0] + 2, y0 + 3, columns.number[1] - 2, y1 - 3], scale)
-        if (number.empty) continue
+        // the title "LIBERO" of a team with fewer athletes has no line between number and name
+        if (!hasDivider(image, scale, columns.number[1], y0, y1)) continue
+        if (number.empty || !number.candidates.length) continue
         const name = await rosterName(image, [columns.name[0] + 4, y0 + 4, columns.name[1] - 4, y1 - 4], scale)
         roster.teams[team].push({ number, name })
       }
@@ -304,15 +336,21 @@ export function createReader(ocr) {
   }
 
   // "LIBERO / UNDER" column of a team panel (version 2): one exchange per row, the left column first.
-  // Ended exchanges are struck through with a thin line, removed before reading.
+  // Ended exchanges are struck through with a thin line, removed before reading. A long exchange wraps on a
+  // second line of the same row, anywhere (even inside a number): the lines are read apart and joined.
   async function readLiberoColumn(image, scale, layout, side, top) {
     const entries = []
     for (let c = 0; c < 2; c++) {
       for (let r = 1; r < layout.liberoRows.length; r++) {
         const rect = [side.libero[c] + 3, top + layout.liberoRows[r - 1] + 3, side.libero[c + 1] - 3, top + layout.liberoRows[r] - 3]
-        const candidates = await readSmall(image, rect, scale, { whitelist: `${DIGITS}-`, variants: ENTRY_VARIANTS, prepare: removeStrike })
-        if (!candidates.length) return entries
-        entries.push({ candidates, extent: inkExtent(box(image, rect, scale)) / scale })
+        const lines = textLines(box(image, rect, scale)).map(([y0, y1]) => [rect[0], rect[1] + y0 / scale, rect[2], rect[1] + y1 / scale])
+        if (!lines.length) return entries
+        const reads = []
+        for (const line of lines) reads.push(await readSmall(image, line, scale, { whitelist: `${DIGITS}-`, variants: ENTRY_VARIANTS, prepare: removeStrike }))
+        const candidates = reads.reduce((joined, read) => joined.flatMap(a => read.map(b => ({
+          text: a.text + b.text, confidence: Math.min(a.confidence, b.confidence), votes: Math.min(a.votes, b.votes),
+        })))).sort((x, y) => y.votes - x.votes || y.confidence - x.confidence)
+        entries.push({ candidates, extent: lines.reduce((total, line) => total + inkExtent(box(image, line, scale)) / scale, 0) })
       }
     }
     return entries
@@ -371,6 +409,17 @@ export function createReader(ocr) {
     return reads.sort((a, b) => b.confidence - a.confidence)[0] || readText(image, rect, scale)
   }
 
+  // Vertical line near x in the row [y0, y1] of the roster
+  function hasDivider(image, scale, x, y0, y1) {
+    const top = Math.round((y0 + 4) * scale), bottom = Math.round((y1 - 4) * scale)
+    for (let column = Math.round((x - 6) * scale); column <= Math.round((x + 6) * scale); column++) {
+      let dark = 0
+      for (let y = top; y < bottom; y++) if (image.data[y * image.width + column] < DARK) dark++
+      if (dark >= (bottom - top) * 0.9) return true
+    }
+    return false
+  }
+
   // Row lines of the roster table (detected: the rows are not evenly spaced)
   function rosterRows(image, scale, table) {
     const x0 = Math.round(table.lineX[0] * scale), x1 = Math.round(table.lineX[1] * scale)
@@ -383,6 +432,19 @@ export function createReader(ocr) {
     const rows = []
     for (let i = 1; i < lines.length; i++) if (lines[i] - lines[i - 1] > 20 * scale) rows.push([lines[i - 1] / scale, lines[i] / scale])
     return rows
+  }
+
+  // Lines of text in a cell: runs of pixel rows with ink, as [y0, y1) in the crop
+  function textLines(crop) {
+    const lines = []
+    let start = -1
+    for (let y = 0; y <= crop.height; y++) {
+      let dark = 0
+      if (y < crop.height) for (let x = 0; x < crop.width; x++) if (crop.data[y * crop.width + x] < DARK) dark++
+      if (dark && start < 0) start = y
+      if (!dark && start >= 0) { if (y - start >= MIN_LINE) lines.push([Math.max(0, start - 1), Math.min(crop.height, y + 1)]); start = -1 }
+    }
+    return lines
   }
 
   // Width of the written text in a cell (first to last column with ink; grid lines left out)

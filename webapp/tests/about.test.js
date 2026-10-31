@@ -2,14 +2,15 @@
 // The components are JSX: rolldown (already used by Vite) bundles them into node_modules/.cache and
 // react-dom/server renders them to static markup.
 import assert from 'node:assert/strict'
-import { mkdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { test } from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { rolldown } from 'rolldown'
 import {
-  AUTHOR_NAME, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, SOURCE_REPOSITORY_URL, externalUrl,
+  AUTHOR_NAME, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, SOURCE_REPOSITORY_URL, authorEmail, externalUrl,
 } from '../src/config.js'
 import { followExternalLink } from '../src/external-link.js'
 import { RELEASES_API } from '../src/updates.js'
@@ -69,9 +70,13 @@ test('Informazioni: author, open source, repository, licence, origins, version, 
   assert.match(html, /non vengono inviati a un server/)
   assert.match(html, /OCR/)
   assert.doesNotMatch(html, /\bGPL\b(?!-)/, 'the licence is named in full, never as plain "GPL"')
-  for (const link of hrefs(html)) assert.match(link, /^https:\/\//)
-  assert.equal((html.match(/target="_blank"/g) || []).length, hrefs(html).length)
-  assert.equal((html.match(/rel="noopener noreferrer"/g) || []).length, hrefs(html).length)
+  // the contact link has no address in the markup and is not an external page
+  const external = hrefs(html).filter(link => link !== '#contatto')
+  assert.equal(hrefs(html).length, external.length + 2) // Contatti and the deletion request
+  assert.doesNotMatch(html, /mailto:/)
+  for (const link of external) assert.match(link, /^https:\/\//)
+  assert.equal((html.match(/target="_blank"/g) || []).length, external.length)
+  assert.equal((html.match(/rel="noopener noreferrer"/g) || []).length, external.length)
 })
 
 test('Sostieni lo sviluppo: PayPal button only with a configured link, never PayPal code', () => {
@@ -127,3 +132,23 @@ test('external links: system browser in the installed apps, normal link on the w
   // a failed opener does not throw into the click handler
   assert.equal(followExternalLink(event, SOURCE_REPOSITORY_URL, { app: true, open: () => Promise.reject(new Error('x')) }), true)
 })
+
+test('TieBreakTech import: the notice asks to send the file to the author', async () => {
+  const { TbtImportNotice } = await loadAbout()
+  const html = renderToStaticMarkup(createElement(TbtImportNotice))
+  assert.match(html, /difficili da interpretare/)
+  assert.match(html, /correggili a mano/)
+  assert.match(html, /via email/)
+  assert.match(html, /solo per migliorare il progetto/)
+  assert.match(html, /su richiesta/)
+  assert.match(html, /autore/)
+  assert.doesNotMatch(html, /mailto:|@/)
+})
+
+test('Contact address: decoded only at run time, never in clear in the source', () => {
+  // checked through its hash, so that the test does not publish it either
+  assert.equal(createHash('sha256').update(authorEmail()).digest('hex'), '28abdfe7dfb17fd0cdce0719326d35ad59f556da24dfc3c6605b5be8e335408a')
+  const source = readFileSync(new URL('../src/config.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /[\w.]+@[\w.]+/)
+})
+

@@ -12,7 +12,7 @@ export function chronologicalTurns(set) {
   const first = ownServesFirst ? 'own' : 'other'
   const second = opposite(first)
   const turns = []
-  for (let cell = 0; cell < 36; cell++) {
+  for (let cell = 0; cell < 48; cell++) {
     for (const team of [second, first]) {
       const value = set[team]?.[cell]
       if (Number.isInteger(value)) turns.push({ team, cell, end: value })

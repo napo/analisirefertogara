@@ -15,6 +15,11 @@ export const releaseUrl = version => `${SOURCE_REPOSITORY_URL}/releases/tag/v${v
 // Only a plain link: PayPal is contacted only when the user opens it.
 export const PAYPAL_DONATION_URL = 'https://paypal.me/MNapolitano570'
 
+// Contact address of the author, not written in clear in the code and in the published files (spam harvesters
+// read them): reversed and in base64, decoded only when shown
+const AUTHOR_EMAIL_ENCODED = 'bW9jLmxpYW1nQG9uYXRpbG9wYW4ub2l6aXJ1YW0='
+export const authorEmail = () => [...atob(AUTHOR_EMAIL_ENCODED)].reverse().join('')
+
 // A configured external link: http(s) only, otherwise null (no broken button)
 export function externalUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return null

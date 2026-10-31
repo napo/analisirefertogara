@@ -3,6 +3,7 @@
 // and is a plain link with the PayPal wordmark stored in the app (no PayPal script, widget or remote image:
 // nothing is requested from PayPal until the user opens it).
 import { useEffect, useState } from 'react'
+import ContactEmail from './ContactEmail.jsx'
 import ExternalLink from './ExternalLink.jsx'
 import { fetchLatestDownloads } from './downloads.js'
 import { isTauriApp } from './updates.js'
@@ -72,6 +73,8 @@ export function AboutProject({ version = APP_VERSION }) {
       <dl className="vs-about-facts">
         <dt>Progetto</dt>
         <dd><ExternalLink href={AUTHOR_URL}>{AUTHOR_NAME}</ExternalLink></dd>
+        <dt>Contatti</dt>
+        <dd><ContactEmail /></dd>
         <dt>Codice sorgente</dt>
         <dd><ExternalLink href={SOURCE_REPOSITORY_URL}>{SOURCE_REPOSITORY_URL.replace(/^https:\/\//, '')}</ExternalLink></dd>
         <dt>Licenza</dt>
@@ -102,6 +105,12 @@ export function PrivacyCard() {
           I referti TieBreakTech, stampati come immagini, sono letti con il riconoscimento ottico dei caratteri (OCR)
           eseguito anch’esso sul dispositivo, con motore e modello inclusi nell’applicazione. I valori corretti automaticamente
           sono segnalati e vanno verificati prima di salvare.
+        </li>
+        <li>
+          I referti inviati volontariamente via email contengono nomi di atlete e atleti, anche minorenni: inviali solo se puoi condividerli.
+          Sono conservati sul computer dell’autore e usati solo per migliorare il progetto; sono cancellati quando non servono più
+          o su richiesta, scrivendo a <ContactEmail subject="Cancellazione di un referto inviato" />. Nei test del progetto, che sono pubblici,
+          finiscono solo letture anonimizzate: senza nomi, luogo, numero gara e data, ma con i numeri di maglia e i punteggi originali.
         </li>
         <li>
           Gare e PDF restano nell’archivio locale (IndexedDB) del browser o dell’applicazione, separati tra loro. Per trasferirli o metterli al sicuro
@@ -150,6 +159,15 @@ export function SupportCard({ paypalUrl = PAYPAL_DONATION_URL }) {
           <ExternalLink href={SOURCE_REPOSITORY_URL}>repository del codice sorgente</ExternalLink>.
         </p>
       )}
+    </div>
+  )
+}
+
+// Shown when a TieBreakTech scoresheet is imported: real files are what improves its recognition
+export function TbtImportNotice() {
+  return (
+    <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '0.5rem', color: '#6D4C00', fontSize: '0.85rem' }}>
+      I PDF di TieBreakTech sono difficili da interpretare: confronta i dati con il file e correggili a mano (il contorno arancione indica i valori incerti). Se trovi errori, invia il file via email all’<ContactEmail subject="Referto TieBreakTech da migliorare" body="Allego il PDF del referto: gli errori che ho trovato sono questi:">autore</ContactEmail>: sarà usato solo per migliorare il progetto, non sarà pubblicato né condiviso con altri e sarà cancellato quando non serve più o su richiesta.
     </div>
   )
 }

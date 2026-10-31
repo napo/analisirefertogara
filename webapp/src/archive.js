@@ -488,8 +488,8 @@ const SCHEMA = {
       },
     },
     turns: {
-      type: 'array', maxItems: 36,
-      description: 'Progressivi dei turni di servizio: 6 righe x 6 posizioni, cella = giro*6 + posizione. "X" nella prima cella = squadra in ricezione a inizio set; "" = cella vuota.',
+      type: 'array', maxItems: 48,
+      description: 'Progressivi dei turni di servizio: fino a 8 giri x 6 posizioni, cella = giro*6 + posizione. "X" nella prima cella = squadra in ricezione a inizio set; "" = cella vuota.',
       items: { anyOf: [{ type: 'integer' }, { const: 'X' }, { const: '' }] },
     },
     liberoExchange: {
