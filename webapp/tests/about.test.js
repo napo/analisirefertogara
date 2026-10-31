@@ -152,3 +152,19 @@ test('Contact address: decoded only at run time, never in clear in the source', 
   assert.doesNotMatch(source, /[\w.]+@[\w.]+/)
 })
 
+test('FAQ: closed answers by topic, the sync and the email of the author', async () => {
+  const dir = fileURLToPath(new URL('../../node_modules/.cache/referto-volley-tests/', import.meta.url))
+  const file = `${dir}faq-${process.pid}.mjs`
+  const bundle = await rolldown({ input: fileURLToPath(new URL('../src/Faq.jsx', import.meta.url)), external: [/^react/, /^@tauri-apps\//], jsx: 'automatic' })
+  await bundle.write({ file, format: 'esm' })
+  await bundle.close()
+  const { default: Faq, FAQ_GROUPS } = await import(pathToFileURL(file).href)
+  const html = renderToStaticMarkup(createElement(Faq))
+  assert.equal((html.match(/<details/g) || []).length, FAQ_GROUPS.flatMap(g => g.items).length)
+  assert.doesNotMatch(html, /<details[^>]* open/)
+  assert.match(html, /Google Drive, Dropbox o OneDrive/)
+  assert.doesNotMatch(html, /mailto:|@gmail/)
+  const ids = FAQ_GROUPS.flatMap(g => g.items.map(i => i.id))
+  assert.equal(new Set(ids).size, ids.length)
+})
+

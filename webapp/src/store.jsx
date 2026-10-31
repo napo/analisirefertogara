@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
-import { listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany } from './storage'
+import { onArchiveChange, listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany } from './storage'
 import { ARCHIVE_EXTENSION, ARCHIVE_MIME, archiveFileName, buildArchive, importSummary, planImport } from './archive.js'
 import { APP_VERSION } from './version.js'
 import { analyze, validateMatch } from './analysis'
@@ -132,6 +132,31 @@ export function MatchStoreProvider({ children }) {
 
   useEffect(() => {
     refresh()
+  }, [refresh])
+
+  // Synchronisation with the user's cloud service: only where the project has a client, loaded on demand
+  const [sync, setSync] = useState(null)
+  const [syncStatus, setSyncStatus] = useState(null)
+  useEffect(() => {
+    let controller = null, stopped = false, unsubscribe = () => {}
+    const stopChanges = onArchiveChange(origin => { if (origin === 'sync') refresh() })
+    ;(async () => {
+      const { syncAvailable } = await import('./sync/providers.js')
+      if (stopped || !syncAvailable()) return
+      const [{ SyncController }, { localArchive }] = await Promise.all([import('./sync/controller.js'), import('./sync/local-archive.js')])
+      if (stopped) return
+      controller = new SyncController(localArchive, APP_VERSION)
+      unsubscribe = controller.subscribe(setSyncStatus)
+      setSync(controller)
+      setSyncStatus(controller.status)
+      await controller.init()
+    })().catch(e => console.warn('Sincronizzazione non disponibile:', e))
+    return () => {
+      stopped = true
+      stopChanges()
+      unsubscribe()
+      controller?.dispose()
+    }
   }, [refresh])
 
   // Unique teams
@@ -493,6 +518,8 @@ export function MatchStoreProvider({ children }) {
     saveDraft,
     updateMatch,
     deleteMatch,
+    sync,
+    syncStatus,
     exportBackup,
     importArchive,
     invertedView,
@@ -529,6 +556,8 @@ export function MatchStoreProvider({ children }) {
     saveDraft,
     updateMatch,
     deleteMatch,
+    sync,
+    syncStatus,
     exportBackup,
     importArchive,
     invertedView,

@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const siteUrl = (process.env.VITE_SITE_URL || env.VITE_SITE_URL || 'https://napo.github.io/analisirefertogara/').replace(/\/?$/, '/')
+  const siteUrl = (process.env.VITE_SITE_URL || env.VITE_SITE_URL || 'https://refertogara.volleyserve.it/').replace(/\/?$/, '/')
 
   return {
     plugins: [

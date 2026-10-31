@@ -2141,3 +2141,88 @@
     border-top: 2px solid var(--vs-heading);
   }
 }
+
+/* Sincronizzazione con il servizio cloud */
+.vs-sync {
+  margin-bottom: 1rem;
+}
+
+.vs-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.vs-sync-actions img {
+  vertical-align: -3px;
+  margin-right: 0.35rem;
+}
+
+.vs-sync-confirm ul {
+  padding-left: 1.2rem;
+}
+
+.vs-sync-confirm li {
+  margin-bottom: 0.3rem;
+}
+
+.vs-sync-check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.vs-sync-warning {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #FFB300;
+  border-radius: 0.5rem;
+  background: #FFF8E1;
+  color: #6D4C00;
+}
+
+.vs-sync-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vs-sync-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: #2E7D32;
+}
+
+.vs-sync-dot.syncing { background: #1976D2; }
+.vs-sync-dot.paused { background: #B45309; }
+.vs-sync-dot.error { background: #C62828; }
+
+/* Domande frequenti */
+.vs-faq-page h2 {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 1.05rem;
+  color: var(--vs-heading);
+}
+
+.vs-faq {
+  padding: 0.55rem 0;
+  border-top: 1px solid #D0D7DE;
+}
+
+.vs-faq summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.vs-faq p {
+  margin: 0.5rem 0 0;
+}
+
+.vs-faq-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}

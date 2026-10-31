@@ -1,0 +1,4 @@
+
+// Used only to open the plugin on its own: the app build includes it through Tauri.
+include ':tauri-android'
+project(':tauri-android').projectDir = new File('./.tauri/tauri-api')

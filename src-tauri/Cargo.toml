@@ -1,6 +1,6 @@
 [package]
 name = "referto-volley"
-version = "0.26.0"
+version = "0.27.0"
 description = "Analisi locale dei referti di gara della pallavolo"
 authors = ["Maurizio Napolitano"]
 license = "AGPL-3.0-or-later"
@@ -25,6 +25,11 @@ tauri-plugin-opener = "~2.5.5"
 # (exact versions: the newer ones need tauri 2.12)
 tauri-plugin-dialog = "=2.7.0"
 tauri-plugin-fs = "=2.5.1"
+# Requests to the cloud service of the synchronisation. unsafe-headers: Microsoft refuses the Origin header of
+# the web view outside single-page apps, so the token requests go without it
+tauri-plugin-http = { version = "=2.5.9", features = ["unsafe-headers"] }
+# Google sign-in on Android (Play services); it does nothing elsewhere
+tauri-plugin-google-auth = { path = "plugins/google-auth" }
 
 # Automatic updates with user confirmation: desktop only (the Tauri updater does not support mobile)
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

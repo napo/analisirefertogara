@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<!-- Google Drive is a trademark of Google LLC. Drawing from Tabler Icons 3.34.1 (MIT licence, https://github.com/tabler/tabler-icons), brand-google-drive; changed: class and empty path removed, fixed stroke colour for use as a CSS mask. Stored locally: no remote request. -->
+  <path d="M12 10l-6 10l-3 -5l6 -10z" />
+  <path d="M9 15h12l-3 5h-12" />
+  <path d="M15 15l-6 -10h6l6 10z" />
+</svg>

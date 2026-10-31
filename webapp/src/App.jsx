@@ -25,6 +25,8 @@ import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
 import { AboutProject, DownloadSection, PrivacyCard, SupportCard, TbtImportNotice } from './AboutProject.jsx'
 import ExternalLink from './ExternalLink.jsx'
+import Faq from './Faq.jsx'
+import SyncCard from './SyncCard.jsx'
 import { fieldId, flaggedFields } from './import-flags.js'
 import { liberoLines, liberoLinesPatch, validLiberoLine } from './libero-lines.js'
 import { saveFile, savedMessage } from './save-file.js'
@@ -465,6 +467,15 @@ function MainApp() {
                   Informazioni
                 </button>
               </li>
+              <li>
+                <button
+                  type="button"
+                  className={`vs-nav-item ${activeTab === 'faq' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('faq')}
+                >
+                  FAQ
+                </button>
+              </li>
             </ul>
           </nav>
 
@@ -560,7 +571,7 @@ function MainApp() {
 
         {loading && <p>Caricamento archivio locale in corso…</p>}
 
-        {activeTab !== 'info' && !draft && matches.length > 0 && (
+        {activeTab !== 'info' && activeTab !== 'faq' && !draft && matches.length > 0 && (
           <section className="vs-card" aria-label="Ricerca e filtri gare">
             <div className="vs-review-grid">
               <div className="vs-field vs-search-field" ref={searchFieldRef}>
@@ -1430,6 +1441,7 @@ function MainApp() {
         {/* TAB 3: STORICO GARE */}
         {activeTab === 'history' && (
           <section>
+            <SyncCard />
             <div className="vs-card">
               <div className="vs-card-header">
                 <div>
@@ -1707,6 +1719,8 @@ function MainApp() {
         )}
 
         {/* TAB 4: INFORMAZIONI */}
+        {activeTab === 'faq' && <Faq />}
+
         {activeTab === 'info' && (
           <section>
             <SupportCard />

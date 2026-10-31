@@ -100,8 +100,9 @@ const matchRecord = match => {
   return record
 }
 
-export async function buildArchive(matches, { appVersion = '', exportedAt = new Date().toISOString() } = {}) {
+export async function buildArchive(matches, { appVersion = '', exportedAt = new Date().toISOString(), extraFiles = {} } = {}) {
   const files = {
+    ...extraFiles,
     'LEGGIMI.txt': strToU8(README),
     'archivio.json': strToU8(JSON.stringify({
       format: ARCHIVE_FORMAT,
