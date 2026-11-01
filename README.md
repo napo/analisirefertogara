@@ -3,14 +3,6 @@
 Aggiornate ogni settimana da GitHub Actions. Lo storico completo è in `github-stats.json`.
 
 ```
-Traffico non disponibile con questo token: /traffic/views
-
-Traffico non disponibile con questo token: /traffic/clones
-
-Traffico non disponibile con questo token: /traffic/popular/referrers
-
-Traffico non disponibile con questo token: /traffic/popular/paths
-
 Repository: 0 stelle, 1 fork
 
 Versioni (controlli = avvii di app desktop con il controllo aggiornamenti attivo)
@@ -25,13 +17,26 @@ Versioni (controlli = avvii di app desktop con il controllo aggiornamenti attivo
   v0.28   2026-10-31  ultima per   0.4 gg  controlli    1  al giorno    -  iOS 1, Linux 3, macOS 2, Android 2, Windows 2
   v0.29   2026-11-01  ultima per   0.3 gg  controlli    2  al giorno    -  iOS 1, Linux 3, macOS 2, Android 2, Windows 3
   v0.30   2026-11-01  ultima per   0.0 gg  controlli    1  al giorno    -  iOS 1, Linux 3, macOS 2, Android 2, Windows 2
-  v0.31   2026-11-01  ultima per   0.0 gg  controlli    0  al giorno    -  iOS 0, Linux 0, macOS 0, Android 0, Windows 0
+  v0.31   2026-11-01  ultima per   0.0 gg  controlli    1  al giorno    -  iOS 1, Linux 3, macOS 2, Android 2, Windows 2
 
 Visite al repository, per settimana (dal lunedì; persone = somma delle persone diverse di ogni giorno)
+  2026-10-12      4  persone 3
+  2026-10-19     10  persone 9
+  2026-10-26     30  persone 14
 
 Clonazioni, per settimana (dal lunedì; persone = somma delle persone diverse di ogni giorno)
+  2026-10-12      0  persone 0
+  2026-10-19     40  persone 16
+  2026-10-26     89  persone 12
 
 Da dove arrivano (ultimi 14 giorni)
+  github.com: 3 visite, 3 persone
+  napo.github.io: 3 visite, 2 persone
 
 Pagine più viste (ultimi 14 giorni)
+  /napo/analisirefertogara/releases: 18 visite, 11 persone
+  /napo/analisirefertogara: 17 visite, 8 persone
+  /napo/analisirefertogara/compare/v0.23...v0.24: 2 visite, 2 persone
+  /napo/analisirefertogara/releases/tag/v0.25: 2 visite, 2 persone
+  /napo/analisirefertogara/actions: 1 visite, 1 persone
 ```

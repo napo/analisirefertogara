@@ -1,7 +1,121 @@
 {
  "traffic": {
-  "views": {},
-  "clones": {}
+  "views": {
+   "2026-10-18": {
+    "count": 4,
+    "uniques": 3
+   },
+   "2026-10-19": {
+    "count": 2,
+    "uniques": 2
+   },
+   "2026-10-20": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-10-21": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-10-22": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-10-23": {
+    "count": 2,
+    "uniques": 2
+   },
+   "2026-10-24": {
+    "count": 2,
+    "uniques": 2
+   },
+   "2026-10-25": {
+    "count": 3,
+    "uniques": 2
+   },
+   "2026-10-26": {
+    "count": 9,
+    "uniques": 5
+   },
+   "2026-10-27": {
+    "count": 4,
+    "uniques": 2
+   },
+   "2026-10-28": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-10-29": {
+    "count": 3,
+    "uniques": 2
+   },
+   "2026-10-30": {
+    "count": 2,
+    "uniques": 1
+   },
+   "2026-10-31": {
+    "count": 11,
+    "uniques": 3
+   }
+  },
+  "clones": {
+   "2026-10-18": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-10-19": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-10-20": {
+    "count": 2,
+    "uniques": 2
+   },
+   "2026-10-21": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-10-22": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-10-23": {
+    "count": 21,
+    "uniques": 4
+   },
+   "2026-10-24": {
+    "count": 15,
+    "uniques": 8
+   },
+   "2026-10-25": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-10-26": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-10-27": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-10-28": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-10-29": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-10-30": {
+    "count": 9,
+    "uniques": 3
+   },
+   "2026-10-31": {
+    "count": 78,
+    "uniques": 7
+   }
+  }
  },
  "snapshots": {
   "2026-11-01": {
@@ -12,13 +126,13 @@
     {
      "tag": "v0.31",
      "publishedAt": "2026-11-01T16:59:07Z",
-     "updateChecks": 0,
+     "updateChecks": 1,
      "platforms": {
-      "iOS": 0,
-      "Linux": 0,
-      "macOS": 0,
-      "Android": 0,
-      "Windows": 0
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
      }
     },
     {
@@ -248,8 +362,74 @@
      }
     }
    ],
-   "referrers": [],
-   "paths": []
+   "referrers": [
+    {
+     "referrer": "github.com",
+     "count": 3,
+     "uniques": 3
+    },
+    {
+     "referrer": "napo.github.io",
+     "count": 3,
+     "uniques": 2
+    }
+   ],
+   "paths": [
+    {
+     "path": "/napo/analisirefertogara/releases",
+     "title": "/releases",
+     "count": 18,
+     "uniques": 11
+    },
+    {
+     "path": "/napo/analisirefertogara",
+     "title": "Overview",
+     "count": 17,
+     "uniques": 8
+    },
+    {
+     "path": "/napo/analisirefertogara/compare/v0.23...v0.24",
+     "title": "/compare/v0.23...v0.24",
+     "count": 2,
+     "uniques": 2
+    },
+    {
+     "path": "/napo/analisirefertogara/releases/tag/v0.25",
+     "title": "/releases/tag/v0.25",
+     "count": 2,
+     "uniques": 2
+    },
+    {
+     "path": "/napo/analisirefertogara/actions",
+     "title": "/actions",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/actions/runs/41243575414",
+     "title": "/actions/runs/41243575414",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/blob/main/Analisi Referto di gara di Andrea Fortunati.xlsx",
+     "title": "/blob/main/Analisi Referto di gara di Andrea Fortunati.xlsx",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/blob/main/Referto_Melodic_Spikers_vs_Hollywood_Blockers.pdf",
+     "title": "/blob/main/Referto_Melodic_Spikers_vs_Hollywood_Blockers.pdf",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/releases/tag/v0.27",
+     "title": "/releases/tag/v0.27",
+     "count": 1,
+     "uniques": 1
+    }
+   ]
   }
  }
 }
