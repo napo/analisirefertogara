@@ -12,3 +12,7 @@ src-tauri/gen/
 
 # Local history of the numbers from GitHub (not public)
 stats/
+
+# Build output of the Android plugin
+src-tauri/plugins/*/android/.gradle/
+src-tauri/plugins/*/android/build/
