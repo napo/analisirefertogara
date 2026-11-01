@@ -5,6 +5,7 @@ import { APP_VERSION } from './version.js'
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
 import { advanceLog } from './import-log.js'
+import { withDisplayNames } from './match-names.js'
 import { emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
 import { emptyFilters, filterMatches } from './match-filters'
 import { swapTeams } from './match-teams.js'
@@ -112,7 +113,7 @@ export function MatchStoreProvider({ children }) {
   // Load matches from IndexedDB and enrich with calculated analysis in React state
   const refresh = useCallback(async () => {
     try {
-      const data = await listMatches()
+      const data = (await listMatches()).map(withDisplayNames)
       const enriched = data.map(m => {
         let singleAnalysis = null
         try {
@@ -291,10 +292,10 @@ export function MatchStoreProvider({ children }) {
     setError('')
     setMessage('')
     try {
-      const parsed = await importPdf(file, {
+      const parsed = withDisplayNames(await importPdf(file, {
         onProgress: text => setProgressLog(log => advanceLog(log, text, Date.now())),
         onNotice: setProgressNotice,
-      })
+      }))
       const existing = matches.find(m => m.id === parsed.id)
       const prepared = existing ? refreshImportedMatch(existing, parsed) : parsed
       if (existing) setMessage(parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 2
@@ -351,9 +352,9 @@ export function MatchStoreProvider({ children }) {
   const saveDraft = useCallback(async (inputDraft = draft) => {
     if (!inputDraft) return false
     // Manual entry may leave athlete rows without a jersey number: drop them
-    const customDraft = inputDraft.roster
+    const customDraft = withDisplayNames(inputDraft.roster
       ? { ...inputDraft, roster: inputDraft.roster.filter(player => String(typeof player === 'object' ? player.number : player ?? '').trim() !== '') }
-      : inputDraft
+      : inputDraft)
     const issues = validateMatch(customDraft)
     if (issues.length) {
       setError(issues.join(' '))

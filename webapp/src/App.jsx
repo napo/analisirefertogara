@@ -17,7 +17,7 @@ import { isSetter, rosterPlayer } from './athletes.js'
 import { normalizeScore, supportedSoftwareList } from './pdf-parser'
 import { duplicateLineupNumbers, validateMatch } from './analysis'
 import { formatDuration, formatWins, matchDuration } from './format'
-import { emptyFilters, matchHeading } from './match-filters'
+import { DEFAULT_SORT, championshipOptions, defaultSortDirection, emptyFilters, hasActiveFilters, matchHeading, sortMatches, teamOptions } from './match-filters'
 import { VolleyScoresheetLogo } from './Logo'
 import MatchFlow from './MatchFlow'
 import AthletesTable from './AthletesTable'
@@ -30,6 +30,7 @@ import Faq from './Faq.jsx'
 import SyncCard from './SyncCard.jsx'
 import { fieldId, fieldPatch, fieldValue, flaggedFields, validFieldInput } from './import-flags.js'
 import { fieldLocation } from './tbt-snippets.js'
+import { displayName } from './match-names.js'
 import { liberoLines, liberoLinesPatch, validLiberoLine } from './libero-lines.js'
 import { saveFile, savedMessage } from './save-file.js'
 import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, PRIVACY_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
@@ -50,6 +51,74 @@ async function svgToPng(svg, size) {
 }
 
 const fmt = n => Number(n).toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
+const shortDate = date => (date ? `${date.slice(8)}/${date.slice(5, 7)}/${date.slice(2, 4)}` : '')
+
+// Column header that sorts the list: a first click uses the natural order of the column, the next reverses it
+function SortHeader({ column, sort, onSort, className, children }) {
+  const active = sort.key === column
+  return (
+    <th className={className} aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        className="vs-sort-button"
+        onClick={() => onSort(active ? { key: column, direction: sort.direction === 'asc' ? 'desc' : 'asc' } : { key: column, direction: defaultSortDirection(column) })}
+      >
+        {children}<span aria-hidden="true">{active ? (sort.direction === 'asc' ? ' ▲' : ' ▼') : ''}</span>
+      </button>
+    </th>
+  )
+}
+
+// Championship of a saved match, changed where it is shown; the names already in the archive are proposed
+function ChampionshipEdit({ match, listId, onChange }) {
+  const [text, setText] = useState(null)
+  if (text === null) {
+    return (
+      <button type="button" className="vs-link-button vs-championship-edit" title="Cambia il campionato di questa gara" onClick={() => setText(match.championship || '')}>
+        {match.championship || 'Aggiungi campionato'} <span aria-hidden="true">✎</span>
+      </button>
+    )
+  }
+  const commit = () => {
+    const value = displayName(text)
+    setText(null)
+    if (value !== (match.championship || '')) onChange(value)
+  }
+  return (
+    <input
+      className="vs-championship-input"
+      aria-label={`Campionato della gara ${match.team} vs ${match.opponent}`}
+      list={listId}
+      autoFocus
+      value={text}
+      onChange={e => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') setText(null)
+      }}
+    />
+  )
+}
+
+// The two teams of a match: a click opens the analysis of the match for that team
+function MatchTeams({ match, onAnalyse }) {
+  const team = (name, inverted) => (
+    <button type="button" className="vs-link-button vs-team-link" title={`Analizza ${name}`} onClick={() => onAnalyse(match, inverted)}>{name}</button>
+  )
+  return <span className="vs-match-teams">{team(match.team, false)} <span className="vs-match-vs">vs</span> {team(match.opponent, true)}</span>
+}
+
+// Sets won and lost above, the partial scores below; both from the side of the team named first
+function MatchResult({ match }) {
+  return (
+    <>
+      <strong className="vs-match-result">{resultStr(match)}</strong>
+      <span className="vs-match-partials">{match.sets.map(s => `${s.scoreOwn}-${s.scoreOther}`).join(', ')}</span>
+    </>
+  )
+}
+
 const resultStr = m => `${m.sets.filter(s => s.scoreOwn > s.scoreOther).length} – ${m.sets.filter(s => s.scoreOther > s.scoreOwn).length}`
 const isFemaleTeamOrMatch = (matchOrList, activeTeam = '') => {
   const list = Array.isArray(matchOrList) ? matchOrList : [matchOrList].filter(Boolean)
@@ -117,6 +186,25 @@ function MainApp() {
   const backupInputRef = useRef(null)
   const reportExportRef = useRef(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [reportSort, setReportSort] = useState(DEFAULT_SORT)
+  // Analysis of a match for one of its teams, from the lists of matches
+  const analyseMatch = (match, inverted) => {
+    if (inverted) viewInverted(match)
+    else {
+      setSelectedTeam(match.team)
+      setSelectedMatchId(match.id)
+    }
+    setActiveTab('analysis')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  const downloadScoresheet = async match => {
+    try {
+      const saved = await saveFile(match.pdf, match.fileName || 'referto.pdf', { filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+      if (saved) setMessage(savedMessage('Referto', saved))
+    } catch (err) {
+      setError(`Errore durante il salvataggio del referto: ${err.message}`)
+    }
+  }
   const [exportingPdf, setExportingPdf] = useState(false)
   // Reports chosen for the archive export (.zrv) in "Referti salvati nell'archivio locale"
   const [exportIds, setExportIds] = useState([])
@@ -421,6 +509,67 @@ function MainApp() {
     }
   }, [baseChart, trendEntries, isSingleMatch])
 
+  const filterBar = (
+    <section className="vs-filter-bar" aria-label="Ricerca e filtri gare">
+              <div className="vs-filter-row">
+                <div className="vs-search-field" ref={searchFieldRef}>
+                  <input
+                    type="search"
+                    aria-label="Cerca gare"
+                    placeholder="Squadra, numero gara, campionato…"
+                    value={filters.query}
+                    onFocus={() => setSearchMenuOpen(true)}
+                    onChange={e => {
+                      updateFilters({ ...filters, query: e.target.value })
+                      setSelectedHistoryIds([])
+                      setSearchMenuOpen(true)
+                    }}
+                  />
+                  {searchMenuOpen && (
+                    <div className="vs-search-dropdown" role="listbox" aria-label="Risultati ricerca gare">
+                      {searchResults.length ? (
+                        searchResults.map(m => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className="vs-search-option"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => {
+                              const value = [m.team, m.opponent, matchHeading(m), m.date].filter(Boolean).join(' ')
+                              updateFilters({ ...filters, query: value })
+                              setSelectedHistoryIds([])
+                              setSearchMenuOpen(false)
+                            }}
+                          >
+                            <span className="vs-search-option-title">{m.team} vs {m.opponent}</span>
+                            <span className="vs-search-option-meta">{m.date} · {matchHeading(m)}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="vs-search-empty">Nessuna gara trovata</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {[['championship', 'Campionato', championshipOptions(matches)], ['team', 'Squadra', teamOptions(matches)]].map(([key, label, options]) => (
+                  <select key={key} aria-label={label} value={filters[key]} onChange={e => { updateFilters({ ...filters, [key]: e.target.value }); setSelectedHistoryIds([]) }}>
+                    <option value="">{key === 'team' ? 'Tutte le squadre' : 'Tutti i campionati'}</option>
+                    {options.map(value => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                ))}
+                {hasActiveFilters(filters) && (
+                  <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => { updateFilters(emptyFilters); setSelectedHistoryIds([]); setSearchMenuOpen(false) }}>Azzera filtri</button>
+                )}
+              </div>
+              {hasActiveFilters(filters) && (
+                <p className="vs-filter-note" role="status">
+                  {filteredMatches.length} {filteredMatches.length === 1 ? 'gara trovata' : 'gare trovate'} su {matches.length}.{activeTab === 'analysis' ? ' L’analisi aggregata usa le gare filtrate della squadra scelta.' : ''}
+                </p>
+              )}
+              {!filteredMatches.length && <p className="vs-filter-note">Nessuna gara corrisponde ai filtri.</p>}
+            </section>
+  )
+
   return (
     <div>
       {/* 1. TOP BAR CONTRACT */}
@@ -537,20 +686,15 @@ function MainApp() {
               </button>
             </div>
           </section>
-        ) : activeTab === 'reports' ? (
+        ) : activeTab === 'reports' && matches.length > 0 ? (
+          <h1 className="vs-page-title">Il rendimento della squadra attraverso il referto di gara</h1>
+        ) : activeTab === 'reports' && !loading ? (
           <section className="vs-hero">
             <div className="vs-eyebrow">Analisi del referto di gara</div>
             <h1 className="vs-hero-title">Il rendimento della squadra attraverso il referto di gara</h1>
             <p className="vs-hero-lead">
               Referto Volley permette di analizzare i dati contenuti nel referto di gara della pallavolo e di osservare il rendimento della squadra nelle diverse rotazioni e nelle fasi break point e cambio palla.
             </p>
-            <div className="vs-metadata-line">
-              <span>Archivio locale attivo</span>
-              <span aria-hidden="true">·</span>
-              <span>{matches.length} {matches.length === 1 ? 'gara salvata' : 'gare salvate'}</span>
-              <span aria-hidden="true">·</span>
-              <span>Archivio nel browser tramite IndexedDB</span>
-            </div>
           </section>
         ) : null}
 
@@ -575,65 +719,7 @@ function MainApp() {
 
         {loading && <p>Caricamento archivio locale in corso…</p>}
 
-        {activeTab !== 'info' && activeTab !== 'faq' && !draft && matches.length > 0 && (
-          <section className="vs-card" aria-label="Ricerca e filtri gare">
-            <div className="vs-review-grid">
-              <div className="vs-field vs-search-field" ref={searchFieldRef}>
-                <span>Cerca gare</span>
-                <input
-                  type="search"
-                  placeholder="Squadra, numero gara, campionato…"
-                  value={filters.query}
-                  onFocus={() => setSearchMenuOpen(true)}
-                  onChange={e => {
-                    updateFilters({ ...filters, query: e.target.value })
-                    setSelectedHistoryIds([])
-                    setSearchMenuOpen(true)
-                  }}
-                />
-                {searchMenuOpen && (
-                  <div className="vs-search-dropdown" role="listbox" aria-label="Risultati ricerca gare">
-                    {searchResults.length ? (
-                      searchResults.map(m => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          className="vs-search-option"
-                          onMouseDown={e => e.preventDefault()}
-                          onClick={() => {
-                            const value = [m.team, m.opponent, matchHeading(m), m.date].filter(Boolean).join(' ')
-                            updateFilters({ ...filters, query: value })
-                            setSelectedHistoryIds([])
-                            setSearchMenuOpen(false)
-                          }}
-                        >
-                          <span className="vs-search-option-title">{m.team} vs {m.opponent}</span>
-                          <span className="vs-search-option-meta">{m.date} · {matchHeading(m)}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="vs-search-empty">Nessuna gara trovata</div>
-                    )}
-                  </div>
-                )}
-              </div>
-              {[['championship', 'Campionato'], ['gender', 'Divisione']].map(([key, label]) => (
-                <label className="vs-field" key={key}>
-                  <span>{label}</span>
-                  <select value={filters[key]} onChange={e => { updateFilters({ ...filters, [key]: e.target.value }); setSelectedHistoryIds([]) }}>
-                    <option value="">Tutti</option>
-                    {[...new Set(matches.map(m => m[key]).filter(Boolean))].sort().map(value => <option key={value} value={value}>{value}</option>)}
-                  </select>
-                </label>
-              ))}
-            </div>
-            <div className="vs-metadata-line">
-              <span>{filteredMatches.length} gare trovate su {matches.length}. L’analisi aggregata usa le gare filtrate della squadra scelta.</span>
-              <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => { updateFilters(emptyFilters); setSelectedHistoryIds([]); setSearchMenuOpen(false) }}>Azzera filtri</button>
-            </div>
-            {!filteredMatches.length && <p>Nessuna gara corrisponde ai filtri.</p>}
-          </section>
-        )}
+        {activeTab !== 'reports' && activeTab !== 'info' && activeTab !== 'faq' && !draft && matches.length > 0 && filterBar}
 
         {/* TAB 1: REFERTI DI GARA */}
         {activeTab === 'reports' && (
@@ -764,8 +850,12 @@ function MainApp() {
                     </div>
                   )
                 })()}
+                {filterBar}
+                <datalist id="vs-championships">
+                  {championshipOptions(matches).map(name => <option key={name} value={name} />)}
+                </datalist>
                 <ScrollableTable>
-                  <table className="vs-table">
+                  <table className="vs-table vs-reports-table">
                     <thead>
                       <tr>
                         <th style={{ width: '2.5rem' }}>
@@ -777,19 +867,15 @@ function MainApp() {
                             onChange={event => setExportIds(event.target.checked ? filteredMatches.map(m => m.id) : [])}
                           />
                         </th>
-                        <th>Data</th>
-                        <th>Gara</th>
-                        <th>Risultato</th>
-                        <th>File originale</th>
-                        <th className="num-cell-header">Operazioni</th>
+                        <SortHeader column="date" sort={reportSort} onSort={setReportSort}>Data</SortHeader>
+                        <SortHeader column="match" sort={reportSort} onSort={setReportSort}>Gara</SortHeader>
+                        <SortHeader column="championship" sort={reportSort} onSort={setReportSort} className="vs-reports-championship">Campionato</SortHeader>
+                        <SortHeader column="result" sort={reportSort} onSort={setReportSort}>Risultato</SortHeader>
+                        <th aria-label="Operazioni" />
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMatches.map((m) => {
-                        const day = m.date.slice(8)
-                        const month = m.date.slice(5, 7)
-                        const year = m.date.slice(0, 4)
-                        return (
+                      {sortMatches(filteredMatches, reportSort).map((m) => (
                           <tr key={m.id}>
                             <td>
                               <input
@@ -800,69 +886,31 @@ function MainApp() {
                                 onChange={() => setExportIds(ids => (ids.includes(m.id) ? ids.filter(id => id !== m.id) : [...ids, m.id]))}
                               />
                             </td>
-                            <td className="tabular-nums" style={{ fontWeight: 600 }}>{`${day}/${month}/${year}`}</td>
+                            <td className="tabular-nums vs-reports-date">{shortDate(m.date)}</td>
                             <td>
-                              <strong style={{ color: 'var(--vs-heading)' }}>{m.team}</strong> vs {m.opponent}
-                              <div className="vs-metric-detail">{matchHeading(m)}</div>
-                                {(m.location || m.venue) && (
-                                <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--vs-muted)' }}>
-                                  📍 {[m.location, m.venue].filter(Boolean).join(' · ')}
+                              <MatchTeams match={m} onAnalyse={analyseMatch} />
+                              <div className="vs-match-meta">
+                                <span className="vs-match-meta-championship">
+                                  <ChampionshipEdit match={m} listId="vs-championships" onChange={championship => updateMatch({ ...m, championship })} />
                                 </span>
-                              )}
-                              {m.referees?.first && (
-                                <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--vs-muted)' }}>
-                                  1° Arb: {m.referees.first} {m.referees.scorer ? `· Segn: ${m.referees.scorer}` : ''}
-                                </span>
-                              )}
+                                {[m.number ? `Gara n. ${m.number}` : '', m.location].filter(Boolean).map(text => <span key={text}>{text}</span>)}
+                                {m.pdf && (
+                                  <button type="button" className="vs-link-button" title={`Scarica ${m.fileName || 'il referto'}`} onClick={() => downloadScoresheet(m)}>referto gara</button>
+                                )}
+                              </div>
                               {m.notes?.trim() && (
                                 <span className="vs-notes-preview" title={m.notes.trim()}>
                                   📝 {m.notes.trim().split('\n')[0]}
                                 </span>
                               )}
                             </td>
-                            <td className="tabular-nums">
-                              <span style={{ fontWeight: 700, color: 'var(--vs-heading)' }}>{resultStr(m)}</span>
-                              <span style={{ color: 'var(--vs-muted)', marginLeft: '6px', fontSize: '0.8rem' }}>
-                                ({m.sets.map(s => `${s.scoreOwn}-${s.scoreOther}`).join(', ')})
-                              </span>
+                            <td className="vs-reports-championship">
+                              <ChampionshipEdit match={m} listId="vs-championships" onChange={championship => updateMatch({ ...m, championship })} />
+                              {m.event && <span className="vs-match-partials">{m.event}</span>}
                             </td>
-                            <td style={{ fontSize: '0.85rem', color: 'var(--vs-muted)' }}>
-                              {m.fileName || 'referto.pdf'}
-                            </td>
+                            <td className="tabular-nums"><MatchResult match={m} /></td>
                             <td className="num-cell">
                               <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                                <button
-                                  type="button"
-                                  className="vs-btn vs-btn-sm vs-btn-primary"
-                                  onClick={() => {
-                                    setSelectedTeam(m.team)
-                                    setSelectedMatchId(m.id)
-                                    setActiveTab('analysis')
-                                  }}
-                                >
-                                  Analisi ↗
-                                </button>
-                                <button
-                                  type="button"
-                                  className="vs-btn vs-btn-sm vs-btn-secondary"
-                                  title={`Inverti per analizzare ${m.opponent}`}
-                                  onClick={() => viewInverted(m)}
-                                >
-                                  ⇄ Inverti
-                                </button>
-                                {m.pdf && (
-                                  <button
-                                    type="button"
-                                    className="vs-btn vs-btn-sm vs-btn-secondary"
-                                    onClick={() => {
-                                      const url = URL.createObjectURL(m.pdf)
-                                      window.open(url, '_blank')
-                                      setTimeout(() => URL.revokeObjectURL(url), 10000)
-                                    }}
-                                  >
-                                    Apri PDF
-                                  </button>
-                                )}
                                 {deleteConfirmId === m.id ? (
                                   <>
                                     <button
@@ -895,8 +943,7 @@ function MainApp() {
                               </div>
                             </td>
                           </tr>
-                        )
-                      })}
+                      ))}
                     </tbody>
                   </table>
                 </ScrollableTable>
@@ -1565,12 +1612,11 @@ function MainApp() {
                           <th>Data</th>
                           <th>Incontro</th>
                           <th>Risultato</th>
-                          <th>Parziali per set</th>
                           <th className="num-cell-header">Operazioni</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {[...filteredMatches].reverse().map((m) => {
+                        {sortMatches(filteredMatches).map((m) => {
                           const day = m.date.slice(8)
                           const month = m.date.slice(5, 7)
                           const year = m.date.slice(0, 4)
@@ -1591,7 +1637,7 @@ function MainApp() {
                               </td>
                               <td className="tabular-nums" style={{ fontWeight: 600 }}>{`${day}/${month}/${year}`}</td>
                               <td>
-                                <strong style={{ color: 'var(--vs-heading)' }}>{m.team}</strong> – {m.opponent}
+                                <MatchTeams match={m} onAnalyse={analyseMatch} />
                                 <div className="vs-metric-detail">{matchHeading(m)}</div>
                                 {(m.location || m.venue) && (
                                   <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--vs-muted)' }}>
@@ -1609,36 +1655,9 @@ function MainApp() {
                                   </span>
                                 )}
                               </td>
-                              <td className="tabular-nums" style={{ fontWeight: 700, color: 'var(--vs-heading)' }}>
-                                {resultStr(m)}
-                              </td>
-                              <td className="tabular-nums" style={{ fontSize: '0.85rem' }}>
-                                {m.sets.map(s => `${s.scoreOwn}-${s.scoreOther}`).join(' / ')}
-                              </td>
+                              <td className="tabular-nums"><MatchResult match={m} /></td>
                               <td className="num-cell">
                                 <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                                  <button
-                                    type="button"
-                                    className="vs-btn vs-btn-sm vs-btn-primary"
-                                    onClick={() => {
-                                      setSelectedTeam(m.team)
-                                      setSelectedMatchId(m.id)
-                                      setActiveTab('analysis')
-                                    }}
-                                  >
-                                    Analizza
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="vs-btn vs-btn-sm vs-btn-secondary"
-                                    title={`Inverti per analizzare ${m.opponent}`}
-                                    onClick={() => {
-                                      viewInverted(m)
-                                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                                    }}
-                                  >
-                                    ⇄ Inverti
-                                  </button>
                                   <button
                                     type="button"
                                     className="vs-btn vs-btn-sm vs-btn-secondary"
@@ -1953,7 +1972,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           </label>
         ))}
         <label className="vs-field">
-          <span>Divisione</span>
+          <span>Genere</span>
           <select value={draft.gender || ''} onChange={e => setDraft({ ...draft, gender: e.target.value })}>
             <option value="">Non indicata</option>
             <option>Maschile</option><option>Femminile</option>

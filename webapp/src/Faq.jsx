@@ -30,6 +30,22 @@ export const FAQ_GROUPS = [
     ],
   },
   {
+    title: 'Come leggere il report',
+    items: [
+      { id: 'read-start', q: 'Da dove comincio a leggere il report?', a: ['Dal riepilogo, per il quadro della gara. Poi «Le sei rotazioni a confronto» dice in quali rotazioni la squadra rende di più o di meno, e «Andamento della gara» quando sono avvenuti i momenti decisivi. Le altre sezioni approfondiscono: atleti, incrocio con le rotazioni avversarie, formazioni in campo. In fondo c’è il glossario, e nella pagina Informazioni trovi le definizioni complete.'] },
+      { id: 'read-limits', q: 'Cosa mi dice il report e cosa no?', a: ['Dice come ha reso la squadra nelle fasi di gioco e nelle rotazioni. Non dice perché: il referto registra chi ha vinto il punto, non con quale fondamentale, quindi non misura attacco, ricezione, muro o errori. Le frasi di lettura automatica descrivono punteggi e sequenze, non le cause.'] },
+      { id: 'read-phases', q: 'Che differenza c’è tra BP e CP?', a: ['BP (break point) è la fase in cui la squadra è al servizio: i punti in BP sono quelli conquistati mentre serve. CP (cambio palla) è la fase in cui è in ricezione: i punti subiti in CP sono quelli che l’avversaria fa prima che la squadra riconquisti il servizio. Il punto che riconquista il servizio è un punto conquistato in CP, quindi non conta tra i punti in BP.'] },
+      { id: 'read-rotations', q: 'Come leggo la tabella delle sei rotazioni?', a: ['Ogni riga è una rotazione: P1–P6 è il posto in cui si trova il palleggiatore. TT sono i turni giocati in quella fase. MP è la media di punti per turno: in BP è meglio se è alta, perché sono punti conquistati; in CP è meglio se è bassa, perché sono punti subiti. La differenza MP è MP BP meno MP CP: più è alta, meglio rende la rotazione. La % punti BP dice quanta parte dei punti al servizio viene da quella rotazione.', 'Guarda anche TT: una media calcolata su pochi turni può cambiare molto con un solo punto.'] },
+      { id: 'read-flow', q: 'Come leggo l’andamento della gara?', a: ['Il grafico segue un set rally per rally: sull’asse orizzontale ci sono i rally in ordine, in verticale la differenza di punteggio. Sopra lo zero la squadra analizzata è in vantaggio, sotto è in svantaggio. Una salita lunga è una serie di punti, cioè punti consecutivi della stessa squadra. Sul grafico sono segnati anche gli eventi del set: time-out (TO), sostituzioni (S), doppi cambi (DC) e cambio campo (CC).'] },
+      { id: 'read-athletes', q: 'I dati degli atleti misurano quanto ha giocato bene ciascuno?', a: ['No. Rally vinti, rally persi e % rally vinti descrivono cosa ha fatto la squadra mentre l’atleta era in campo, non cosa ha fatto l’atleta: un rally perso non è un suo errore. Anche la MP BP al servizio conta i punti della squadra con quell’atleta al servizio. I servizi sono stimati dai turni del referto. La % rally vinti si confronta tra atleti solo da 10 rally in campo in su.'] },
+      { id: 'read-matchup', q: 'Come leggo il confronto delle rotazioni?', a: ['È una griglia: ogni riga è una P della squadra analizzata, ogni colonna una P avversaria. In ogni incrocio la barra sopra è la fase BP e quella sotto la fase CP: verso destra il valore è positivo, verso sinistra negativo. Sono evidenziate la P più redditizia e quella più in difficoltà. Una cella chiara ha meno di 4 rally, quindi dice poco; il trattino indica un incrocio non giocato. Puoi leggerla in due modi: «Vinti − persi» è il saldo dei rally; «Rispetto alla media» confronta i rally vinti con quelli attesi in quella fase e toglie lo svantaggio naturale di chi serve, così BP e CP si confrontano sulla stessa scala.'] },
+      { id: 'read-configurations', q: 'Cosa sono le configurazioni in campo?', a: ['Sono le combinazioni di atleti nelle rispettive posizioni, ordinate per numero di rally giocati. Servono a vedere quali assetti sono stati usati di più e come sono andati. Su pochi rally il risultato dice poco. I rally di cui non si può ricostruire la formazione con certezza sono esclusi.'] },
+      { id: 'read-libero', q: 'Cosa significa L#5⇒#11, oppure L?⇒#11?', a: ['L#5⇒#11 vuol dire che il libero numero 5 è in campo al posto del numero 11. L?⇒#11 vuol dire che il referto non basta a stabilire la presenza del libero in quel momento: è una ricostruzione, non un dato osservato.'] },
+      { id: 'read-undetermined', q: 'Perché alcuni rally non sono conteggiati in una rotazione?', a: ['Perché la P di quel tratto non è determinata: per esempio ci sono due possibili palleggiatori in campo e il referto non dice chi palleggiava. Segna i palleggiatori nell’elenco atleti (colonna «p») e indica chi palleggiava in quel tratto quando l’app lo chiede: i rally vengono attribuiti alla rotazione.'] },
+      { id: 'read-many', q: 'Come si leggono i dati di più gare insieme?', a: ['L’analisi aggregata somma punti e turni di tutte le gare scelte per rotazione e calcola le medie sui totali: non è la media delle medie. Le gare con più turni pesano quindi di più. Se è attivo un filtro, entrano solo le gare filtrate della squadra scelta.'] },
+    ],
+  },
+  {
     title: 'Dati e dispositivi',
     items: [
       { id: 'data', q: 'Dove finiscono i dati?', a: ['Restano sul dispositivo: anche la versione web gira tutta nel browser, compreso l’OCR, e il progetto non ha un server che riceva i referti. Lasciano il dispositivo solo per tua scelta: quando esporti un archivio, colleghi un servizio cloud o mandi un file all’autore.', 'Attenzione: i dati stanno in quel browser su quel dispositivo. Se cancelli i dati del sito o cambi browser non li ritrovi, a meno di averli esportati o sincronizzati.'] },
@@ -41,7 +57,7 @@ export const FAQ_GROUPS = [
   {
     title: 'Contatti',
     items: [
-      { id: 'request', q: 'Come chiedo una funzione o segnalo un problema?', a: ['Scrivi su GitHub, dove la segnalazione resta pubblica, oppure via email se contiene dati personali.'] },
+      { id: 'request', q: 'Posso contattare l’autore?', a: ['Sì, e ti invito a farlo: per proporre nuove funzionalità, togliere una curiosità o segnalare un errore da correggere. Ogni messaggio aiuta a migliorare il progetto. Puoi scrivere su GitHub, dove il messaggio resta pubblico, oppure via email, soprattutto se contiene dati personali.'] },
     ],
   },
 ]

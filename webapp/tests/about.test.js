@@ -163,6 +163,8 @@ test('FAQ: closed answers by topic, the sync and the email of the author', async
   assert.equal((html.match(/<details/g) || []).length, FAQ_GROUPS.flatMap(g => g.items).length)
   assert.doesNotMatch(html, /<details[^>]* open/)
   assert.match(html, /Google Drive, Dropbox o OneDrive/)
+  // how to read the report: every section of the analysis has an answer
+  for (const section of ['Le sei rotazioni', 'andamento della gara', 'confronto delle rotazioni', 'configurazioni in campo', 'L#5⇒#11']) assert.ok(html.includes(section), section)
   assert.doesNotMatch(html, /mailto:|@gmail/)
   const ids = FAQ_GROUPS.flatMap(g => g.items.map(i => i.id))
   assert.equal(new Set(ids).size, ids.length)
