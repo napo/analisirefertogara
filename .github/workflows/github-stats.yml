@@ -1,0 +1,54 @@
+name: Statistiche GitHub
+
+# Keeps the numbers from GitHub on the "stats" branch: no commit on main, no version, no tag, no build.
+# STATS_TOKEN (optional secret): read access to the traffic; without it visits and clones are skipped.
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-stats
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepara il branch stats
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git fetch --depth=1 origin stats:stats; then
+            git worktree add stats-branch stats
+          else
+            git worktree add --orphan -b stats stats-branch
+          fi
+      - name: Raccogli i numeri
+        env:
+          GH_TOKEN: ${{ secrets.STATS_TOKEN || github.token }}
+          STATS_FILE: stats-branch/github-stats.json
+        run: |
+          {
+            echo '# Statistiche di Referto Volley'
+            echo
+            echo 'Aggiornate ogni settimana da GitHub Actions. Lo storico completo è in `github-stats.json`.'
+            echo
+            echo '```'
+            node scripts/github-stats.mjs
+            echo '```'
+          } > report.md
+          mv report.md stats-branch/README.md
+      - name: Salva sul branch stats
+        working-directory: stats-branch
+        run: |
+          git add github-stats.json README.md
+          git diff --cached --quiet && exit 0
+          git commit -m "stats: $(date -u +%F)"
+          git push origin stats

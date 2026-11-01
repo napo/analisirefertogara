@@ -1,14 +1,16 @@
 // Numbers about the project from GitHub, with nothing added to the app: downloads of each release, visits,
 // clones and where visitors come from. GitHub keeps visits and clones for 14 days only, so each run merges
-// them into a local history (stats/github-stats.json, not in the repository: these numbers are not public).
-// Run at least every two weeks: npm run stats. Needs the gh command, logged in with access to the repository.
+// them into a history. Every week an Action keeps it on the "stats" branch (.github/workflows/github-stats.yml);
+// npm run stats does the same on this computer, in stats/github-stats.json, outside the repository.
+// Needs the gh command. Visits and clones need a token with access to the traffic: without it they are skipped
+// and the history keeps what it has.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPOSITORY = 'napo/analisirefertogara'
-const FILE = resolve(dirname(fileURLToPath(import.meta.url)), '../stats/github-stats.json')
+const FILE = process.env.STATS_FILE ? resolve(process.env.STATS_FILE) : resolve(dirname(fileURLToPath(import.meta.url)), '../stats/github-stats.json')
 const DAY = 24 * 60 * 60 * 1000
 
 const PLATFORMS = [
@@ -85,18 +87,26 @@ function report({ traffic, snapshots }) {
   for (const { referrer, count, uniques } of latest.referrers) console.log(`  ${referrer}: ${count} visite, ${uniques} persone`)
   console.log('\nPagine più viste (ultimi 14 giorni)')
   for (const { path, count, uniques } of latest.paths.slice(0, 5)) console.log(`  ${path}: ${count} visite, ${uniques} persone`)
-  console.log(`\nStorico: ${FILE}`)
 }
 
 function main() {
   const api = path => JSON.parse(execFileSync('gh', ['api', '--paginate', '--slurp', `repos/${REPOSITORY}${path}`], { encoding: 'utf8', maxBuffer: 1e8 })).flat()
   const one = path => api(path)[0]
+  // the traffic needs more access than the rest
+  const traffic = (path, fallback) => {
+    try {
+      return api(path)
+    } catch {
+      console.log(`Traffico non disponibile con questo token: ${path}\n`)
+      return fallback
+    }
+  }
   const stored = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : { traffic: { views: {}, clones: {} }, snapshots: {} }
   const info = one('')
   const data = {
     traffic: {
-      views: mergeDaily(stored.traffic.views, one('/traffic/views').views),
-      clones: mergeDaily(stored.traffic.clones, one('/traffic/clones').clones),
+      views: mergeDaily(stored.traffic.views, traffic('/traffic/views', [{}])[0].views),
+      clones: mergeDaily(stored.traffic.clones, traffic('/traffic/clones', [{}])[0].clones),
     },
     snapshots: {
       ...stored.snapshots,
@@ -105,8 +115,8 @@ function main() {
         forks: info.forks_count,
         watchers: info.subscribers_count,
         releases: api('/releases?per_page=100').filter(release => !release.draft).map(releaseSummary),
-        referrers: api('/traffic/popular/referrers'),
-        paths: api('/traffic/popular/paths'),
+        referrers: traffic('/traffic/popular/referrers', []),
+        paths: traffic('/traffic/popular/paths', []),
       },
     },
   }
