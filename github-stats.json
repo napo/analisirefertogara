@@ -1,0 +1,255 @@
+{
+ "traffic": {
+  "views": {},
+  "clones": {}
+ },
+ "snapshots": {
+  "2026-11-01": {
+   "stars": 0,
+   "forks": 1,
+   "watchers": 0,
+   "releases": [
+    {
+     "tag": "v0.31",
+     "publishedAt": "2026-11-01T16:59:07Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 0,
+      "Linux": 0,
+      "macOS": 0,
+      "Android": 0,
+      "Windows": 0
+     }
+    },
+    {
+     "tag": "v0.30",
+     "publishedAt": "2026-11-01T16:06:05Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.29",
+     "publishedAt": "2026-11-01T09:29:16Z",
+     "updateChecks": 2,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 3
+     }
+    },
+    {
+     "tag": "v0.28",
+     "publishedAt": "2026-10-31T22:55:21Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.27",
+     "publishedAt": "2026-10-31T22:03:21Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 3,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.26",
+     "publishedAt": "2026-10-31T21:43:59Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.25",
+     "publishedAt": "2026-10-23T22:44:13Z",
+     "updateChecks": 17,
+     "platforms": {
+      "iOS": 6,
+      "Linux": 5,
+      "macOS": 6,
+      "Android": 5,
+      "Windows": 14
+     }
+    },
+    {
+     "tag": "v0.24",
+     "publishedAt": "2026-10-07T18:04:32Z",
+     "updateChecks": 26,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 5,
+      "macOS": 3,
+      "Android": 5,
+      "Windows": 12
+     }
+    },
+    {
+     "tag": "v0.23",
+     "publishedAt": "2026-10-07T17:39:46Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.22",
+     "publishedAt": "2026-10-05T09:07:43Z",
+     "updateChecks": 2,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "macOS": 3,
+      "Android": 3,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.21",
+     "publishedAt": "2026-10-05T09:04:36Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.20",
+     "publishedAt": "2026-10-05T09:04:03Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.19",
+     "publishedAt": "2026-10-04T17:08:14Z",
+     "updateChecks": 4,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 4,
+      "Linux": 4,
+      "Android": 2,
+      "Windows": 4
+     }
+    },
+    {
+     "tag": "v0.18",
+     "publishedAt": "2026-09-30T10:09:50Z",
+     "updateChecks": 17,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 4,
+      "Android": 7,
+      "Windows": 11
+     }
+    },
+    {
+     "tag": "v0.16",
+     "publishedAt": "2026-09-28T15:21:33Z",
+     "updateChecks": 4,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 3,
+      "Linux": 3,
+      "Android": 2,
+      "Windows": 4
+     }
+    },
+    {
+     "tag": "v0.14",
+     "publishedAt": "2026-09-27T19:03:26Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 2,
+      "macOS": 8,
+      "Linux": 5,
+      "Android": 9,
+      "Windows": 6
+     }
+    },
+    {
+     "tag": "v0.13",
+     "publishedAt": "2026-09-27T17:12:14Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 2,
+      "macOS": 5,
+      "Linux": 4,
+      "Android": 7,
+      "Windows": 5
+     }
+    },
+    {
+     "tag": "v0.12",
+     "publishedAt": "2026-09-27T17:06:26Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.8",
+     "publishedAt": "2026-09-26T21:50:52Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 2,
+      "Android": 3,
+      "Windows": 6
+     }
+    },
+    {
+     "tag": "v0.7",
+     "publishedAt": "2026-09-26T21:35:52Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "Android": 2,
+      "Windows": 3
+     }
+    }
+   ],
+   "referrers": [],
+   "paths": []
+  }
+ }
+}
