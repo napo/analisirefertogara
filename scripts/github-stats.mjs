@@ -68,25 +68,56 @@ export function releaseRows(releases, now = Date.now()) {
   })
 }
 
-function report({ traffic, snapshots }) {
+const PLATFORM_NAMES = PLATFORMS.map(([name]) => name)
+const italianDate = day => day.split('-').reverse().join('/')
+const table = (head, rows) => [`| ${head.join(' | ')} |`, `|${head.map(() => ' --- ').join('|')}|`, ...rows.map(row => `| ${row.join(' | ')} |`)].join('\n')
+const barChart = (title, labels, values) => ['```mermaid', 'xychart-beta', `  title "${title}"`, `  x-axis [${labels.map(label => `"${label}"`).join(', ')}]`, `  y-axis "Numero" 0 --> ${Math.max(1, ...values)}`, `  bar [${values.join(', ')}]`, '```'].join('\n')
+
+// A week still in progress counts less than the others: it is left out of the comparison and of the charts
+const completeWeeks = (daily, now) => Object.entries(byWeek(daily)).filter(([week]) => Date.parse(`${week}T00:00:00Z`) + 7 * DAY <= now)
+
+// The page shown on the "stats" branch: what matters first, in words, then tables and charts
+export function markdownReport({ traffic, snapshots }, now = Date.now()) {
   const dates = Object.keys(snapshots).sort()
   const latest = snapshots[dates.at(-1)]
-  const previous = snapshots[dates.at(-2)]
-  const change = (now, before) => (before === undefined ? '' : ` (${now - before >= 0 ? '+' : ''}${now - before} dal ${dates.at(-2)})`)
-  console.log(`Repository: ${latest.stars} stelle${change(latest.stars, previous?.stars)}, ${latest.forks} fork${change(latest.forks, previous?.forks)}`)
-  console.log('\nVersioni (controlli = avvii di app desktop con il controllo aggiornamenti attivo)')
-  for (const row of releaseRows(latest.releases).slice(-12)) {
-    const platforms = Object.entries(row.platforms).map(([name, count]) => `${name} ${count}`).join(', ')
-    console.log(`  ${row.tag.padEnd(7)} ${row.publishedAt.slice(0, 10)}  ultima per ${row.days.toFixed(1).padStart(5)} gg  controlli ${String(row.updateChecks).padStart(4)}  al giorno ${row.checksPerDay === null ? '   -' : row.checksPerDay.toFixed(1).padStart(4)}  ${platforms}`)
-  }
-  for (const [title, daily] of [['Visite al repository', traffic.views], ['Clonazioni', traffic.clones]]) {
-    console.log(`\n${title}, per settimana (dal lunedì; persone = somma delle persone diverse di ogni giorno)`)
-    for (const [week, { count, dailyUniques }] of Object.entries(byWeek(daily)).slice(-8)) console.log(`  ${week}  ${String(count).padStart(5)}  persone ${dailyUniques}`)
-  }
-  console.log('\nDa dove arrivano (ultimi 14 giorni)')
-  for (const { referrer, count, uniques } of latest.referrers) console.log(`  ${referrer}: ${count} visite, ${uniques} persone`)
-  console.log('\nPagine più viste (ultimi 14 giorni)')
-  for (const { path, count, uniques } of latest.paths.slice(0, 5)) console.log(`  ${path}: ${count} visite, ${uniques} persone`)
+  const rows = releaseRows(latest.releases, now)
+  // versions replaced within a day: their numbers are only the background noise
+  const lasting = rows.filter((row, i) => row.days >= 1 || i === rows.length - 1).slice(-10)
+  const weeks = completeWeeks(traffic.views, now).slice(-12)
+  const clones = completeWeeks(traffic.clones, now).slice(-12)
+  const [lastWeek, weekBefore] = [weeks.at(-1), weeks.at(-2)]
+  const rated = rows.filter(row => row.checksPerDay !== null)
+  const lastRate = rated.at(-1)
+  const sum = list => list.reduce((total, value) => total + value, 0)
+  const sections = [
+    '# Statistiche di Referto Volley',
+    `Aggiornate il ${italianDate(dates.at(-1))}, ogni lunedì in automatico. I dati vengono da GitHub: l'app non invia nulla. Lo storico è in \`github-stats.json\`.`,
+    '## In breve',
+    [
+      lastRate && `- **Uso delle app desktop:** ${lastRate.checksPerDay.toFixed(1).replace('.', ',')} controlli di aggiornamento al giorno con la ${lastRate.tag}.`,
+      lastWeek && `- **Visite al repository:** ${lastWeek[1].count} nella settimana del ${italianDate(lastWeek[0])}${weekBefore ? `, contro ${weekBefore[1].count} della precedente` : ''}.`,
+      `- **Repository:** ${latest.stars} stelle, ${latest.forks} fork.`,
+    ].filter(Boolean).join('\n'),
+    '## Uso delle app, versione per versione',
+    'Ogni app desktop legge `latest.json` all\'avvio, se il controllo aggiornamenti è attivo: i **controlli** sono avvii, non persone. Conta soprattutto il valore **al giorno**. Non comprendono la versione web e le app Android. Le versioni rimaste le più recenti per meno di un giorno non sono elencate, salvo l\'ultima.',
+    table(['Versione', 'Uscita', 'Giorni come ultima', 'Controlli', 'Al giorno', ...PLATFORM_NAMES], lasting.map(row => [
+      row.tag, italianDate(row.publishedAt.slice(0, 10)), row.days.toFixed(1).replace('.', ','), row.updateChecks,
+      row.checksPerDay === null ? '–' : row.checksPerDay.toFixed(1).replace('.', ','), ...PLATFORM_NAMES.map(name => row.platforms[name] || 0),
+    ])),
+    'Le colonne per piattaforma sono i download dei pacchetti di installazione. Anche una versione appena uscita ne ha qualcuno per piattaforma, per prove o bot: conta ciò che supera quella soglia.',
+  ]
+  const ratedLasting = lasting.filter(row => row.checksPerDay !== null)
+  if (ratedLasting.length > 1) sections.push(barChart('Controlli di aggiornamento al giorno', ratedLasting.map(row => row.tag), ratedLasting.map(row => Number(row.checksPerDay.toFixed(1)))))
+  sections.push('## Visite al repository')
+  if (weeks.length) {
+    sections.push(barChart('Visite per settimana', weeks.map(([week]) => italianDate(week).slice(0, 5)), weeks.map(([, week]) => week.count)))
+    sections.push(table(['Settimana dal', 'Visite', 'Persone*'], weeks.map(([week, { count, dailyUniques }]) => [italianDate(week), count, dailyUniques])))
+    sections.push('\\* Somma delle persone diverse di ogni giorno: chi torna in due giorni conta due volte.')
+  } else sections.push('Ancora nessuna settimana completa.')
+  if (latest.referrers.length) sections.push('## Da dove arrivano\nUltimi 14 giorni.', table(['Provenienza', 'Visite', 'Persone'], latest.referrers.map(r => [r.referrer, r.count, r.uniques])))
+  if (latest.paths.length) sections.push('## Pagine più viste\nUltimi 14 giorni.', table(['Pagina', 'Visite', 'Persone'], latest.paths.slice(0, 5).map(p => [`\`${p.path.replace(`/${REPOSITORY}`, '') || '/'}\``, p.count, p.uniques])))
+  if (clones.length) sections.push('## Clonazioni', `Copie del codice: ${sum(clones.map(([, week]) => week.count))} in ${clones.length} settimane. Sono in gran parte automatismi, quindi non indicano quante persone usano l'app.`)
+  return `${sections.join('\n\n')}\n`
 }
 
 function main() {
@@ -97,7 +128,7 @@ function main() {
     try {
       return api(path)
     } catch {
-      console.log(`Traffico non disponibile con questo token: ${path}\n`)
+      console.error(`Traffico non disponibile con questo token: ${path}`)
       return fallback
     }
   }
@@ -122,7 +153,7 @@ function main() {
   }
   mkdirSync(dirname(FILE), { recursive: true })
   writeFileSync(FILE, `${JSON.stringify(data, null, 1)}\n`)
-  report(data)
+  console.log(markdownReport(data))
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main()

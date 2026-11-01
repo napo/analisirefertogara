@@ -34,17 +34,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.STATS_TOKEN || github.token }}
           STATS_FILE: stats-branch/github-stats.json
-        run: |
-          {
-            echo '# Statistiche di Referto Volley'
-            echo
-            echo 'Aggiornate ogni settimana da GitHub Actions. Lo storico completo è in `github-stats.json`.'
-            echo
-            echo '```'
-            node scripts/github-stats.mjs
-            echo '```'
-          } > report.md
-          mv report.md stats-branch/README.md
+        run: node scripts/github-stats.mjs > stats-branch/README.md
       - name: Salva sul branch stats
         working-directory: stats-branch
         run: |
