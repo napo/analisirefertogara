@@ -78,3 +78,12 @@ export function snapshotChanges(from, to) {
 
 // Time of every match and deletion of a snapshot: what the local archive held when it was read
 export const snapshotStamps = snapshot => new Map([...entries(snapshot)].map(([id, e]) => [id, e.stamp]))
+
+// The base once the merge is in the local archive and before its upload: the remote version has been seen, so it
+// is not a conflict again if the upload does not succeed. A match changed locally meanwhile keeps its base: the
+// merge did not reach it, and the remote version must still be compared with it.
+export function mergedBase(base, remote, merged, current) {
+  const next = { ...base }, expected = snapshotStamps(merged), now = snapshotStamps(current)
+  for (const [id, stamp] of snapshotStamps(remote)) if (now.get(id) === expected.get(id)) next[id] = stamp
+  return next
+}

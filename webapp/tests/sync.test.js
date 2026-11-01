@@ -110,6 +110,73 @@ test('Sync: another device writes during the round: merged again, nothing lost',
   assert.deepEqual(readSyncFile(remote.file).matches.map(m => m.id).sort(), [hex('a'), hex('b'), hex('c')])
 })
 
+// A device and the service that agree on a match, then both change it: the local version is the later one
+async function realConflict() {
+  const remote = new FakeStorage()
+  const one = new FakeArchive([match('a', '2026-10-01T00:00:00.000Z')]), two = new FakeArchive()
+  await run(one, remote)
+  await run(two, remote)
+  two.matches.set(hex('a'), match('a', '2026-10-02T00:00:00.000Z', { notes: 'altro dispositivo' }))
+  await run(two, remote)
+  one.matches.set(hex('a'), match('a', '2026-10-03T00:00:00.000Z', { notes: 'questo dispositivo' }))
+  return { remote, one }
+}
+
+test('Sync: a real conflict retried after a refused upload leaves one copy, not one per attempt', async () => {
+  const { remote, one } = await realConflict()
+  remote.beforeUpdate = () => run(new FakeArchive([match('c', '2026-10-04T00:00:00.000Z')]), remote)
+  await run(one, remote)
+  assert.equal(readSyncFile(remote.file).matches.filter(m => m.notes === 'altro dispositivo').length, 1)
+  assert.equal(one.matches.size, 3)
+})
+
+test('Sync: a real conflict after an upload that failed leaves one copy at the next synchronisation', async () => {
+  const { remote, one } = await realConflict()
+  remote.beforeUpdate = () => { throw new StorageError(503) }
+  await assert.rejects(run(one, remote), StorageError)
+  await run(one, remote)
+  assert.equal(readSyncFile(remote.file).matches.filter(m => m.notes === 'altro dispositivo').length, 1)
+  assert.equal(one.matches.size, 2)
+})
+
+test('Sync: a version just received is not a conflict when the other device changes it again during the upload', async () => {
+  const remote = new FakeStorage()
+  const one = new FakeArchive([match('a', '2026-10-01T00:00:00.000Z')]), two = new FakeArchive()
+  await run(one, remote)
+  await run(two, remote)
+  one.matches.set(hex('a'), match('a', '2026-10-02T00:00:00.000Z', { notes: 'seconda' }))
+  await run(one, remote)
+  two.matches.set(hex('b'), match('b', '2026-10-02T12:00:00.000Z'))
+  remote.beforeUpdate = async () => {
+    one.matches.set(hex('a'), match('a', '2026-10-03T00:00:00.000Z', { notes: 'terza' }))
+    await run(one, remote)
+  }
+  assert.equal((await run(two, remote)).conflicts, 0)
+  assert.deepEqual([...two.matches.keys()].sort(), [hex('a'), hex('b')])
+  assert.equal(two.matches.get(hex('a')).notes, 'terza')
+})
+
+test('Sync: a local change made during a refused round still keeps both versions', async () => {
+  const remote = new FakeStorage()
+  const one = new FakeArchive([match('a', '2026-10-01T00:00:00.000Z')]), two = new FakeArchive()
+  await run(one, remote)
+  await run(two, remote)
+  one.matches.set(hex('a'), match('a', '2026-10-02T00:00:00.000Z', { notes: 'remota' }))
+  await run(one, remote)
+  two.matches.set(hex('b'), match('b', '2026-10-02T12:00:00.000Z'))
+  const apply = two.applySync
+  let edited = false
+  two.applySync = async (...args) => {
+    if (!edited) { edited = true; two.matches.set(hex('a'), match('a', '2026-10-03T00:00:00.000Z', { notes: 'locale' })) }
+    return apply(...args)
+  }
+  remote.beforeUpdate = () => run(new FakeArchive([match('c', '2026-10-04T00:00:00.000Z')]), remote)
+  await run(two, remote)
+  const notes = readSyncFile(remote.file).matches.map(m => m.notes)
+  assert.ok(notes.includes('remota'))
+  assert.ok(notes.includes('locale'))
+})
+
 test('Sync: a refused token is renewed once; no token means paused, without touching anything', async () => {
   let invalidated = 0, calls = 0
   const remote = new FakeStorage()

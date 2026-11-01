@@ -9,7 +9,7 @@
  * round starts again, so nothing written by the other device is lost.
  */
 import { readSyncFile, writeSyncFile } from './file.js'
-import { EMPTY_SNAPSHOT, newId, mergeSnapshots, snapshotChanges, snapshotStamps } from './merge.js'
+import { EMPTY_SNAPSHOT, newId, mergedBase, mergeSnapshots, snapshotChanges, snapshotStamps } from './merge.js'
 import { syncPdfs } from './pdfs.js'
 import { StorageError } from './storage.js'
 export const META = {
@@ -57,6 +57,8 @@ export async function synchronise(deps, interactive = false) {
       const { merged, base: nextBase, conflicts } = mergeSnapshots(local, remote, base, newId, at)
       const toLocal = snapshotChanges(local, merged)
       const received = toLocal.changed ? await archive.applySync(toLocal.puts, toLocal.deletions, snapshotStamps(local)) : 0
+      // After the local write, not before: a failure in between costs a copy, never a version of the service
+      if (toLocal.changed) await archive.setMeta(META.base, mergedBase(base, remote, merged, await archive.snapshot()))
       const upload = !file || snapshotChanges(remote, merged).changed
       if (upload) {
         const bytes = await writeSyncFile(merged, appVersion, at)

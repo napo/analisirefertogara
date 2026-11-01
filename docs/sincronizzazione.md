@@ -10,7 +10,7 @@ Chi usa l'app può collegare il proprio servizio cloud, dispositivo per disposit
 - **PDF** (`sync/pdfs.js`): un file per ogni referto accanto all'archivio, con il nome dell'id della gara (`pdf/<id>.pdf` su Dropbox e OneDrive; su Drive, nella cartella dell'app, riconosciuti da `appProperties`). Il PDF non cambia mai: viaggia una volta sola, mentre lo `.zrv` viaggia a ogni modifica. Ciò che si scarica deve essere un PDF con l'impronta del suo id; quando una gara eliminata non ha più altre copie, il suo PDF viene eliminato.
 - **Quando**: all'avvio, 4 secondi dopo ogni modifica, al ritorno nell'app (se l'ultima sincronizzazione ha più di 30 secondi), ogni 5 minuti con l'app aperta, al ritorno della rete.
 - **Unione** (`sync/merge.js`): ogni gara ha la data dell'ultima modifica (`updatedAt`), ogni cancellazione lascia una traccia datata (tenuta 400 giorni). Se una gara è cambiata da una parte sola vince quella; se è cambiata da entrambe vince la modifica più recente e l'altra versione resta come copia con un nuovo id.
-- **Concorrenza**: prima di caricare il file l'app controlla che la versione remota non sia cambiata; altrimenti ripete il giro. Le modifiche fatte durante una sincronizzazione non vengono sovrascritte.
+- **Concorrenza**: prima di caricare il file l'app controlla che la versione remota non sia cambiata; altrimenti ripete il giro. La versione remota già unita viene registrata prima del caricamento, così un giro ripetuto o un caricamento fallito non crea copie in più. Le modifiche fatte durante una sincronizzazione non vengono sovrascritte.
 - **Nessun server**: i token restano sul dispositivo e i dati vanno direttamente dal dispositivo al servizio. Un dispositivo usa un solo servizio alla volta.
 
 ## Accesso per piattaforma
