@@ -9,3 +9,6 @@ src-tauri/gen/
 .env
 .env.local
 .DS_Store
+
+# Local history of the numbers from GitHub (not public)
+stats/

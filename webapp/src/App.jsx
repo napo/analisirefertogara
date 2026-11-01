@@ -24,7 +24,7 @@ import AthletesTable from './AthletesTable'
 import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './GlossaryView'
 import { CHART_SERIES_COLORS } from './theme'
 import { APP_VERSION } from './version'
-import { AboutProject, DownloadSection, PrivacyCard, SupportCard, TbtImportNotice } from './AboutProject.jsx'
+import { AboutProject, DownloadSection, PrivacyCard, SyncInfoCard, SupportCard, TbtImportNotice } from './AboutProject.jsx'
 import ExternalLink from './ExternalLink.jsx'
 import Faq from './Faq.jsx'
 import SyncCard from './SyncCard.jsx'
@@ -792,7 +792,7 @@ function MainApp() {
                 <div>
                   <h2 className="vs-card-title">Referti salvati nell’archivio locale</h2>
                   <p className="vs-card-subtitle">
-                    Tutti i file PDF originali e i dati estratti sono salvati direttamente nel tuo browser.
+                    I PDF originali e i dati estratti sono salvati su questo dispositivo.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1712,14 +1712,11 @@ function MainApp() {
 
             {/* Local Storage info card */}
             <div className="vs-card">
-              <h2 className="vs-card-title" style={{ marginBottom: '0.4rem' }}>Gestione archivio e privacy</h2>
+              <h2 className="vs-card-title" style={{ marginBottom: '0.4rem' }}>Copia e trasferimento dell’archivio</h2>
               <p style={{ color: 'var(--vs-text)', fontSize: '0.92rem', margin: '0 0 1rem', maxWidth: '48rem' }}>
-                I PDF caricati non vengono inviati a un server per essere analizzati. I referti salvati e i dati estratti rimangono sul dispositivo,
-                nell’archivio locale del browser tramite IndexedDB. L’archivio è associato al browser e al dispositivo utilizzati.
-                Il file .zrv è il formato portabile di Referto Volley: con &quot;Esporta&quot; salvi le gare, i PDF originali e le tabelle CSV; con &quot;Importa archivio&quot; lo apri su un altro dispositivo o ripristini un archivio salvato, senza estrarre nulla.
-                Il file è un archivio ZIP documentato (LEGGIMI.txt, JSON con schema, CSV): può essere letto anche da altri programmi.
-                La cancellazione dei dati del sito o del browser può comportare la perdita dell’archivio se non hai esportato un backup.
-                Font, script e risorse sono inclusi nell’applicazione: l’elaborazione non dipende da servizi esterni.
+                Le gare sono salvate in questo browser o in questa app, su questo dispositivo: cancellando i dati del sito puoi perderle.
+                Per metterle al sicuro esporta un file .zrv, con gare, PDF originali e tabelle CSV, e riaprilo con «Importa archivio» qui o su un altro dispositivo.
+                Per tenere allineati più dispositivi, collega Google Drive, Dropbox o OneDrive da «Referti di gara». Trovi i dettagli in «Informazioni».
               </p>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
@@ -1831,6 +1828,7 @@ function MainApp() {
 
             <UpdateSettings />
 
+            <SyncInfoCard />
             <PrivacyCard />
           </section>
         )}

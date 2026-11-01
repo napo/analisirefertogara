@@ -11,6 +11,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { rolldown } from 'rolldown'
 import {
   AUTHOR_NAME, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, SOURCE_REPOSITORY_URL, authorEmail, externalUrl,
+  PRIVACY_URL,
 } from '../src/config.js'
 import { followExternalLink } from '../src/external-link.js'
 import { RELEASES_API } from '../src/updates.js'
@@ -67,7 +68,11 @@ test('Informazioni: author, open source, repository, licence, origins, version, 
   assert.match(html, /foglio Excel/)
   assert.match(html, /Versione/)
   assert.match(html, /Privacy e dati/)
-  assert.match(html, /non vengono inviati a un server/)
+  assert.match(html, /non ha un server che riceva i referti/)
+  // the data leave the device only by choice, the cloud services included
+  assert.match(html, /Lasciano il dispositivo solo per una tua scelta/)
+  assert.match(html, /Google Drive, Dropbox o OneDrive/)
+  assert.ok(hrefs(html).includes(PRIVACY_URL))
   assert.match(html, /OCR/)
   assert.doesNotMatch(html, /\bGPL\b(?!-)/, 'the licence is named in full, never as plain "GPL"')
   // the contact link has no address in the markup and is not an external page

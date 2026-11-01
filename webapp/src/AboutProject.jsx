@@ -9,7 +9,7 @@ import { fetchLatestDownloads } from './downloads.js'
 import { isTauriApp } from './updates.js'
 import paypalLogo from './assets/paypal.svg'
 import {
-  AUTHOR_NAME, AUTHOR_URL, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, SOURCE_REPOSITORY_URL, WEB_APP_URL,
+  AUTHOR_NAME, AUTHOR_URL, LICENSE_NAME, LICENSE_SPDX, LICENSE_URL, PAYPAL_DONATION_URL, PRIVACY_URL, SOURCE_REPOSITORY_URL, WEB_APP_URL,
   externalUrl, releaseUrl,
 } from './config.js'
 import { APP_VERSION } from './version.js'
@@ -95,16 +95,43 @@ export function AboutProject({ version = APP_VERSION }) {
   )
 }
 
+export function SyncInfoCard() {
+  return (
+    <div className="vs-card">
+      <h2 className="vs-card-title">Sincronizzazione con Google Drive, Dropbox e OneDrive</h2>
+      <p>
+        È facoltativa e serve a ritrovare le stesse gare su più dispositivi: la attivi da «Referti di gara», nel riquadro dei referti salvati,
+        collegando lo stesso account su ogni dispositivo.
+      </p>
+      <ul className="vs-about-list">
+        <li><strong>Cosa viene copiato</strong>: i dati delle gare e i PDF originali, in file nel tuo spazio cloud.</li>
+        <li><strong>Quando</strong>: da sola, all’avvio, pochi secondi dopo ogni modifica e ogni 5 minuti con l’app aperta. Senza rete riprende quando la rete torna.</li>
+        <li><strong>Modifiche su due dispositivi</strong>: se la stessa gara cambia su entrambi vince la modifica più recente, e l’altra versione resta come copia della gara.</li>
+        <li><strong>Eliminare una gara</strong>: la cancellazione arriva anche agli altri dispositivi collegati. Per conservarla, esporta prima un archivio .zrv.</li>
+        <li><strong>Scollegare</strong>: quando vuoi. Le gare restano sul dispositivo e, se lo chiedi, i file nel cloud vanno nel cestino.</li>
+        <li><strong>Dove è disponibile</strong>: nella versione web e nelle app per Windows, macOS e Linux con tutti e tre i servizi; nell’app Android solo con Google Drive; su iPhone e iPad non è disponibile. Ogni dispositivo usa un servizio alla volta. Sul web, con Google Drive, l’accesso scade dopo un’ora e basta un tocco per rinnovarlo.</li>
+      </ul>
+    </div>
+  )
+}
+
 export function PrivacyCard() {
   return (
     <div className="vs-card">
       <h2 className="vs-card-title">Privacy e dati</h2>
       <ul className="vs-about-list">
-        <li>I referti vengono elaborati sul dispositivo: i PDF non vengono inviati a un server per essere analizzati.</li>
         <li>
-          I referti TieBreakTech, stampati come immagini, sono letti con il riconoscimento ottico dei caratteri (OCR)
-          eseguito anch’esso sul dispositivo, con motore e modello inclusi nell’applicazione. I valori corretti automaticamente
-          sono segnalati e vanno verificati prima di salvare.
+          Il progetto non ha un server che riceva i referti: la lettura dei PDF avviene sul dispositivo, compreso il riconoscimento ottico
+          dei caratteri (OCR) dei referti TieBreakTech, con motore e modelli inclusi nell’applicazione.
+        </li>
+        <li>
+          Gare e PDF restano nell’archivio locale del browser o dell’applicazione, separati tra loro. Lasciano il dispositivo solo per una tua scelta:
+          quando esporti un archivio, colleghi un servizio cloud o invii un file all’autore. Cancellare i dati del sito o del browser può far perdere
+          le gare, se non le hai esportate o sincronizzate.
+        </li>
+        <li>
+          Se colleghi Google Drive, Dropbox o OneDrive, dati e PDF vanno direttamente dal dispositivo al tuo spazio, senza passare dal progetto, e l’app accede solo
+          ai propri file o alla propria cartella. Finché non colleghi un servizio, l’app non lo contatta.
         </li>
         <li>
           I referti inviati volontariamente via email contengono nomi di atlete e atleti, anche minorenni: inviali solo se puoi condividerli.
@@ -113,18 +140,14 @@ export function PrivacyCard() {
           finiscono solo letture anonimizzate: senza nomi, luogo, numero gara e data, ma con i numeri di maglia e i punteggi originali.
         </li>
         <li>
-          Gare e PDF restano nell’archivio locale (IndexedDB) del browser o dell’applicazione, separati tra loro. Per trasferirli o metterli al sicuro
-          usa l’archivio .zrv (Esporta archivio / Importa archivio): cancellare i dati del sito o del browser senza averlo esportato
-          può far perdere l’archivio.
-        </li>
-        <li>
           Nessun sistema di analytics, tracking, pubblicità o telemetria; il codice non imposta cookie.
           Font, script e risorse sono distribuiti con l’applicazione, non caricati da servizi esterni.
         </li>
         <li>
           Le applicazioni installate chiedono a GitHub solo il numero dell’ultima versione pubblicata (disattivabile qui sopra),
-          e la pagina Informazioni legge da GitHub l’elenco dei file da scaricare: nessun dato delle gare lascia il dispositivo.
+          e la pagina Informazioni legge da GitHub l’elenco dei file da scaricare: questi controlli non trasmettono dati delle gare.
         </li>
+        <li>Il testo completo è nell’<ExternalLink href={PRIVACY_URL}>informativa sulla privacy</ExternalLink>.</li>
       </ul>
     </div>
   )
