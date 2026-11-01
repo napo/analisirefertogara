@@ -4,6 +4,7 @@ import { ARCHIVE_EXTENSION, ARCHIVE_MIME, archiveFileName, buildArchive, importS
 import { APP_VERSION } from './version.js'
 import { analyze, validateMatch } from './analysis'
 import { importPdf } from './pdf'
+import { advanceLog } from './import-log.js'
 import { emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
 import { emptyFilters, filterMatches } from './match-filters'
 import { swapTeams } from './match-teams.js'
@@ -82,6 +83,8 @@ export function MatchStoreProvider({ children }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [progress, setProgress] = useState('') // phase of a long import (OCR)
+  const [progressNotice, setProgressNotice] = useState('') // what to expect from this import
+  const [progressLog, setProgressLog] = useState([]) // steps of the PDF being read, with their times
   const [error, setError] = useState('')
 
   const [latestMatchId, setLatestMatchId] = useState(null)
@@ -288,7 +291,10 @@ export function MatchStoreProvider({ children }) {
     setError('')
     setMessage('')
     try {
-      const parsed = await importPdf(file, { onProgress: setProgress })
+      const parsed = await importPdf(file, {
+        onProgress: text => setProgressLog(log => advanceLog(log, text, Date.now())),
+        onNotice: setProgressNotice,
+      })
       const existing = matches.find(m => m.id === parsed.id)
       const prepared = existing ? refreshImportedMatch(existing, parsed) : parsed
       if (existing) setMessage(parsed.sourceFormat === 'FIPAV' && (existing.parserVersion || 0) < 2
@@ -304,6 +310,8 @@ export function MatchStoreProvider({ children }) {
     } finally {
       setBusy(false)
       setProgress('')
+      setProgressNotice('')
+      setProgressLog([])
     }
   }, [matches])
 
@@ -507,6 +515,8 @@ export function MatchStoreProvider({ children }) {
     loading,
     busy,
     progress,
+    progressNotice,
+    progressLog,
     message,
     setMessage,
     error,
@@ -547,6 +557,8 @@ export function MatchStoreProvider({ children }) {
     loading,
     busy,
     progress,
+    progressNotice,
+    progressLog,
     message,
     error,
     readPdfFile,

@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { chooseIncreasing, decodeLiberoEntry, parseTbt, valueCost } from '../src/tbt-parser.js'
-import { cleanCell, openInk, removeRings, removeStrike } from '../src/tbt-image.js'
+import { chooseIncreasing, decodeLiberoColumn, decodeLiberoEntry, parseTbt, valueCost } from '../src/tbt-parser.js'
+import { LAYOUTS } from '../src/tbt-layout.js'
+import { advanceLog, formatElapsed, visibleSteps } from '../src/import-log.js'
+import { fieldLocation, fieldRegion } from '../src/tbt-snippets.js'
+import { cleanCell, openInk, removeRings, removeStrike, shrinkGray } from '../src/tbt-image.js'
 import { isTbtPage } from '../src/tbt-reader.js'
 import { validateMatch } from '../src/analysis.js'
-import { fieldId, flaggedFields } from '../src/import-flags.js'
+import { fieldId, fieldPatch, flaggedFields, validFieldInput } from '../src/import-flags.js'
 import { swapTeams } from '../src/match-teams.js'
 import { liberoLines, liberoLinesPatch, liberoReplacementsOf } from '../src/libero-lines.js'
-import { liberoChains } from '../src/rally-state.js'
+import { liberoChains, setStates } from '../src/rally-state.js'
 
 // OCR readings (tbt-reader.js with tesseract.js) of TieBreakTech scoresheets, with every candidate
 // reading of each cell. Anonymized: names of athletes and liberos, city, venue, match number and date;
@@ -24,6 +27,8 @@ const v2 = parseTbt(load('tbt-v2-readings.json'))
 const swapped = parseTbt(load('tbt-v2-swapped-readings.json'))
 // version 1, a team with 13 athletes and one libero; thin roster digits misread
 const thirteen = parseTbt(load('tbt-13-athletes-readings.json'))
+// page 2 printed small and bold: most exchanges of team A are not read as they are printed
+const smallPrint = parseTbt(load('tbt-small-print-readings.json'))
 const turns = cells => cells.filter(value => value !== '')
 const subs = list => list.map(s => (s.in ? `${s.in} ${s.scoreIn}>${s.scoreOut}` : ''))
 const numbers = roster => roster.map(p => p.number)
@@ -262,14 +267,14 @@ test('Libero rows: the chains of the sheet, editable, and the exchanges of the s
   assert.deepEqual(lines, ['6-1-2-1-2-1', '40-1-2-1-2-1', '6-1-2-1-2-1', '40-1-2-1', '6-1-2'])
   assert.deepEqual(liberoReplacementsOf(lines).map(r => [r.row, r.step, r.player, r.libero]), set.liberoReplacements.map(r => [r.row, r.step, r.player, r.libero]))
   // an unread row keeps its place and is flagged until it is written
-  const first = thirteen.sets[0]
-  assert.equal(liberoLines(first, 'own')[0], '')
-  assert.ok(flaggedFields(thirteen.importWarnings, 1, first).has(fieldId('liberoReplacements', 0)))
-  const next = liberoLines(first, 'own')
-  next[0] = '73-76-70-76'
-  const edited = { ...first, ...liberoLinesPatch('own', next) }
-  assert.deepEqual(liberoChains(edited, 'own')[0], { player: '73', liberos: ['76', '70', '76'] })
-  assert.equal(flaggedFields(thirteen.importWarnings, 1, edited).has(fieldId('liberoReplacements', 0)), false)
+  const first = serieD.sets[0]
+  assert.equal(liberoLines(first, 'other')[0], '')
+  assert.ok(flaggedFields(serieD.importWarnings, 1, first).has(fieldId('opponentLiberoReplacements', 0)))
+  const next = liberoLines(first, 'other')
+  next[0] = '23-20-6'
+  const edited = { ...first, ...liberoLinesPatch('other', next) }
+  assert.deepEqual(liberoChains(edited, 'other')[0], { player: '23', liberos: ['20', '6'] })
+  assert.equal(flaggedFields(serieD.importWarnings, 1, edited).has(fieldId('opponentLiberoReplacements', 0)), false)
   // incomplete rows are not used
   assert.deepEqual(liberoReplacementsOf(['73-', '', '9']), [])
   // rows read from the libero box (NEWBIT)
@@ -282,6 +287,105 @@ test('Service turns up to the eighth round, three rows in the fifth set of versi
   assert.equal(tiebreak.sets[3].turnRows, undefined)
   assert.equal(swapped.sets[0].turnRows, undefined)
   assert.deepEqual(swapTeams(thirteen).sheetTeams, { own: thirteen.sheetTeams.other, other: thirteen.sheetTeams.own })
+})
+
+test('TBT: exchanges come from the rules, the width of the text and the pair of opposite players', () => {
+  const width = extent => ({ extent, digit: 11 / 3, dash: 10 / 3 })
+  // the "2" of 23 lost: the chain is not among the readings, and the width tells it from 3-4
+  assert.deepEqual(decodeLiberoEntry([{ text: '3-4', votes: 3 }], [3, 23, 9], [4, 12], width(14)).tokens, [23, 4])
+  const row = (text, extent) => ({ candidates: [{ text, votes: 3 }], extent })
+  const pairs = [[23, 9], [3, 5]]
+  // a garbled row: the alternation of the pair names it, as a value to check
+  const rows = decodeLiberoColumn([row('9-4', 11), row('23-4', 14), row('3-3', 11), row('23-4', 14)], [3, 5, 9, 23], [4, 12], pairs, { digit: 11 / 3, dash: 10 / 3 })
+  assert.deepEqual(rows.map(r => r.key), ['9-4', '23-4', '9-4', '23-4'])
+  assert.equal(rows[0].uncertain, false)
+  assert.equal(rows[2].uncertain, true)
+  // nothing fits: not imported
+  assert.deepEqual(decodeLiberoColumn([{ candidates: [{ text: '-', votes: 3 }], extent: 0 }], [3, 9], [4, 12], [[3, 9]], null), [null])
+})
+
+test('TBT: real chains of the three scoresheets', () => {
+  const chains = (match, key) => match.sets.map(s => [...new Map(s[key].map(r => [r.row, r.raw])).values()])
+  assert.deepEqual(chains(thirteen, 'liberoReplacements')[0], ['73-76-70-76', '16-70-76-70-76-70', '73-70-76-70-76-70', '16-70-76-70', '73-70-76-70-76'])
+  assert.deepEqual(chains(swapped, 'opponentLiberoReplacements')[0], ['9-12-4', '23-4-12-4-12-4-12', '9-12', '23-12', '9-12-4-12-4-12'])
+})
+
+test('TBT: exchanges of page 2 the OCR cannot read as printed', () => {
+  const chains = key => smallPrint.sets.map(s => [...new Map(s[key].map(r => [r.row, r.raw])).values()])
+  assert.deepEqual(chains('liberoReplacements'), [
+    ['23-4-12-4', '9-4-12-4', '23-4-12-4', '9-4'],
+    ['9-12-4', '23-4-12-4', '9-4', '23-4', '9-4'],
+    ['9-4', '23-4', '9-4'],
+    ['9-4', '23-4-12-4', '9-4', '23-4', '9-4'],
+  ])
+  assert.deepEqual(chains('opponentLiberoReplacements')[2], ['7-1', '16-1', '7-1-9'])
+  // rows named only by the context stay flagged for the user
+  assert.ok(smallPrint.importWarnings.some(w => w.set === 3 && /Lettura incerta/.test(w.message) && w.expected === '9-4'))
+  assert.deepEqual(validateMatch(smallPrint), [])
+})
+
+test('TBT: every exchange read is placed in a back-row stretch of its player', () => {
+  for (const [index] of thirteen.sets.entries()) {
+    const { liberoChecks } = setStates(thirteen, index)
+    assert.deepEqual(liberoChecks, { own: { unmatchedStretches: 0, unmatchedChains: 0 }, other: { unmatchedStretches: 0, unmatchedChains: 0 } })
+  }
+})
+
+test('Import log: steps with start and end, the last one in progress', () => {
+  let log = advanceLog([], 'a', 1000)
+  log = advanceLog(log, 'a', 1500)
+  assert.equal(log.length, 1)
+  log = advanceLog(log, 'b', 3000)
+  log = advanceLog(log, 'c', 66000)
+  assert.deepEqual(visibleSteps(log).map(s => [s.text, s.start - s.origin, s.end === null ? null : s.end - s.origin]), [['b', 2000, 65000], ['c', 65000, null]])
+  assert.equal(formatElapsed(65000), '01:05')
+  assert.equal(formatElapsed(-5), '00:00')
+})
+
+test('TBT: place on the sheet of a value to check', () => {
+  const [v1, v2] = LAYOUTS
+  const set = { number: 2, opponentOnLeft: true }
+  // set 2, team A on the right: second panel, right side
+  const lineup = fieldRegion(v1, set, { key: 'lineup', index: 0 })
+  assert.deepEqual(lineup, { page: 0, rect: [2529, 458, 2613, 498] })
+  // team B on the left
+  assert.equal(fieldRegion(v1, set, { key: 'opponentLineup', index: 0 }).rect[0], 1888)
+  // sixth round: second half of the second row
+  assert.equal(fieldRegion(v1, set, { key: 'own', index: 31 }).rect[1], 458 + 202)
+  assert.equal(fieldRegion(v1, set, { key: 'substitutions', index: 1, part: 'scoreOut' }).rect[1], 458 + 122)
+  // version 1: page 2, column of the team; version 2: LIBERO column of the panel
+  assert.deepEqual(fieldRegion(v1, set, { key: 'liberoReplacements', index: 0 }).page, 1)
+  const libero = fieldRegion(v2, set, { key: 'liberoReplacements', index: 10 })
+  assert.equal(libero.page, 0)
+  assert.equal(libero.rect[0], v2.setPanels[1].sides[1].libero[1])
+  assert.equal(fieldRegion(v1, set, { key: 'own', index: 0 }, { courtChange: true }), null)
+})
+
+test('Values to check: where to look on the sheet, in words', () => {
+  const set = { number: 2, opponentOnLeft: true }
+  const names = { own: 'ALFA', other: 'BETA' }
+  assert.equal(fieldLocation(set, { key: 'own', index: 8 }, names), 'Set 2, riquadro di destra (ALFA), turni di servizio, giro 2, colonna III')
+  assert.equal(fieldLocation(set, { key: 'opponentLineup', index: 3 }, names), 'Set 2, riquadro di sinistra (BETA), giocatori titolari, colonna IV')
+  assert.equal(fieldLocation(set, { key: 'substitutions', index: 0, part: 'scoreIn' }, names), 'Set 2, riquadro di destra (ALFA), punteggio di entrata, colonna I')
+  assert.equal(fieldLocation(set, { key: 'timeouts', index: 1 }, names), 'Set 2, riquadro di destra (ALFA), riquadro "T", time-out 2')
+  assert.equal(fieldLocation(set, { key: 'liberoReplacements', index: 2 }, names, { page: 1 }), 'Foglio 2 (referto aggiuntivo), 2° set, colonna di destra (ALFA), riga 3')
+  assert.equal(fieldLocation(set, { key: 'liberoReplacements', index: 2 }, names, { page: 0 }), 'Set 2, riquadro di destra (ALFA), colonna LIBERO / UNDER, riga 3')
+  assert.deepEqual(Array.from(shrinkGray({ data: new Uint8Array([0, 100, 100, 200]), width: 2, height: 2 }, 2).data), [100])
+})
+
+test('Values to check: patch of the field and what can be typed', () => {
+  const set = { number: 1, own: ['X', 3], lineup: ['1', ''], substitutions: [{ in: '5', scoreIn: '', scoreOut: '' }], substituteNumbers: ['5'], liberoReplacements: [] }
+  assert.deepEqual(fieldPatch(set, { key: 'own', index: 1 }, '7').own, ['X', 7])
+  assert.deepEqual(fieldPatch(set, { key: 'lineup', index: 1 }, '12').lineup, ['1', '12'])
+  const sub = fieldPatch(set, { key: 'substitutions', index: 0, part: 'in' }, '8')
+  assert.equal(sub.substitutions[0].in, '8')
+  assert.deepEqual(sub.substituteNumbers, ['8'])
+  const libero = fieldPatch(set, { key: 'liberoReplacements', index: 1 }, '23-4')
+  assert.deepEqual(libero.liberoReplacements.map(r => [r.row, r.player, r.libero]), [[2, 23, 4]])
+  assert.equal(validFieldInput({ key: 'own' }, 'X'), true)
+  assert.equal(validFieldInput({ key: 'lineup' }, 'A'), false)
+  assert.equal(validFieldInput({ key: 'timeouts' }, '12:1'), true)
+  assert.equal(validFieldInput({ key: 'liberoReplacements' }, '23-4'), true)
 })
 
 // Synthetic images: a bold digit-like block crossed by a thin diagonal stroke

@@ -1,13 +1,17 @@
 // Import of TieBreakTech scoresheets (pages printed as images): OCR in the browser with tesseract.js.
-// Everything runs locally: the worker, the engine (WebAssembly) and the English model are files of the
-// app, nothing is sent to other servers, and the import works offline and in the desktop/mobile apps.
+// Everything runs locally: the worker, the engine (WebAssembly) and the models are files of the app,
+// nothing is sent to other servers, and the import works offline and in the desktop/mobile apps.
+// Two models, measured on real scoresheets: Italian reads names better, English reads digits better.
 // Loaded on demand (dynamic import) only when a PDF without text is imported.
 import { createWorker } from 'tesseract.js'
 import workerPath from 'tesseract.js/dist/worker.min.js?url'
 import coreSimd from 'tesseract.js-core/tesseract-core-simd-lstm.wasm.js?url'
 import coreBase from 'tesseract.js-core/tesseract-core-lstm.wasm.js?url'
-import modelUrl from '@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz?url'
-import { createReader, isTbtPage } from './tbt-reader.js'
+import modelEng from '@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz?url'
+import modelIta from '@tesseract.js-data/ita/4.0.0_best_int/ita.traineddata.gz?url'
+import { createReader, detectLayout, isTbtPage } from './tbt-reader.js'
+import { cropGray, shrinkGray, smoothImage } from './tbt-image.js'
+import { fieldRegion, regionScale } from './tbt-snippets.js'
 import { parseTbt } from './tbt-parser.js'
 import { ImageKind, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
@@ -109,8 +113,8 @@ async function pageImages(pdf, bytes) {
   return [page1, page2]
 }
 
-// Gray image → PNG blob for the OCR engine
-async function toBlob(image) {
+// Gray image on a canvas
+function toCanvas(image) {
   const canvas = document.createElement('canvas')
   canvas.width = image.width
   canvas.height = image.height
@@ -122,30 +126,31 @@ async function toBlob(image) {
     pixels.data[i * 4 + 3] = 255
   }
   context.putImageData(pixels, 0, 0)
+  return canvas
+}
+
+// Gray image → PNG blob for the OCR engine
+async function toBlob(image) {
+  const canvas = toCanvas(image)
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
   canvas.width = canvas.height = 0
   return blob
 }
 
-// pdf: pdf.js document, bytes: the PDF file. onProgress(text) reports the phase to the user.
-export async function importTbt(pdf, bytes, onProgress = () => {}) {
-  onProgress('Lettura del referto come immagine…')
-  const [page1, page2] = await pageImages(pdf, bytes)
-  if (!page1 || !isTbtPage(page1)) return null
-
-  onProgress('Preparazione del riconoscimento dei caratteri…')
-  // tesseract.js fetches "<langPath>/eng.traineddata.gz": the model keeps its name in the build (vite.config.js)
+// OCR engine of one language. tesseract.js fetches "<langPath>/<lang>.traineddata.gz": the models keep their
+// names in the build (vite.config.js)
+async function createEngine(lang, modelUrl) {
   const langPath = new URL('.', new URL(modelUrl, globalThis.location.href)).href
-  const worker = await createWorker('eng', 1, {
+  const worker = await createWorker(lang, 1, {
     workerPath,
     corePath: simdSupported() ? coreSimd : coreBase,
     langPath,
     workerBlobURL: false,
     cacheMethod: 'none',
   })
-  try {
-    let current = {}
-    const ocr = async (image, { whitelist = '', psm = 7 }) => {
+  let current = {}
+  return {
+    async recognize(image, whitelist, psm) {
       const parameters = { tessedit_char_whitelist: whitelist, tessedit_pageseg_mode: String(psm) }
       if (parameters.tessedit_char_whitelist !== current.tessedit_char_whitelist || parameters.tessedit_pageseg_mode !== current.tessedit_pageseg_mode) {
         await worker.setParameters(parameters)
@@ -153,16 +158,95 @@ export async function importTbt(pdf, bytes, onProgress = () => {}) {
       }
       const { data } = await worker.recognize(await toBlob(image))
       return { text: data.text, confidence: data.confidence }
-    }
+    },
+    terminate: () => worker.terminate(),
+  }
+}
+
+// pdf: pdf.js document, bytes: the PDF file. onProgress(text) reports the phase to the user.
+export async function importTbt(pdf, bytes, onProgress = () => {}, onNotice = () => {}) {
+  onProgress('Lettura del referto come immagine…')
+  const pages = await pageImages(pdf, bytes)
+  const readings = await readPages(pages, onProgress, onNotice)
+  if (!readings) return null
+  onProgress('Controllo dei dati letti con le regole del referto…')
+  await new Promise(resolve => setTimeout(resolve)) // the message is drawn before the work without pauses
+  return withSnippets(parseTbt(readings), pages, readings)
+}
+
+const PATIENCE_NOTICE = 'Questo referto è in formato TieBreakTech: è stampato come immagine e va letto carattere per carattere, quindi richiede un’elaborazione più lunga, circa un minuto su un computer e anche di più su un telefono. Abbi pazienza e non chiudere la pagina.'
+
+// Height of the picture of a value to check, px
+const SNIPPET_HEIGHT = 56
+const SNIPPET_MARGIN = 0.15 // of the height of the cell, around it
+
+// Warnings of the values to check with the picture of their place on the scoresheet
+function withSnippets(match, pages, readings) {
+  const layout = detectLayout(pages[0])
+  const importWarnings = match.importWarnings.map(warning => {
+    const set = warning.field && warning.set && match.sets.find(s => s.number === warning.set)
+    if (!set) return warning
+    const region = fieldRegion(layout, set, warning.field, { courtChange: Boolean(readings.page1.sets[set.number - 1]?.courtChange) })
+    const image = region && pages[region.page]
+    if (!image) return warning
+    const scale = regionScale(layout, region, image)
+    const [x0, y0, x1, y1] = region.rect.map(v => v * scale)
+    // wider at the sides: the digits of the service turns overflow their cell
+    const margin = (y1 - y0) * SNIPPET_MARGIN
+    const left = Math.max(0, Math.round(x0 - margin * 3)), top = Math.max(0, Math.round(y0 - margin))
+    const crop = cropGray(image, x0 - margin * 3, y0 - margin, x1 + margin * 3, y1 + margin)
+    const factor = Math.max(1, Math.min(6, Math.round(SNIPPET_HEIGHT / crop.height)))
+    const canvas = toCanvas(smoothImage(crop, { scale: factor, pad: 0, low: 0, high: 255 }))
+    // the cell to check, among the neighbours that the margin shows
+    const context = canvas.getContext('2d')
+    context.strokeStyle = '#E65100'
+    context.lineWidth = 2
+    context.strokeRect((x0 - left) * factor, (y0 - top) * factor, (x1 - x0) * factor, (y1 - y0) * factor)
+    const snippet = canvas.toDataURL('image/png')
+    canvas.width = canvas.height = 0
+    const fraction = (value, size) => Math.round(value / size * 10000) / 10000
+    return { ...warning, snippet, region: { page: region.page, x0: fraction(x0, image.width), y0: fraction(y0, image.height), x1: fraction(x1, image.width), y1: fraction(y1, image.height) } }
+  })
+  return { ...match, importWarnings }
+}
+
+// Pictures of the whole sheets (object URLs), to show where a value to check is printed. Made when asked for
+// from the PDF of the match: nothing more to keep in the archive.
+const PREVIEW_WIDTH = 1700
+export async function sheetPreviews(pdf, bytes) {
+  const pages = await pageImages(pdf, bytes)
+  return Promise.all(pages.map(async page => {
+    if (!page) return null
+    const canvas = toCanvas(shrinkGray(page, Math.max(1, Math.round(page.width / PREVIEW_WIDTH))))
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.75))
+    canvas.width = canvas.height = 0
+    return URL.createObjectURL(blob)
+  }))
+}
+
+// OCR readings of the pages ({ page1, page2 }); null when the PDF is not a TBT scoresheet
+export async function readTbt(pdf, bytes, onProgress = () => {}) {
+  return readPages(await pageImages(pdf, bytes), onProgress)
+}
+
+async function readPages([page1, page2], onProgress, onNotice = () => {}) {
+  if (!page1 || !isTbtPage(page1)) return null
+
+  onNotice(PATIENCE_NOTICE)
+  onProgress('Preparazione del riconoscimento dei caratteri…')
+  const [eng, ita] = await Promise.all([createEngine('eng', modelEng), createEngine('ita', modelIta)])
+  try {
+    // text in Italian, digits in English; model: the reader asks for one explicitly
+    const ocr = (image, { whitelist = '', psm = 7, model = whitelist ? 'eng' : 'ita' }) => (model === 'ita' ? ita : eng).recognize(image, whitelist, psm)
     const reader = createReader(ocr)
     const read1 = await reader.readPage1(page1, phase => onProgress(`Riconoscimento dei caratteri: ${phase}…`))
     let read2 = null
     if (page2) {
-      onProgress('Riconoscimento dei caratteri: referto aggiuntivo (libero)…')
-      read2 = await reader.readPage2(page2)
+      const playedSets = read1.result.rows.filter(row => !row.left.empty && !row.right.empty).length
+      read2 = await reader.readPage2(page2, phase => onProgress(`Riconoscimento dei caratteri: ingressi del libero, ${phase}…`), playedSets)
     }
-    return parseTbt({ page1: read1, page2: read2 })
+    return { page1: read1, page2: read2 }
   } finally {
-    await worker.terminate()
+    await Promise.all([eng.terminate(), ita.terminate()])
   }
 }

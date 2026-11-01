@@ -295,3 +295,17 @@ export function shapeSimilarity(a, b) {
   for (let i = 0; i < a.shape.length; i++) diff += Math.abs(a.shape[i] - b.shape[i])
   return 1 - diff / a.shape.length - Math.abs(a.aspect - b.aspect) * 0.5
 }
+
+// Smaller copy of a gray image: the average of each block of factor × factor pixels
+export function shrinkGray(image, factor) {
+  const width = Math.floor(image.width / factor), height = Math.floor(image.height / factor)
+  const data = new Uint8Array(width * height)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0
+      for (let dy = 0; dy < factor; dy++) for (let dx = 0; dx < factor; dx++) sum += image.data[(y * factor + dy) * image.width + x * factor + dx]
+      data[y * width + x] = sum / (factor * factor)
+    }
+  }
+  return { data, width, height }
+}

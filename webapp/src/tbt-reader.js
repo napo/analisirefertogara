@@ -1,5 +1,7 @@
 // Reads every field of a TBT scoresheet page image. The OCR engine is injected:
-//   ocr(image, { whitelist, psm }) -> Promise<{ text, confidence }>
+//   ocr(image, { whitelist, psm, model }) -> Promise<{ text, confidence }>
+// model: 'eng' | 'ita' to ask for one model, otherwise the engine chooses. One worker: the parameters of a
+// reading must not change while another one runs, so the readings never run concurrently.
 // image = grayscale { data, width, height }. The same code runs in the browser (tesseract.js on a canvas)
 // and in Node tests. Numeric cells keep all candidate readings: tbt-parser.js picks the ones that respect
 // the rules of the scoresheet (increasing progressions, final points).
@@ -10,11 +12,13 @@ const DIGITS = '0123456789'
 const PSM_LINE = 7
 const PSM_WORD = 8
 const PSM_CHAR = 10
-// Readings of a libero exchange of page 2: plain, then stretched and darker to split touching bold digits
+// Readings of a libero exchange: plain, then stretched and darker to split touching bold digits; both models
+// vote, they fail on different rows
 const ENTRY_VARIANTS = [
   [6, PSM_LINE], [8, PSM_LINE], [10, PSM_LINE],
   [12, PSM_LINE, { scaleY: 7, low: 0, high: 160 }], [10, PSM_LINE, { scaleY: 8, low: 0, high: 120 }], [14, PSM_LINE, { scaleY: 8, low: 30, high: 200 }],
 ]
+const ENTRY_MODELS = ['eng', 'ita']
 const BAND_DARK = 110 // gray level below which a pixel is ink on the gray band of a table header
 const MIN_LINE = 4 // pixel rows of a line of text in the "LIBERO / UNDER" column
 const RESTORE = 2 // steps of ink given back after removing the thin strokes (more would regrow the "/" marks)
@@ -186,7 +190,7 @@ export function createReader(ocr) {
     if (!cleaned) return { empty: true }
     const groups = splitPair(cleaned.glyphs)
     if (groups) {
-      const [a, b] = await Promise.all(groups.map(group => readGroup(cleaned, group)))
+      const a = await readGroup(cleaned, groups[0]), b = await readGroup(cleaned, groups[1])
       if (/^\d{1,2}$/.test(a.text) && /^\d{1,2}$/.test(b.text)) {
         return { empty: false, value: `${Number(a.text)}:${Number(b.text)}`, confidence: Math.min(a.confidence, b.confidence) }
       }
@@ -242,6 +246,7 @@ export function createReader(ocr) {
     const layout = detectLayout(image)
     if (!layout) throw Error('Referto TieBreakTech: modello del referto non riconosciuto.')
     const scale = image.width / layout.width
+    onProgress('intestazione della gara')
     const header = { version: layout.version }
     if (layout.headerLetters) header.letters = layout.headerLetters.map(rect => readLetter(image, rect, scale))
     for (const [key, rect] of Object.entries(layout.header)) {
@@ -259,7 +264,7 @@ export function createReader(ocr) {
     }
     const male = inkRatio(box(image, layout.header.genderMale, scale)), female = inkRatio(box(image, layout.header.genderFemale, scale))
     header.gender = Math.abs(male - female) > 0.03 ? (female > male ? 'Femminile' : 'Maschile') : ''
-    onProgress('risultato')
+    onProgress('risultato finale')
 
     const result = {
       letters: layout.result.letters.map(rect => readLetter(image, rect, scale)),
@@ -278,25 +283,32 @@ export function createReader(ocr) {
     const sets = []
     // version 2: libero exchanges of each set, as page 2 of version 1 gives them
     const liberos = layout.liberoRows ? [] : null
+    const playedSets = result.rows.filter(row => !row.left.empty && !row.right.empty).length
+    const setLabel = number => (playedSets ? `set ${number} di ${playedSets}` : `set ${number}`)
     for (const panel of layout.setPanels) {
-      onProgress(`set ${panel.set}`)
       const letters = panel.sides.map(side => readLetter(image, side.letter, scale))
       const { rows, turns } = layout.cellRows(panel.rounds || 4)
       const lineupInk = panel.sides.some(side => inkRatio(box(image, [side.cols[0], panel.top, side.cols[6], panel.top + rows.lineup[1]], scale)) > 0.02)
-      if (!lineupInk) {
+      // the result table says how many sets were played: gray bands of an empty panel can look like ink
+      if (!lineupInk || (playedSets && panel.set > playedSets)) {
         sets.push({ set: panel.set, played: false })
         liberos?.push(panel.sides.map(() => ({ letter: null, entries: [] })))
         continue
       }
       const sides = []
-      for (const side of panel.sides) sides.push(await readSide(image, scale, layout, side, panel.top, panel.rounds || 4))
+      for (const [i, side] of panel.sides.entries()) {
+        onProgress(`${setLabel(panel.set)}, formazione, turni e sostituzioni della squadra ${letters[i] || (i ? 'di destra' : 'di sinistra')}`)
+        sides.push(await readSide(image, scale, layout, side, panel.top, panel.rounds || 4))
+      }
       const entry = { set: panel.set, played: true, letters, sides }
       const columns = []
+      if (liberos) onProgress(`${setLabel(panel.set)}, ingressi del libero`)
       if (liberos) for (const [i, side] of panel.sides.entries()) columns.push({ letter: letters[i], entries: await readLiberoColumn(image, scale, layout, side, panel.top) })
       if (panel.courtChange) {
         const cc = panel.courtChange
         const used = inkRatio(box(image, [cc.cols[0], panel.top + turns[0][0], cc.cols[6], panel.top + turns.at(-1)[1]], scale)) > 0.02
         if (used) {
+          onProgress(`${setLabel(panel.set)}, cambio campo`)
           entry.courtChange = {
             letter: readLetter(image, cc.letter, scale),
             points: await readNumber(image, cc.points, scale),
@@ -311,7 +323,7 @@ export function createReader(ocr) {
       liberos?.push(columns)
     }
 
-    onProgress('atleti')
+    onProgress('elenco degli atleti')
     const { roster: table } = layout
     const roster = { letters: table.letters.map(rect => readLetter(image, rect, scale)), teams: [[], []] }
     const rows = rosterRows(image, scale, table)
@@ -346,7 +358,7 @@ export function createReader(ocr) {
         const lines = textLines(box(image, rect, scale)).map(([y0, y1]) => [rect[0], rect[1] + y0 / scale, rect[2], rect[1] + y1 / scale])
         if (!lines.length) return entries
         const reads = []
-        for (const line of lines) reads.push(await readSmall(image, line, scale, { whitelist: `${DIGITS}-`, variants: ENTRY_VARIANTS, prepare: removeStrike }))
+        for (const line of lines) reads.push(await readSmall(image, line, scale, { whitelist: `${DIGITS}-`, variants: ENTRY_VARIANTS, prepare: removeStrike, models: ENTRY_MODELS }))
         const candidates = reads.reduce((joined, read) => joined.flatMap(a => read.map(b => ({
           text: a.text + b.text, confidence: Math.min(a.confidence, b.confidence), votes: Math.min(a.votes, b.votes),
         })))).sort((x, y) => y.votes - x.votes || y.confidence - x.confidence)
@@ -461,21 +473,25 @@ export function createReader(ocr) {
   // Page 2 is printed very small (~7 px characters): gray crops upscaled smoothly, read with several
   // scales/modes; candidates sorted by votes (the parser checks them against the rosters)
   // variants: [scale, psm, smoothImage options]; prepare: applied to the crop first
-  async function readSmall(image, rect, scale, { whitelist = '', variants = [[6, PSM_LINE], [8, PSM_LINE], [10, PSM_LINE]], prepare = crop => crop } = {}) {
+  async function readSmall(image, rect, scale, { whitelist = '', variants = [[6, PSM_LINE], [8, PSM_LINE], [10, PSM_LINE]], prepare = crop => crop, models = [undefined] } = {}) {
     const crop = prepare(box(image, rect, scale))
     if (crop.data.filter(v => v < DARK).length < 8) return []
     const candidates = []
     for (const [factor, psm, options = {}] of variants) {
-      const read = await ocr(smoothImage(crop, { scale: factor, ...options }), { whitelist, psm })
-      const text = read.text.replace(/\s+/g, ' ').trim()
-      if (!text) continue
-      const known = candidates.find(c => c.text === text)
-      if (known) { known.votes++; known.confidence = Math.max(known.confidence, read.confidence) } else candidates.push({ text, confidence: read.confidence, votes: 1 })
+      const enlarged = smoothImage(crop, { scale: factor, ...options })
+      for (const model of models) {
+        const read = await ocr(enlarged, { whitelist, psm, model })
+        const text = read.text.replace(/\s+/g, ' ').trim()
+        if (!text) continue
+        const known = candidates.find(c => c.text === text)
+        if (known) { known.votes++; known.confidence = Math.max(known.confidence, read.confidence) } else candidates.push({ text, confidence: read.confidence, votes: 1 })
+      }
     }
     return candidates.sort((x, y) => y.votes - x.votes || y.confidence - x.confidence)
   }
 
-  async function readPage2(image) {
+  // onProgress(set): the set being read; playedSets: sets of the match, the others are empty
+  async function readPage2(image, onProgress = () => {}, playedSets = LIBERO_PAGE.sets.length) {
     const scale = image.width / PAGE2_WIDTH
     const best = list => list[0] || { text: '', confidence: 0 }
     const text = [[4, PSM_LINE], [6, PSM_LINE]]
@@ -490,14 +506,15 @@ export function createReader(ocr) {
       }
     }
     const sets = []
-    for (const cols of LIBERO_PAGE.sets) {
+    for (const [index, cols] of LIBERO_PAGE.sets.entries()) {
+      if (index < playedSets) onProgress(`set ${index + 1} di ${playedSets}`)
       const columns = []
       for (let c = 0; c < 2; c++) {
         const letterRect = [cols[c] + 2, LIBERO_PAGE.letterRow[0], cols[c + 1] - 2, LIBERO_PAGE.letterRow[1]]
         const letter = readLetter(image, letterRect, scale)
         const entries = []
         for (const [y0, y1] of LIBERO_PAGE.rows) {
-          const candidates = await readSmall(image, [cols[c] + 1.5, y0 + 1.5, cols[c + 1] - 2, y1 - 1], scale, { whitelist: `${DIGITS}-`, variants: ENTRY_VARIANTS })
+          const candidates = await readSmall(image, [cols[c] + 1.5, y0 + 1.5, cols[c + 1] - 2, y1 - 1], scale, { whitelist: `${DIGITS}-`, variants: ENTRY_VARIANTS, models: ENTRY_MODELS })
           if (!candidates.length) break
           entries.push({ candidates, extent: inkExtent(box(image, [cols[c] + 1.5, y0 + 1.5, cols[c + 1] - 2, y1 - 1], scale)) / scale })
         }

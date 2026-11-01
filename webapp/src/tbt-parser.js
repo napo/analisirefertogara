@@ -9,6 +9,7 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI']
 // Digits the OCR engine confuses with each other on this print
 const CONFUSION = { 0: '869', 1: '74', 2: '73', 3: '8592', 4: '19', 5: '6389', 6: '5809', 7: '12', 8: '36905', 9: '8305' }
 const UNREADABLE = 8
+const PAGE2_PRINT = { digit: 11 / 3, dash: 10 / 3 } // px of a digit and of a dash on page 2 (version 1)
 const UNSEEN = 1.5 // cost of a jersey number of the roster not seen in the panels
 
 const texts = cell => (!cell || cell.empty ? [] : (cell.candidates || []).map(c => c.text))
@@ -60,58 +61,119 @@ const validScore = (a, b, set) => {
   return high >= target && high - low >= 2 && (high === target || high - low === 2)
 }
 
-// "a-b-c" of the libero page: the player who leaves, then the liberos who enter in turn. Each reading
-// (text, votes: how many OCR variants gave it) is split so that every number belongs to the team, the
-// printed dashes breaking ties; the split supported by most votes wins.
-// width: { extent, digit, dash } (px) when known: splits whose printed length does not match the width of
-// the text lose (a lost or doubled digit such as "2-7-11" for "27-7-11").
-export function decodeLiberoEntry(readings, players, liberos, width = null) {
-  const splits = new Map()
-  for (const [rank, reading] of readings.entries()) {
-    const { text, votes = 1 } = typeof reading === 'string' ? { text: reading } : reading
-    const digits = text.replace(/\D/g, '')
-    const dashes = new Set()
-    let count = 0
-    for (const char of text) { if (char === '-') dashes.add(count); else if (/\d/.test(char)) count++ }
-    let best = null
-    // completed: the first digit of the player was lost ("7-11" for "27-11"), a weaker hypothesis
-    const search = (at, tokens, completed) => {
-      if (at === digits.length) {
-        if (tokens.length < 2) return
-        let agree = 0, boundary = completed ? -1 : 0
-        for (const token of tokens.slice(0, -1)) { boundary += String(token).length; if (dashes.has(boundary)) agree++ }
-        const score = agree - (tokens.length - 1 - agree) * 2
-        if (!best || score > best.score) best = { tokens, score, completed }
-        return
-      }
-      for (const size of [1, 2]) {
-        const piece = digits.slice(at, at + size)
-        if (piece.length !== size || (size === 2 && piece[0] === '0')) continue
-        const number = Number(piece)
-        if (tokens.length === 0) {
-          if (players.includes(number)) search(at + size, [number], false)
-          else if (size === 1) for (const player of players.filter(n => n >= 10 && String(n).endsWith(piece))) search(at + size, [player], true)
-        } else if (liberos.includes(number) && number !== tokens.at(-1)) search(at + size, [...tokens, number], completed)
+const MAX_CHAIN = 10 // numbers in one exchange
+const WIDTH_WEIGHT = 1.5 // cost of one digit of difference between a chain and the width of the text
+const DISTANCE_CAP = 5 // a garbled reading says nothing: it cannot weigh more than this
+const OUTSIDE_PAIR = 1.2 // cost of a player outside the pair of opposite players of the column
+const SAME_PLAYER = 0.6 // cost of the same player in two consecutive rows (the pair alternates)
+const UNCERTAIN_MARGIN = 0.4 // a second chain this close to the best one: the row is to be checked
+
+// Every exchange the rules allow: a player, then the liberos of the team in turn
+function liberoChains(players, liberos) {
+  const chains = []
+  for (const player of players) {
+    for (const first of liberos) {
+      if (first === player) continue
+      const tokens = [player, first]
+      chains.push([...tokens])
+      const other = liberos.find(n => n !== first)
+      if (other === undefined) continue
+      while (tokens.length < MAX_CHAIN) {
+        tokens.push(tokens.at(-1) === first ? other : first)
+        chains.push([...tokens])
       }
     }
-    search(0, [], false)
-    if (!best) continue
-    const key = best.tokens.join('-')
-    const entry = splits.get(key) || { tokens: best.tokens, support: 0, agree: -Infinity, rank, text }
-    entry.support += best.completed ? votes / 2 : votes
-    entry.agree = Math.max(entry.agree, best.score)
-    splits.set(key, entry)
   }
-  // mismatch between the printed length of a split and the width of the text, in digits
-  const mismatch = entry => {
-    if (!width?.extent || !width.digit) return 0
-    const key = entry.tokens.join('-'), digits = key.replace(/-/g, '').length
-    return Math.abs(width.extent - digits * width.digit - (key.length - digits) * width.dash) / width.digit
+  return chains
+}
+
+// Edit distance between a chain and an OCR reading: a dash weighs less than a digit, digits the engine
+// confuses less than the others
+function readingDistance(chain, reading) {
+  const gap = char => (char === '-' ? 0.5 : 1)
+  const swap = (a, b) => {
+    if (a === b) return 0
+    if (a === '-' || b === '-') return 0.8
+    return CONFUSION[a]?.includes(b) ? 0.6 : 1
   }
-  for (const entry of splits.values()) entry.fit = entry.support - 3 * mismatch(entry)
-  const best = [...splits.values()].sort((x, y) => y.fit - x.fit || y.agree - x.agree || x.rank - y.rank)[0]
-  // a split much shorter or longer than the text lost or invented numbers: not imported
-  return best && mismatch(best) <= 1.2 ? best : null
+  let row = [0]
+  for (let j = 1; j <= reading.length; j++) row[j] = row[j - 1] + gap(reading[j - 1])
+  for (let i = 1; i <= chain.length; i++) {
+    const next = [row[0] + gap(chain[i - 1])]
+    for (let j = 1; j <= reading.length; j++) {
+      next[j] = Math.min(row[j] + gap(chain[i - 1]), next[j - 1] + gap(reading[j - 1]), row[j - 1] + swap(chain[i - 1], reading[j - 1]))
+    }
+    row = next
+  }
+  return row[reading.length]
+}
+
+// Chains compatible with a row, best first. readings: strings or { text, votes } (votes: how many OCR
+// variants gave it). width: { extent, digit, dash } (px) when known: chains whose printed length does not
+// match the width of the text lose (a lost or doubled digit, "3-4" for "23-4").
+function scoreChains(readings, players, liberos, width) {
+  const list = readings.map(r => (typeof r === 'string' ? { text: r, votes: 1 } : { text: r.text, votes: r.votes || 1 })).filter(r => /\d/.test(r.text))
+  const total = list.reduce((sum, r) => sum + r.votes, 0)
+  if (!total) return []
+  const plain = text => text.replace(/\D/g, '')
+  return liberoChains(players, liberos).map(tokens => {
+    const key = tokens.join('-')
+    const distance = list.reduce((sum, r) => sum + r.votes * Math.min(readingDistance(key, r.text), DISTANCE_CAP), 0) / total
+    const digits = plain(key).length
+    const mismatch = width?.extent && width.digit ? Math.abs(width.extent - digits * width.digit - (key.length - digits) * width.dash) / width.digit : null
+    const support = list.reduce((sum, r) => sum + (plain(r.text) === plain(key) ? r.votes : 0), 0)
+    return { tokens, key, distance, mismatch, support, cost: distance + WIDTH_WEIGHT * (mismatch ?? 0) }
+  }).sort((a, b) => a.cost - b.cost || b.support - a.support)
+}
+
+// A chain is taken when the readings are close to it, more loosely when the width of the text confirms it;
+// a chain much shorter or longer than the text lost or invented numbers
+function acceptable({ key, distance, mismatch }) {
+  if (mismatch !== null && mismatch > 1.2) return false
+  return distance < DISTANCE_CAP - 1 && distance <= key.length * (mismatch !== null && mismatch < 0.7 ? 0.45 : 0.25)
+}
+
+// One exchange, without the context of its column
+export function decodeLiberoEntry(readings, players, liberos, width = null) {
+  const best = scoreChains(readings, players, liberos, width)[0]
+  return best && acceptable(best) ? best : null
+}
+
+// All the exchanges of a column: on the whole the libero replaces two opposite players (lineup positions
+// three apart), who alternate row after row. Each row gets its best chain under the most likely pair, or
+// null; uncertain: another chain is nearly as good. pairs: arrays of players of opposite positions.
+export function decodeLiberoColumn(entries, players, liberos, pairs, widths) {
+  const scored = entries.map(({ candidates, extent }) => scoreChains(candidates, players, liberos, widths && { extent, ...widths }).slice(0, 40))
+  let best = null
+  for (const pair of pairs.length ? pairs : [players]) {
+    const outside = chain => (pair.includes(chain.tokens[0]) ? 0 : OUTSIDE_PAIR)
+    let previous = [], total = 0
+    const steps = []
+    for (const row of scored) {
+      const options = row.map(chain => {
+        const from = previous.length ? previous.reduce((low, p) => {
+          const cost = p.total + (p.chain.tokens[0] === chain.tokens[0] ? SAME_PLAYER : 0)
+          return !low || cost < low.total ? { total: cost, step: p } : low
+        }, null) : { total: 0, step: null }
+        return { chain, step: from.step, total: from.total + chain.cost + outside(chain) }
+      })
+      if (options.length) { previous = options; steps.push(options) } else steps.push(null)
+    }
+    if (previous.length) total = Math.min(...previous.map(p => p.total))
+    if (!best || total < best.total) best = { total, last: previous.length ? previous.reduce((low, p) => (p.total < low.total ? p : low)) : null, pair }
+  }
+  const chosen = new Map()
+  for (let step = best?.last; step; step = step.step) chosen.set(step.chain, step)
+  return scored.map(row => {
+    const pick = row.find(chain => chosen.has(chain))
+    if (!pick) return null
+    const score = chain => chain.cost + (best.pair.includes(chain.tokens[0]) ? 0 : OUTSIDE_PAIR)
+    const rival = row.filter(chain => chain !== pick).reduce((low, chain) => Math.min(low, score(chain)), Infinity)
+    if (acceptable(pick)) return { ...pick, uncertain: rival - score(pick) < UNCERTAIN_MARGIN }
+    // garbled print: the width and the pair of the column still name the exchange, to be checked
+    const fromContext = pick.mismatch !== null && pick.mismatch < 0.7 && best.pair.includes(pick.tokens[0])
+    return fromContext ? { ...pick, uncertain: true } : null
+  })
 }
 
 // Width of a digit and of a dash on the libero page, fitted (least squares) on the rows read with near
@@ -193,11 +255,11 @@ export function parseTbt({ page1, page2 = null }) {
       for (const { candidates, extent } of column.entries.map(entryOf)) {
         const decoded = extent && decodeLiberoEntry(candidates, players, liberosOf(letter))
         const votes = candidates.reduce((total, r) => total + (r.votes || 1), 0)
-        if (decoded && decoded.support >= votes * 0.8) strongRows.push({ key: decoded.tokens.join('-'), extent })
+        if (decoded && decoded.support >= votes * 0.7) strongRows.push({ key: decoded.key, extent })
       }
     })
   }
-  const widths = printWidths(strongRows)
+  const widths = printWidths(strongRows) || (page2 ? PAGE2_PRINT : null)
 
   // Sets
   const sets = []
@@ -236,15 +298,22 @@ export function parseTbt({ page1, page2 = null }) {
       // the player replaced by a libero is on court in this set: a starter or a substitute who entered
       const onCourt = [...team[letter].lineup, ...team[letter].substitutions.map(sub => sub.in)].filter(Boolean).map(Number)
       const players = (onCourt.length ? onCourt : playersOf(letter)).filter(n => !liberosOf(letter).includes(n))
-      column.entries.forEach(({ candidates: readings, extent }, row) => {
-        const decoded = decodeLiberoEntry(readings, players, liberosOf(letter), widths && { extent, ...widths })
+      // opposite positions: the starters and the substitutes who took their place
+      const atPosition = i => [team[letter].lineup[i], team[letter].substitutions[i]?.in].filter(Boolean).map(Number)
+      const pairs = [0, 1, 2].map(i => [...atPosition(i), ...atPosition(i + 3)]).filter(pair => pair.length)
+      const field = row => ({ key: letter === 'A' ? 'liberoReplacements' : 'opponentLiberoReplacements', index: row })
+      const decodedRows = decodeLiberoColumn(column.entries, players, liberosOf(letter), pairs, widths)
+      column.entries.forEach(({ candidates: readings }, row) => {
+        const decoded = decodedRows[row]
+        const found = readings[0]?.text || ''
         if (!decoded) {
-          warn(index + 1, names[letter], 'giocatore-libero', readings[0]?.text || '', liberoZone(index + 1, row + 1),
-            'Ingresso del libero non leggibile: non importato.', { key: letter === 'A' ? 'liberoReplacements' : 'opponentLiberoReplacements', index: row })
+          warn(index + 1, names[letter], 'giocatore-libero', found, liberoZone(index + 1, row + 1), 'Ingresso del libero non leggibile: non importato.', field(row))
           return
         }
-        if (decoded.text !== readings[0].text) {
-          warn(index + 1, names[letter], decoded.tokens.join('-'), readings[0].text, liberoZone(index + 1, row + 1), 'Lettura corretta con i numeri dei liberi.', { key: letter === 'A' ? 'liberoReplacements' : 'opponentLiberoReplacements', index: row })
+        if (decoded.uncertain) {
+          warn(index + 1, names[letter], decoded.key, found, liberoZone(index + 1, row + 1), 'Lettura incerta: confronta con il referto.', field(row))
+        } else if (decoded.key.replace(/\D/g, '') !== found.replace(/\D/g, '')) {
+          warn(index + 1, names[letter], decoded.key, found, liberoZone(index + 1, row + 1), 'Lettura corretta con i numeri dei liberi.', field(row))
         }
         const raw = decoded.tokens.join('-')
         for (let step = 1; step < decoded.tokens.length; step++) {
@@ -307,7 +376,7 @@ export function parseTbt({ page1, page2 = null }) {
   }
 }
 
-const capitalize = text => (text || '').toLocaleLowerCase('it-IT').replace(/(^|\s)\S/g, value => value.toUpperCase())
+const capitalize = text => (text || '').toLocaleLowerCase('it-IT').replace(/(^|[\s/])\S/g, value => value.toUpperCase())
 const cleanName = text => (text || '').replace(/[^\p{L}\d '.-]/gu, ' ').replace(/\s+/g, ' ').trim()
 
 // Team names of the header (version 2) by letter: either team can be on the left. Without the circled

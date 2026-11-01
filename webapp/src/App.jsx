@@ -10,6 +10,7 @@ import CourtAnalysis from './CourtAnalysis.jsx'
 import PrintToggle from './PrintToggle.jsx'
 import ScrollableTable from './ScrollableTable.jsx'
 import UpdateNotice, { UpdateSettings } from './UpdateNotice.jsx'
+import ImportLog from './ImportLog.jsx'
 import { loadPrintSections, savePrintSections } from './print-sections.js'
 import { swapTeams } from './match-teams.js'
 import { isSetter, rosterPlayer } from './athletes.js'
@@ -27,7 +28,8 @@ import { AboutProject, DownloadSection, PrivacyCard, SupportCard, TbtImportNotic
 import ExternalLink from './ExternalLink.jsx'
 import Faq from './Faq.jsx'
 import SyncCard from './SyncCard.jsx'
-import { fieldId, flaggedFields } from './import-flags.js'
+import { fieldId, fieldPatch, fieldValue, flaggedFields, validFieldInput } from './import-flags.js'
+import { fieldLocation } from './tbt-snippets.js'
 import { liberoLines, liberoLinesPatch, validLiberoLine } from './libero-lines.js'
 import { saveFile, savedMessage } from './save-file.js'
 import { AUTHOR_NAME, LICENSE_SPDX, LICENSE_URL, PRIVACY_URL, SOURCE_REPOSITORY_URL, releaseUrl } from './config.js'
@@ -90,6 +92,8 @@ function MainApp() {
     loading,
     busy,
     progress,
+    progressNotice,
+    progressLog,
     message,
     setMessage,
     error,
@@ -683,6 +687,10 @@ function MainApp() {
                     Compila manualmente
                   </button>
                 </div>
+                {busy && progressNotice && (
+                  <p className="vs-dropzone-notice" role="note">{progressNotice}</p>
+                )}
+                {busy && progressLog.length > 0 && <ImportLog log={progressLog} />}
                 {busy && progress && (
                   <p className="vs-dropzone-progress" role="status" aria-live="polite">{progress}</p>
                 )}
@@ -2293,6 +2301,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           sheetTeams={draft.sheetTeams}
           canSwapSides={Boolean(draft.isManual)}
           warnings={draft.importWarnings}
+          pdf={draft.pdf}
           update={(patch) => {
             setDraft(d => {
               const next = { ...d, sets: d.sets.map((s, i) => i === index ? { ...s, ...patch } : s) }
@@ -2349,8 +2358,11 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           <strong>Dati del PDF da controllare:</strong> {draft.sourceFormat === 'TBT'
             ? 'alcuni valori non sono stati letti con certezza: l’app li ha ricavati dagli altri dati del referto, quando possibile. Confrontali con il PDF originale.'
             : 'alcuni valori non sono stati letti come previsto o non sono coerenti tra loro. L’app non li ha corretti: confrontali con il PDF originale.'}
+          {draft.importWarnings.some(warning => warning.snippet) && (
+            <span> Nei set trovi anche i valori da controllare, ciascuno accanto al ritaglio del referto.</span>
+          )}
           <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.25rem' }}>
-            {draft.importWarnings.map((warning, i) => (
+            {draft.importWarnings.filter(warning => !warning.snippet).map((warning, i) => (
               <li key={i}>
                 {warning.set ? `Set ${warning.set}` : 'Referto'}{warning.team ? ` · ${warning.team}` : ''}: {warning.message}{warning.expected !== '' || warning.found !== '' ? ` Atteso: ${String(warning.expected)}; trovato: ${String(warning.found)}.` : ''}
                 <span style={{ display: 'block', fontSize: '0.76rem', opacity: 0.8 }}>Zona del PDF: {warning.zone}</span>
@@ -2453,7 +2465,103 @@ const LINEUP_HINT = 'Giocatori titolari: numeri di maglia della formazione inizi
 
 const SUBSTITUTION_HINT = 'Sostituzioni: nella colonna della posizione I–VI il numero di chi entra al posto del titolare (riga "Riserve N°" del referto) e i punteggi di entrata e di rientro del titolare ("Punteggio al cambio")'
 
-function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = false, warnings, update, onLineupCommit }) {
+// The whole sheet with the place of a value to check marked, in a small panel in the corner away from the
+// value: the page stays usable behind it. pinned: opened with its button, it stays until closed
+function SheetLocator({ pdf, region, label, pinned, place, onClose }) {
+  const [pages, setPages] = useState(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let active = true
+    import('./pdf').then(({ sheetPages }) => sheetPages(pdf)).then(urls => { if (active) setPages(urls) }).catch(() => { if (active) setFailed(true) })
+    return () => { active = false }
+  }, [pdf])
+  useEffect(() => {
+    if (!pinned) return undefined
+    const onKey = event => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pinned, onClose])
+  const percent = value => `${value * 100}%`
+  return (
+    <div className={`vs-sheet-locator vs-sheet-locator-${place}${pinned ? ' vs-sheet-locator-pinned' : ''}`} role={pinned ? 'region' : undefined} aria-label={pinned ? `Posizione sul referto: ${label}` : undefined}>
+      <div className="vs-sheet-locator-head">
+        <span>{label}</span>
+        {pinned && <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={onClose}>Chiudi</button>}
+      </div>
+      {pages?.[region.page] ? (
+        <div className="vs-sheet-locator-page">
+          <img src={pages[region.page]} alt="" />
+          <span style={{ left: percent(region.x0), top: percent(region.y0), width: percent(region.x1 - region.x0), height: percent(region.y1 - region.y0) }} />
+        </div>
+      ) : <p>{failed ? 'Anteprima del foglio non disponibile.' : 'Preparazione del foglio…'}</p>}
+    </div>
+  )
+}
+
+// Values of a set to check, each beside the picture of its place on the scoresheet: what the app read is
+// edited here as in the grid below
+function ImportChecks({ set, warnings, names, pdf, update }) {
+  const [hovered, setHovered] = useState(null)
+  const [pinned, setPinned] = useState(null)
+  const [place, setPlace] = useState('bottom-right')
+  // the panel goes to the corner opposite to the card
+  const placeAway = element => {
+    const box = element.getBoundingClientRect()
+    setPlace(`${box.top + box.height / 2 > window.innerHeight / 2 ? 'top' : 'bottom'}-${box.left + box.width / 2 > window.innerWidth / 2 ? 'left' : 'right'}`)
+  }
+  const seen = new Set()
+  const checks = (warnings || []).filter(warning => {
+    if (!warning.snippet || warning.set !== set.number) return false
+    const id = fieldId(warning.field.key, warning.field.index, warning.field.part)
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  }).map(warning => ({ ...warning, id: fieldId(warning.field.key, warning.field.index, warning.field.part), location: fieldLocation(set, warning.field, names, warning.region) }))
+  if (!checks.length) return null
+  const active = checks.find(check => check.id === (hovered ?? pinned))
+  const canLocate = check => Boolean(pdf && check.region)
+  return (
+    <div className="vs-import-checks">
+      <strong>Da controllare in questo set ({checks.length}): confronta il valore con il ritaglio del referto</strong>
+      <div className="vs-import-checks-list">
+        {checks.map(({ id, field, snippet, message, location, value: imported, region }) => {
+          const value = fieldValue(set, field)
+          const check = { region }
+          return (
+            <div className="vs-import-check" key={id} title={message}>
+              <span className="vs-import-check-zone">{location}</span>
+              <img
+                src={snippet}
+                alt={`Ritaglio del referto: ${location}`}
+                onMouseEnter={e => { if (canLocate(check)) { placeAway(e.currentTarget); setHovered(id) } }}
+                onMouseLeave={() => setHovered(null)}
+              />
+              {canLocate(check) && (
+                <button type="button" className="vs-import-check-locate" aria-expanded={pinned === id} onClick={e => {
+                  placeAway(e.currentTarget)
+                  setPinned(pinned === id ? null : id)
+                }}>{pinned === id ? 'Nascondi il foglio' : 'Dov’è sul foglio'}</button>
+              )}
+              <input
+                className={value === imported ? 'vs-import-flag' : undefined}
+                aria-label={`Valore letto: ${location}`}
+                value={value}
+                placeholder="non letto"
+                onChange={e => {
+                  const text = e.target.value.trim().toUpperCase()
+                  if (validFieldInput(field, text)) update(fieldPatch(set, field, text))
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+      {active && canLocate(active) && <SheetLocator pdf={pdf} region={active.region} label={active.location} pinned={active.id === pinned} place={place} onClose={() => setPinned(null)} />}
+    </div>
+  )
+}
+
+function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = false, warnings, pdf, update, onLineupCommit }) {
   const turnRows = s.turnRows || 4
   const flags = flaggedFields(warnings, index + 1, s)
   // Outline of a value the import deduced or could not read, with the reason
@@ -2473,6 +2581,7 @@ function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = f
         </span>
       </summary>
       <div className="vs-set-body">
+        <ImportChecks set={{ ...s, number: index + 1 }} warnings={warnings} names={{ own: team, other: opponent }} pdf={pdf} update={update} />
         <div className="vs-review-grid" style={{ marginBottom: '1rem' }}>
           {inSheetOrder([['scoreOwn', team], ['scoreOther', opponent]]).map(([field, name]) => (
             <div className="vs-field" key={field}>

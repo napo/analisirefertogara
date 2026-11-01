@@ -344,6 +344,48 @@
   margin: 0 auto 1.25rem;
 }
 
+.vs-dropzone-notice {
+  margin: 0.9rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: #FFF8E1;
+  border: 1px solid #FFB300;
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+  color: #6D4C00;
+}
+
+.vs-import-log {
+  list-style: none;
+  margin: 0.9rem auto 0;
+  padding: 0;
+  max-width: 44rem;
+  text-align: left;
+  font-size: 0.86rem;
+}
+
+.vs-import-log li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.15rem 0;
+  min-width: 0;
+}
+
+.vs-import-log-time {
+  flex: none;
+  min-width: 6.5em; /* the texts stay aligned: the time of the current step is bold */
+  font-variant-numeric: tabular-nums;
+}
+
+.vs-import-log-done {
+  color: var(--vs-muted);
+  opacity: 0.75;
+}
+
+.vs-import-log-current {
+  font-weight: 600;
+  color: var(--vs-heading);
+}
+
 .vs-dropzone-progress {
   margin: 0.9rem 0 0;
   font-size: 0.88rem;
@@ -2239,3 +2281,26 @@
   gap: 1rem;
   margin-top: 0.5rem;
 }
+
+/* Values of an import to check, beside the picture of the scoresheet */
+.vs-import-checks { margin-bottom: 1rem; padding: 0.75rem; background: #FFF8E1; border: 1px solid #FFB300; border-radius: 0.5rem; color: #6D4C00; font-size: 0.85rem; }
+.vs-import-checks-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 0.6rem; margin-top: 0.6rem; }
+.vs-import-check { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; padding: 0.5rem; background: #fff; border: 1px solid #E0D5B0; border-radius: 0.4rem; color: #333; }
+.vs-import-check img { display: block; align-self: flex-start; max-width: 100%; height: auto; border: 1px solid #ddd; }
+.vs-import-check-zone { font-size: 0.74rem; opacity: 0.8; overflow-wrap: anywhere; }
+.vs-import-check input { width: 100%; box-sizing: border-box; font-size: 1rem; font-variant-numeric: tabular-nums; padding: 0.3rem 0.4rem; border: 1px solid #bbb; border-radius: 0.3rem; background: #fff; color: #222; }
+.vs-import-check input.vs-import-flag { border: 2px solid #FFB300; }
+.vs-import-check-zone { font-weight: 600; opacity: 1; }
+.vs-import-check-locate { align-self: flex-start; padding: 0; border: 0; background: none; color: #8A5A00; font-size: 0.76rem; text-decoration: underline; cursor: pointer; }
+
+/* The whole sheet with the place of a value to check */
+.vs-sheet-locator { position: fixed; z-index: 1000; width: min(calc(100vw - 1.5rem), 32rem, calc((100vh - 7rem) * 1.35)); padding: 0.5rem; background: #fff; border-radius: 0.5rem; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); color: #333; font-size: 0.78rem; pointer-events: none; box-sizing: border-box; }
+.vs-sheet-locator-bottom-right { right: 0.75rem; bottom: 0.75rem; }
+.vs-sheet-locator-bottom-left { left: 0.75rem; bottom: 0.75rem; }
+.vs-sheet-locator-top-right { right: 0.75rem; top: 5rem; }
+.vs-sheet-locator-top-left { left: 0.75rem; top: 5rem; }
+.vs-sheet-locator-pinned { pointer-events: auto; }
+.vs-sheet-locator-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; font-weight: 600; }
+.vs-sheet-locator-page { position: relative; overflow: hidden; line-height: 0; }
+.vs-sheet-locator-page img { display: block; width: 100%; height: auto; }
+.vs-sheet-locator-page span { position: absolute; box-sizing: content-box; margin: -3px; border: 3px solid #E65100; border-radius: 2px; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.4); }
