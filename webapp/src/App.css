@@ -1,5 +1,9 @@
 /* VolleyServe.it Design System */
 
+.vs-shell:focus {
+  outline: none;
+}
+
 .vs-shell {
   max-width: var(--vs-container-max);
   margin: 0 auto;
@@ -286,6 +290,7 @@
 
 .vs-card-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
@@ -297,6 +302,8 @@
 .vs-card-title {
   font-size: 1.2rem;
   margin: 0;
+  /* long file names used as titles wrap on narrow screens */
+  overflow-wrap: anywhere;
   color: var(--vs-heading);
 }
 
@@ -678,7 +685,11 @@
 .vs-search-option:hover,
 .vs-search-option:focus-visible {
   background: #F8FAFC;
-  outline: none;
+}
+
+.vs-search-option:focus-visible {
+  outline: 2px solid var(--vs-accent);
+  outline-offset: -2px;
 }
 
 .vs-search-option-title {
@@ -759,6 +770,11 @@
   margin-top: 1rem;
 }
 
+/* a wide sheet scrolls inside its own box instead of widening the page */
+.vs-turn-grid > * {
+  min-width: 0;
+}
+
 .vs-set-data-layout {
   display: block;
 }
@@ -817,7 +833,7 @@
 }
 
 .vs-grid-table .vs-lineup-row th {
-  color: var(--vs-orange);
+  color: var(--vs-orange-ink);
   font-weight: 700;
   cursor: help;
 }
@@ -1330,7 +1346,7 @@
 }
 
 .vs-grid-table .vs-lineup-note {
-  color: var(--vs-orange);
+  color: var(--vs-orange-ink);
   font-size: 0.66rem;
   font-style: italic;
   line-height: 1.15;
@@ -1366,6 +1382,13 @@
   display: block;
   font-size: 0.8rem;
   margin-top: 0.2rem;
+}
+
+/* 24px touch target (WCAG 2.5.8) */
+.vs-footer-version a {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
 }
 
 .vs-footer a:hover {
@@ -2329,7 +2352,7 @@
 .vs-team-link { font-weight: 700; }
 .vs-match-vs { color: var(--vs-muted); font-size: 0.85em; }
 .vs-match-meta { display: flex; flex-wrap: wrap; column-gap: 0.75em; font-size: 0.78rem; color: var(--vs-muted); }
-.vs-match-meta .vs-link-button { color: inherit; }
+.vs-match-meta .vs-link-button { color: inherit; min-height: 24px; }
 .vs-match-meta .vs-link-button:hover { color: var(--vs-orange); }
 .vs-match-meta-championship { display: none; }
 .vs-match-result { display: block; color: var(--vs-heading); white-space: nowrap; }

@@ -15,6 +15,12 @@ export const PHASE_COLORS = {
   CP: APP_COLORS.orange,
 }
 
+// Phase names written in text: the orange gets darker to reach 4.5:1 on white (as --vs-orange-ink)
+export const PHASE_TEXT_COLORS = {
+  BP: APP_COLORS.navy,
+  CP: '#BF4400',
+}
+
 // Trend of the score: above / below level. Only for the difference line.
 export const TREND_COLORS = {
   positive: '#2E7D32',

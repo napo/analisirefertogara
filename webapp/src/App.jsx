@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, AriaComponent } from 'echarts/components'
@@ -417,7 +417,7 @@ function MainApp() {
       type: 'value',
       minInterval: 1,
       splitLine: { lineStyle: { color: '#E5E7EB' } },
-      axisLabel: { color: '#7D7D7D', fontVariantNumeric: 'tabular-nums' },
+      axisLabel: { color: '#6B6B6B', fontVariantNumeric: 'tabular-nums' },
     },
     xAxis: {
       type: 'category',
@@ -572,6 +572,7 @@ function MainApp() {
 
   return (
     <div>
+      <a href="#contenuto" className="vs-skip-link">Vai al contenuto</a>
       {/* 1. TOP BAR CONTRACT */}
       <header className="vs-navbar">
         <div className="vs-navbar-inner">
@@ -588,6 +589,7 @@ function MainApp() {
                 <button
                   type="button"
                   className={`vs-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
+                  aria-current={activeTab === 'reports' ? 'page' : undefined}
                   onClick={() => setActiveTab('reports')}
                 >
                   Referti di gara
@@ -597,6 +599,7 @@ function MainApp() {
                 <button
                   type="button"
                   className={`vs-nav-item ${activeTab === 'analysis' ? 'active' : ''}`}
+                  aria-current={activeTab === 'analysis' ? 'page' : undefined}
                   onClick={() => setActiveTab('analysis')}
                 >
                   Analisi referto
@@ -606,6 +609,7 @@ function MainApp() {
                 <button
                   type="button"
                   className={`vs-nav-item ${activeTab === 'history' ? 'active' : ''}`}
+                  aria-current={activeTab === 'history' ? 'page' : undefined}
                   onClick={() => setActiveTab('history')}
                 >
                   Storico gare
@@ -615,6 +619,7 @@ function MainApp() {
                 <button
                   type="button"
                   className={`vs-nav-item ${activeTab === 'info' ? 'active' : ''}`}
+                  aria-current={activeTab === 'info' ? 'page' : undefined}
                   onClick={() => setActiveTab('info')}
                 >
                   Informazioni
@@ -624,6 +629,7 @@ function MainApp() {
                 <button
                   type="button"
                   className={`vs-nav-item ${activeTab === 'faq' ? 'active' : ''}`}
+                  aria-current={activeTab === 'faq' ? 'page' : undefined}
                   onClick={() => setActiveTab('faq')}
                 >
                   FAQ
@@ -660,7 +666,7 @@ function MainApp() {
         }}
       />
 
-      <main className="vs-shell">
+      <main id="contenuto" className="vs-shell" tabIndex={-1}>
         <UpdateNotice />
         {/* Introduzione solo nella home; intestazione compatta durante la verifica. */}
         {draft && activeTab === 'reports' ? (
@@ -871,7 +877,7 @@ function MainApp() {
                         <SortHeader column="match" sort={reportSort} onSort={setReportSort}>Gara</SortHeader>
                         <SortHeader column="championship" sort={reportSort} onSort={setReportSort} className="vs-reports-championship">Campionato</SortHeader>
                         <SortHeader column="result" sort={reportSort} onSort={setReportSort}>Risultato</SortHeader>
-                        <th aria-label="Operazioni" />
+                        <th><span className="vs-sr-only">Operazioni</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1139,7 +1145,7 @@ function MainApp() {
 
             {!matches.length ? (
               <div className="vs-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
-                <h2 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>Nessuna analisi disponibile</h2>
+                <h1 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>Nessuna analisi disponibile</h1>
                 <p style={{ color: 'var(--vs-muted)', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
                   Carica un referto di gara in formato PDF per visualizzare l&apos;analisi automatica del rendimento per rotazione.
                 </p>
@@ -1206,9 +1212,9 @@ function MainApp() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--vs-heading)' }}>
+                      <h1 style={{ margin: 0, fontFamily: 'inherit', fontWeight: 700, fontSize: '1rem', letterSpacing: 'normal', color: 'var(--vs-heading)' }}>
                         {visibleMatches[0].team} vs {visibleMatches[0].opponent}
-                      </span>
+                      </h1>
                       <span style={{ color: 'var(--vs-muted)' }}>
                         📅 {visibleMatches[0].date.slice(8)}/{visibleMatches[0].date.slice(5, 7)}/{visibleMatches[0].date.slice(0, 4)}
                       </span>
@@ -1244,7 +1250,7 @@ function MainApp() {
                       >
                         ⇄ Analizza {visibleMatches[0].opponent}
                       </button>
-                      <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--vs-orange)', fontSize: '0.95rem' }}>
+                      <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--vs-orange-ink)', fontSize: '0.95rem' }}>
                         Risultato: {resultStr(visibleMatches[0])} ({visibleMatches[0].sets.map(s => `${s.scoreOwn}-${s.scoreOther}`).join(', ')})
                       </span>
                     </div>
@@ -1266,15 +1272,15 @@ function MainApp() {
                     }}
                   >
                     <div>
-                      <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--vs-heading)', display: 'block', marginBottom: '0.2rem' }}>
+                      <h1 style={{ margin: '0 0 0.2rem', fontFamily: 'inherit', fontWeight: 700, fontSize: '1rem', letterSpacing: 'normal', color: 'var(--vs-heading)' }}>
                         Analisi aggregata: {activeTeam}
-                      </span>
+                      </h1>
                       <div className="vs-metric-detail">{[...new Set(visibleMatches.map(matchHeading).filter(Boolean))].join(' / ')}</div>
                       <span style={{ color: 'var(--vs-muted)' }}>
                         {visibleMatches.length} gare analizzate · {visibleMatches.reduce((acc, m) => acc + m.sets.length, 0)} set complessivi
                       </span>
                     </div>
-                    <span className="tabular-nums" style={{ fontWeight: 800, color: 'var(--vs-orange)', fontSize: '1.05rem' }}>
+                    <span className="tabular-nums" style={{ fontWeight: 800, color: 'var(--vs-orange-ink)', fontSize: '1.05rem' }}>
                       {formatWins(aggregatedAnalysis.wins, visibleMatches.length)}
                     </span>
                   </div>
@@ -1434,7 +1440,7 @@ function MainApp() {
                                 className="num-cell"
                                 style={{
                                   fontWeight: 700,
-                                  color: diff > 0 ? 'var(--vs-orange)' : diff < 0 ? '#C62828' : 'var(--vs-muted)',
+                                  color: diff > 0 ? 'var(--vs-orange-ink)' : diff < 0 ? '#C62828' : 'var(--vs-muted)',
                                 }}
                               >
                                 {diff > 0 ? '+' : ''}{fmt(diff)}
@@ -1500,7 +1506,7 @@ function MainApp() {
             <div className="vs-card">
               <div className="vs-card-header">
                 <div>
-                  <h2 className="vs-card-title">Storico delle gare registrate</h2>
+                  <h1 className="vs-card-title">Storico delle gare registrate</h1>
                   <p className="vs-card-subtitle">
                     Le gare salvate in questo browser su questo dispositivo. Esporta l’archivio (.zrv) per conservarle o trasferirle.
                   </p>
@@ -1606,6 +1612,7 @@ function MainApp() {
                                 if (e.target.checked) setSelectedHistoryIds(filteredMatches.map(m => m.id))
                                 else setSelectedHistoryIds([])
                               }}
+                              aria-label="Seleziona tutte le gare per l'analisi"
                               title="Seleziona tutte le gare per l'analisi"
                             />
                           </th>
@@ -1632,6 +1639,7 @@ function MainApp() {
                                       prev.includes(m.id) ? prev.filter(x => x !== m.id) : [...prev, m.id]
                                     )
                                   }}
+                                  aria-label={`Seleziona gara ${m.team} vs ${m.opponent}`}
                                   title={`Seleziona gara ${m.team} vs ${m.opponent}`}
                                 />
                               </td>
@@ -1862,6 +1870,7 @@ function MainApp() {
 
 // Subcomponent: Verification & Review Card for imported PDF or manual entry
 function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemoveSet, busy }) {
+  const inputId = useId()
   const [sourceUrl, setSourceUrl] = useState('')
   const rosterSectionRef = useRef(null)
   const saveActionRef = useRef(null)
@@ -1915,8 +1924,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         {draft.isManual ? (
           <>
             <div className="vs-field">
-              <label>Squadra analizzata (Casa / Principale)</label>
+              <label htmlFor={`${inputId}-team`}>Squadra analizzata (Casa / Principale)</label>
               <input
+                id={`${inputId}-team`}
                 type="text"
                 placeholder="Es. Melodicy Spikers"
                 value={draft.team}
@@ -1924,8 +1934,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
               />
             </div>
             <div className="vs-field">
-              <label>Squadra avversaria (Ospite)</label>
+              <label htmlFor={`${inputId}-opponent`}>Squadra avversaria (Ospite)</label>
               <input
+                id={`${inputId}-opponent`}
                 type="text"
                 placeholder="Es. Hollywood Blockers"
                 value={draft.opponent}
@@ -1949,8 +1960,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
           </>
         ) : (
           <div className="vs-field">
-            <label>Squadra da analizzare</label>
+            <label htmlFor={`${inputId}-side`}>Squadra da analizzare</label>
             <select
+              id={`${inputId}-side`}
               value={draft.selectedSide || 'A'}
               onChange={(event) => {
                 if (event.target.value === (draft.selectedSide || 'A')) return
@@ -1978,8 +1990,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         </label>
 
         <div className="vs-field">
-          <label>Data gara</label>
+          <label htmlFor={`${inputId}-date`}>Data gara</label>
           <input
+            id={`${inputId}-date`}
             type="date"
             value={draft.date}
             onChange={(e) => setDraft({ ...draft, date: e.target.value })}
@@ -1992,8 +2005,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         </div>
 
         <div className="vs-field">
-          <label>Luogo / Città</label>
+          <label htmlFor={`${inputId}-location`}>Luogo / Città</label>
           <input
+            id={`${inputId}-location`}
             type="text"
             placeholder="Es. Sanremo (IM)"
             value={draft.location || ''}
@@ -2002,8 +2016,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         </div>
 
         <div className="vs-field">
-          <label>Impianto / Palestra</label>
+          <label htmlFor={`${inputId}-venue`}>Impianto / Palestra</label>
           <input
+            id={`${inputId}-venue`}
             type="text"
             placeholder="Es. Sanremo"
             value={draft.venue || ''}
@@ -2257,8 +2272,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
         </summary>
         <div className="vs-review-grid" style={{ marginTop: '0.85rem', marginBottom: 0 }}>
           <div className="vs-field">
-            <label>1° Arbitro</label>
+            <label htmlFor={`${inputId}-referee1`}>1° Arbitro</label>
             <input
+              id={`${inputId}-referee1`}
               type="text"
               placeholder="Cognome e Nome 1° Arbitro"
               value={draft.referees?.first || ''}
@@ -2269,8 +2285,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
             />
           </div>
           <div className="vs-field">
-            <label>2° Arbitro</label>
+            <label htmlFor={`${inputId}-referee2`}>2° Arbitro</label>
             <input
+              id={`${inputId}-referee2`}
               type="text"
               placeholder="Cognome e Nome 2° Arbitro"
               value={draft.referees?.second || ''}
@@ -2281,8 +2298,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
             />
           </div>
           <div className="vs-field">
-            <label>Segnapunti</label>
+            <label htmlFor={`${inputId}-scorer`}>Segnapunti</label>
             <input
+              id={`${inputId}-scorer`}
               type="text"
               placeholder="Cognome e Nome Segnapunti"
               value={draft.referees?.scorer || ''}
@@ -2579,6 +2597,7 @@ function ImportChecks({ set, warnings, names, pdf, update }) {
 }
 
 function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = false, warnings, pdf, update, onLineupCommit }) {
+  const inputId = useId()
   const turnRows = s.turnRows || 4
   const flags = flaggedFields(warnings, index + 1, s)
   // Outline of a value the import deduced or could not read, with the reason
@@ -2593,7 +2612,7 @@ function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = f
     <details className="vs-set-details" open>
       <summary className="vs-set-summary">
         <span>{setLabel}</span>
-        <span style={{ color: 'var(--vs-orange)', fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ color: 'var(--vs-orange-ink)', fontSize: '1.05rem', fontVariantNumeric: 'tabular-nums' }}>
           {inSheetOrder([s.scoreOwn, s.scoreOther]).join(' – ')}
         </span>
       </summary>
@@ -2602,8 +2621,9 @@ function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = f
         <div className="vs-review-grid" style={{ marginBottom: '1rem' }}>
           {inSheetOrder([['scoreOwn', team], ['scoreOther', opponent]]).map(([field, name]) => (
             <div className="vs-field" key={field}>
-              <label>Punti {name}</label>
+              <label htmlFor={`${inputId}-${field}`}>Punti {name}</label>
               <input
+                id={`${inputId}-${field}`}
                 type="number"
                 min="0"
                 value={s[field]}
@@ -2612,8 +2632,9 @@ function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = f
             </div>
           ))}
           <div className="vs-field">
-            <label>Durata set (minuti)</label>
+            <label htmlFor={`${inputId}-duration`}>Durata set (minuti)</label>
             <input
+              id={`${inputId}-duration`}
               type="number"
               min="1"
               max="180"
@@ -2670,11 +2691,11 @@ function SetEditor({ set: s, index, team, opponent, sheetTeams, canSwapSides = f
               )
               return (
                 <div key={key} className="vs-sheet-team">
-                  <h4 className="vs-sheet-team-head">
+                  <h3 className="vs-sheet-team-head">
                     {sheet?.letter && <span className="vs-sheet-letter">{sheet.letter}</span>}
                     {sheet?.code && <span className="vs-sheet-code">{sheet.code}</span>}
                     <span className={sheet?.code ? 'vs-sheet-name' : 'vs-sheet-code'}>{name}</span>
-                  </h4>
+                  </h3>
                   <div className="vs-sheet-panel">
                     <div className="vs-table-wrap">
                       <table className="vs-grid-table vs-sheet-grid">

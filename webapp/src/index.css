@@ -5,11 +5,13 @@
   --vs-border-hover: rgba(1, 22, 39, 0.22);
   --vs-text: #505050;
   --vs-heading: #383838;
-  --vs-muted: #7D7D7D;
+  --vs-muted: #6B6B6B;
   --vs-accent: #011627;
   --vs-accent-hover: #03304F;
   --vs-accent-contrast: #FFFFFF;
   --vs-orange: #E65100;
+  /* orange for text: #E65100 is below 4.5:1 on white and on the soft orange */
+  --vs-orange-ink: #BF4400;
   --vs-orange-soft: #FFF3E0;
   --vs-teal: #028090;
   --vs-teal-soft: #E0F2F1;
@@ -64,4 +66,33 @@ a:hover {
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Text read by screen readers only */
+.vs-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Keyboard users jump past the menu: the link shows up when it gets the focus */
+.vs-skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1000;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.4rem;
+  background: var(--vs-accent);
+  color: var(--vs-accent-contrast);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.vs-skip-link:focus {
+  transform: none;
+  color: var(--vs-accent-contrast);
 }

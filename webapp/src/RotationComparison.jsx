@@ -9,7 +9,7 @@ import {
   COMPARISON_MIN_RALLIES, PHASES, comparisonStates, courtsOnField, doubleChangeStretches, filterSet, formations,
   isDoubleChange, rotationComparison,
 } from './court-stats.js'
-import { COMPARISON_COLORS, EVENT_COLORS, PHASE_COLORS, ROTATION_COLORS } from './theme.js'
+import { COMPARISON_COLORS, EVENT_COLORS, PHASE_COLORS, PHASE_TEXT_COLORS, ROTATION_COLORS } from './theme.js'
 
 const MEASURES = [['difference', 'Vinti − persi'], ['average', 'Rispetto alla media']]
 const DOUBLE_CHANGE_FILTERS = [['all', 'Inclusi'], ['exclude', 'Esclusi'], ['only', 'Solo DC']]
@@ -227,7 +227,7 @@ function Detail({ comparison, row, col, team, opponent, title = null }) {
           return (
             <div className="vs-rc-phase-box" key={phase}>
               <p className="vs-rc-phase-title">
-                <strong style={{ color: PHASE_COLORS[phase] }}>{phase === 'BP' ? 'BP · squadra al servizio' : 'CP · squadra in ricezione'}</strong>{' '}
+                <strong style={{ color: PHASE_TEXT_COLORS[phase] }}>{phase === 'BP' ? 'BP · squadra al servizio' : 'CP · squadra in ricezione'}</strong>{' '}
                 {cell[phase].won} vinti, {cell[phase].lost} persi · {signed(cell[phase].value, comparison.measure)}
               </p>
               {inPhase.length ? <>

@@ -24,7 +24,7 @@ const EVENT_LANES = ['other:1', 'other:0', 'own:1', 'own:0'] // bottom to top
 const COMPACT_EVENT_LANES = ['other:0', 'own:0']
 const GRID_LEFT = 70
 const GRID_RIGHT = 16
-const AXIS_INK = '#7D7D7D'
+const AXIS_INK = '#6B6B6B'
 const LANE_NAME = { phase: 'Fase', rotation: 'P', server: 'Al servizio', events: 'Eventi' }
 const LANE_HEIGHT = { phase: 14, rotation: 20, server: 16, events: 4 * 15 }
 const textWidth = text => String(text).length * 5.8 + 8 // 9px bold labels, approximate
@@ -77,7 +77,7 @@ export function tooltipHtml(flow, x, context) {
   const point = flow.points[x - 1]
   if (!point) return ''
   const rows = [
-    `<span style="color:#7D7D7D">Rally ${point.index}</span>`,
+    `<span style="color:#6B6B6B">Rally ${point.index}</span>`,
     `<strong>Punteggio: ${point.own}-${point.other}</strong>`,
     `Differenza: ${signed(point.diff)}`,
     `Fase: ${swatch(PHASE_COLORS[point.phase])}${point.phase}`,

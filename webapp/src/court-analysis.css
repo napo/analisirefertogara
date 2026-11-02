@@ -23,7 +23,6 @@
 .vs-court-muted { color: var(--vs-muted); }
 .vs-court-few { display: block; font-size: .72rem; color: var(--vs-muted); white-space: nowrap; }
 .vs-court-excluded { font-size: .9rem; }
-.vs-court-analysis .vs-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .vs-court-excluded ul { margin: .25rem 0 .75rem; padding-left: 1.25rem; font-size: .88rem; }
 .vs-court-reading { margin-top: 1rem; }
 .vs-court-reading ul { margin: .35rem 0 0; padding-left: 1.2rem; line-height: 1.5; }
@@ -44,7 +43,7 @@
 /* "Confronto delle rotazioni" (RotationComparison.jsx). BP navy and CP orange bars from zero: right =
    positive, left = negative. Most profitable P green, most in difficulty red (COMPARISON_COLORS), selection
    dark outline, double change magenta (EVENT_COLORS.doubleChange). */
-.vs-rc-card { display: grid; gap: .85rem; }
+.vs-rc-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; }
 .vs-rc-card > * { margin: 0; }
 .vs-rc-filter-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--vs-muted); align-self: center; }
 .vs-rc-p { display: inline-flex; align-items: center; gap: .3rem; font-weight: 700; color: #142636; }
@@ -104,10 +103,10 @@ button.vs-rc-cell:focus-visible, button.vs-rc-cell[aria-pressed="true"] { outlin
 .vs-rc-value.zero { font-weight: 400; color: var(--vs-muted); }
 .vs-rc-dc { font-size: .62rem; font-weight: 700; color: #AD1457; line-height: 1; }
 .vs-rc-note { font-size: .8rem; color: var(--vs-muted); }
-.vs-rc-detail { border-top: 2px solid #d5d9dd; padding-top: .85rem; display: grid; gap: .75rem; }
+.vs-rc-detail { border-top: 2px solid #d5d9dd; padding-top: .85rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
 .vs-rc-detail-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; align-items: baseline; }
 .vs-rc-detail-head h3 { margin: 0; font-size: 1rem; }
-.vs-rc-phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .75rem; }
+.vs-rc-phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: .75rem; }
 .vs-rc-phase-box { border: 1px solid var(--vs-border); border-radius: 10px; padding: .75rem; display: grid; gap: .6rem; min-width: 0; }
 .vs-rc-phase-title { margin: 0; font-size: .9rem; }
 .vs-rc-courts { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
