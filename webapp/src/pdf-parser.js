@@ -7,6 +7,15 @@ export const SUPPORTED_SOFTWARE = ['NEWBIT', 'SNUG', 'TieBreakTech']
 export const supportedSoftwareList = (type = 'conjunction') =>
   new Intl.ListFormat('it', { style: 'long', type }).format(SUPPORTED_SOFTWARE)
 
+// Virtual printers that redraw every character as a shape: a scoresheet printed with them has no text left
+// (e.g. a NEWBIT scoresheet printed with "Microsoft: Print To PDF", also turned to portrait). Such a copy
+// of a NEWBIT scoresheet is read from the shapes of its characters (newbit-print.js).
+const PDF_PRINTERS = /Microsoft\W*Print\s*To\s*PDF/i
+export const isPrintedPdf = producer => PDF_PRINTERS.test(producer || '')
+export const PRINTED_PDF_NOTICE = 'Questo PDF è stato creato con una «stampa in PDF»: la stampa trasforma le scritte in disegni, quindi il referto non va bene così com’è e sarebbe meglio avere il file originale esportato da NEWBIT. Possiamo comunque riconoscere i caratteri dalla loro forma, ma ci vuole più tempo e i valori vanno verificati.'
+export const printedPdfMessage = reason =>
+  `Questo PDF è stato creato con una «stampa in PDF»: la stampa trasforma le scritte in disegni e il riconoscimento dei caratteri non è riuscito${reason ? ` (${reason})` : ''}. Chiedi il file originale esportato dal software del referto (${supportedSoftwareList('disjunction')}) e caricalo al posto di questo.`
+
 // Substitutions are stored per position I–VI, as on the scoresheet: who entered for the starter of that
 // position and the score when they entered / when the starter came back. Time-outs: up to two per set.
 // Scores are written like the scoresheet box: points of the team owning the box first ("15:11").
@@ -567,7 +576,8 @@ export function parseItems(items, width, height, operatorList = null, options = 
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI']
 
-function parseFipav(words, width, height, operatorList, { debug = false } = {}) {
+// options.gender: read by the caller when the PDF has no division marks (e.g. a printed copy)
+export function parseFipav(words, width, height, operatorList, { debug = false, gender: knownGender } = {}) {
   const text = (x, y, dx = 3, dy = 4) => words
     .filter(w => Math.abs(w.x - x) <= dx && Math.abs(w.y - y) <= dy)
     .sort((a, b) => a.x - b.x)
@@ -632,10 +642,11 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
   const summaryReversed = summaryLetter !== teamLetters[0]
 
   const summaryRows = [648.3, 669.3, 690.3, 711.4, 732.4]
+  // Points and minutes are centered in their cells: a single digit starts about 3pt right of two digits
   const scores = summaryRows.map(y => {
-    const own = around(648.3, y, 3, 2).find(w => /^\d+$/.test(w.text))
-    const other = around(723.9, y, 3, 2).find(w => /^\d+$/.test(w.text))
-    const duration = around(699, y, 3, 2).find(w => /^\d+$/.test(w.text))
+    const own = around(648.3, y, 5, 2).find(w => /^\d+$/.test(w.text))
+    const other = around(723.9, y, 5, 2).find(w => /^\d+$/.test(w.text))
+    const duration = around(699, y, 5, 2).find(w => /^\d+$/.test(w.text))
     return own && other ? { own: Number(summaryReversed ? other.text : own.text), other: Number(summaryReversed ? own.text : other.text), durationMinutes: duration ? Number(duration.text) : '' } : null
   }).filter(Boolean)
   if (!scores.length) throw Error('Risultato finale FIPAV non riconosciuto.')
@@ -651,7 +662,7 @@ function parseFipav(words, width, height, operatorList, { debug = false } = {}) 
       y: (height - (bounds[1] + bounds[3]) / 2) * scaleY,
     }]
   }) || []
-  const gender = divisionMarks.some(w => w.x < 140)
+  const gender = knownGender !== undefined ? knownGender : divisionMarks.some(w => w.x < 140)
     ? 'Maschile'
     : divisionMarks.some(w => w.x >= 140 && w.x < 230)
       ? 'Femminile'

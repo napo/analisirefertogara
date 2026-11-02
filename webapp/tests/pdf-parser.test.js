@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { parseItems, refreshImportedMatch } from '../src/pdf-parser.js'
+import { isPrintedPdf, parseItems, printedPdfMessage, refreshImportedMatch } from '../src/pdf-parser.js'
 import { analyze, validateMatch } from '../src/analysis.js'
 
 // Text items of the SNUG sample scoresheet (ANGUILL - LIFE F, U14, 10/01/2026) extracted with PDF.js.
@@ -130,4 +130,12 @@ test('analyze runs on parsed match even without setter rotation', () => {
   const match = parse()
   const result = analyze([match])
   assert.equal(result.scored, 43)
+})
+
+test('printed PDF: "Microsoft: Print To PDF" is recognized and asks for the original file', () => {
+  assert.equal(isPrintedPdf('Microsoft: Print To PDF'), true)
+  assert.equal(isPrintedPdf('Microsoft® Print to PDF'), true)
+  assert.equal(isPrintedPdf('iText® 7.1.16'), false)
+  assert.equal(isPrintedPdf(undefined), false)
+  assert.match(printedPdfMessage(), /stampa in PDF.*file originale/)
 })
