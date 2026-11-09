@@ -60,6 +60,34 @@
    "2026-11-01": {
     "count": 14,
     "uniques": 2
+   },
+   "2026-11-02": {
+    "count": 5,
+    "uniques": 3
+   },
+   "2026-11-03": {
+    "count": 2,
+    "uniques": 1
+   },
+   "2026-11-04": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-11-05": {
+    "count": 4,
+    "uniques": 1
+   },
+   "2026-11-06": {
+    "count": 4,
+    "uniques": 2
+   },
+   "2026-11-07": {
+    "count": 2,
+    "uniques": 1
+   },
+   "2026-11-08": {
+    "count": 0,
+    "uniques": 0
    }
   },
   "clones": {
@@ -122,6 +150,34 @@
    "2026-11-01": {
     "count": 94,
     "uniques": 13
+   },
+   "2026-11-02": {
+    "count": 46,
+    "uniques": 14
+   },
+   "2026-11-03": {
+    "count": 52,
+    "uniques": 22
+   },
+   "2026-11-04": {
+    "count": 19,
+    "uniques": 8
+   },
+   "2026-11-05": {
+    "count": 1,
+    "uniques": 1
+   },
+   "2026-11-06": {
+    "count": 0,
+    "uniques": 0
+   },
+   "2026-11-07": {
+    "count": 2,
+    "uniques": 2
+   },
+   "2026-11-08": {
+    "count": 0,
+    "uniques": 0
    }
   }
  },
@@ -765,6 +821,349 @@
     {
      "path": "/napo/analisirefertogara/blob/stats/github-stats.json",
      "title": "/blob/stats/github-stats.json",
+     "count": 1,
+     "uniques": 1
+    }
+   ]
+  },
+  "2026-11-09": {
+   "stars": 0,
+   "forks": 1,
+   "watchers": 0,
+   "releases": [
+    {
+     "tag": "v0.33",
+     "publishedAt": "2026-11-02T15:17:22Z",
+     "updateChecks": 3,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 5,
+      "macOS": 2,
+      "Android": 5,
+      "Windows": 3
+     }
+    },
+    {
+     "tag": "v0.32",
+     "publishedAt": "2026-11-01T22:07:06Z",
+     "updateChecks": 3,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "macOS": 2,
+      "Android": 3,
+      "Windows": 3
+     }
+    },
+    {
+     "tag": "v0.31",
+     "publishedAt": "2026-11-01T16:59:07Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.30",
+     "publishedAt": "2026-11-01T16:06:05Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.29",
+     "publishedAt": "2026-11-01T09:29:16Z",
+     "updateChecks": 2,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 3
+     }
+    },
+    {
+     "tag": "v0.28",
+     "publishedAt": "2026-10-31T22:55:21Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.27",
+     "publishedAt": "2026-10-31T22:03:21Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "macOS": 2,
+      "Android": 3,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.26",
+     "publishedAt": "2026-10-31T21:43:59Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.25",
+     "publishedAt": "2026-10-23T22:44:13Z",
+     "updateChecks": 17,
+     "platforms": {
+      "iOS": 6,
+      "Linux": 6,
+      "macOS": 6,
+      "Android": 5,
+      "Windows": 14
+     }
+    },
+    {
+     "tag": "v0.24",
+     "publishedAt": "2026-10-07T18:04:32Z",
+     "updateChecks": 26,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 6,
+      "macOS": 3,
+      "Android": 5,
+      "Windows": 12
+     }
+    },
+    {
+     "tag": "v0.23",
+     "publishedAt": "2026-10-07T17:39:46Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "macOS": 2,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.22",
+     "publishedAt": "2026-10-05T09:07:43Z",
+     "updateChecks": 2,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "macOS": 3,
+      "Android": 3,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.21",
+     "publishedAt": "2026-10-05T09:04:36Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 3,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.20",
+     "publishedAt": "2026-10-05T09:04:03Z",
+     "updateChecks": 1,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 3,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.19",
+     "publishedAt": "2026-10-04T17:08:14Z",
+     "updateChecks": 4,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 4,
+      "Linux": 4,
+      "Android": 2,
+      "Windows": 4
+     }
+    },
+    {
+     "tag": "v0.18",
+     "publishedAt": "2026-09-30T10:09:50Z",
+     "updateChecks": 17,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 5,
+      "Android": 7,
+      "Windows": 11
+     }
+    },
+    {
+     "tag": "v0.16",
+     "publishedAt": "2026-09-28T15:21:33Z",
+     "updateChecks": 4,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 3,
+      "Linux": 4,
+      "Android": 2,
+      "Windows": 4
+     }
+    },
+    {
+     "tag": "v0.14",
+     "publishedAt": "2026-09-27T19:03:26Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 2,
+      "macOS": 8,
+      "Linux": 6,
+      "Android": 9,
+      "Windows": 6
+     }
+    },
+    {
+     "tag": "v0.13",
+     "publishedAt": "2026-09-27T17:12:14Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 2,
+      "macOS": 5,
+      "Linux": 5,
+      "Android": 7,
+      "Windows": 5
+     }
+    },
+    {
+     "tag": "v0.12",
+     "publishedAt": "2026-09-27T17:06:26Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 1,
+      "macOS": 2,
+      "Linux": 3,
+      "Android": 2,
+      "Windows": 2
+     }
+    },
+    {
+     "tag": "v0.8",
+     "publishedAt": "2026-09-26T21:50:52Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 3,
+      "Android": 3,
+      "Windows": 6
+     }
+    },
+    {
+     "tag": "v0.7",
+     "publishedAt": "2026-09-26T21:35:52Z",
+     "updateChecks": 0,
+     "platforms": {
+      "iOS": 1,
+      "Linux": 4,
+      "Android": 2,
+      "Windows": 3
+     }
+    }
+   ],
+   "referrers": [
+    {
+     "referrer": "napo.github.io",
+     "count": 3,
+     "uniques": 2
+    },
+    {
+     "referrer": "github.com",
+     "count": 1,
+     "uniques": 1
+    }
+   ],
+   "paths": [
+    {
+     "path": "/napo/analisirefertogara",
+     "title": "Overview",
+     "count": 19,
+     "uniques": 9
+    },
+    {
+     "path": "/napo/analisirefertogara/releases",
+     "title": "/releases",
+     "count": 17,
+     "uniques": 13
+    },
+    {
+     "path": "/napo/analisirefertogara/tree/stats",
+     "title": "/tree/stats",
+     "count": 6,
+     "uniques": 2
+    },
+    {
+     "path": "/napo/analisirefertogara/releases/tag/v0.25",
+     "title": "/releases/tag/v0.25",
+     "count": 2,
+     "uniques": 2
+    },
+    {
+     "path": "/napo/analisirefertogara/releases/tag/v0.33",
+     "title": "/releases/tag/v0.33",
+     "count": 2,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/actions",
+     "title": "/actions",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/actions/runs/41243575414",
+     "title": "/actions/runs/41243575414",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/blob/main/Analisi Referto di gara di Andrea Fortunati.xlsx",
+     "title": "/blob/main/Analisi Referto di gara di Andrea Fortunati.xlsx",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/blob/main/Referto_Melodic_Spikers_vs_Hollywood_Blockers.pdf",
+     "title": "/blob/main/Referto_Melodic_Spikers_vs_Hollywood_Blockers.pdf",
+     "count": 1,
+     "uniques": 1
+    },
+    {
+     "path": "/napo/analisirefertogara/blob/main/docs/sincronizzazione.md",
+     "title": "/blob/main/docs/sincronizzazione.md",
      "count": 1,
      "uniques": 1
     }
