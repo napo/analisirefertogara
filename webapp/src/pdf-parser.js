@@ -122,12 +122,15 @@ export function parseItems(items, width, height, operatorList = null, options = 
 
   // FIPAV grid printed by NEWBIT; older exports (e.g. 2022, iText) lack the NEWBIT footer but carry the
   // "GaraConCambioCampo=" field and use the same layout
-  if (words.some(w => /NEWBIT|Referto Elettronico|GaraConCambioCampo=/i.test(w.text))) {
+  // The SNUG mark is the small print in the footer: the free text of the observations may name the other
+  // software (e.g. "... assistenza escore referto elettronico"), so it does not decide the format
+  const snug = words.some(w => /^SNUG\b/.test(w.text) && w.y > 750 && w.size < 6)
+  if (!snug && words.some(w => /NEWBIT|Referto Elettronico|GaraConCambioCampo=/i.test(w.text))) {
     return parseFipav(words, width, height, operatorList, options)
   }
 
   if (
-    !words.some(w => w.text.includes('SNUG')) ||
+    !snug ||
     !words.some(w => w.text.includes('RISULTATO'))
   ) {
     throw Error(
@@ -269,13 +272,20 @@ export function parseItems(items, width, height, operatorList = null, options = 
       for (const [section, x] of columns.entries()) {
         const rows = new Map()
         for (const word of words.filter(w => Math.abs(w.x - x) <= 3 &&
-          w.y >= 155 + offsetY && w.y < 275 + offsetY && /\d+\s*[-–/]\s*\d+/.test(w.text))) {
+          w.y >= 155 + offsetY && w.y < 275 + offsetY && /\d+\s*[-–/]\s*\d+|^\d{1,2}$/.test(w.text))) {
           const row = Math.round((word.y - 161.14 - offsetY) / 12.755)
           const previous = rows.get(row)
           if (!previous || word.text.length > previous.length) rows.set(row, word.text)
         }
         for (const [row, raw] of [...rows].sort((a, b) => a[0] - b[0])) {
           const numbers = raw.match(/\d+/g).map(Number)
+          // With one libero SNUG writes only the replaced player. With more liberos the annotation is
+          // ambiguous: never guess who entered.
+          if (numbers.length === 1) {
+            const liberos = [...(rosters[teamIndex]?.values() || [])].filter(p => /\bL[12]?\b/i.test(p.name))
+            if (liberos.length !== 1) continue
+            numbers.push(liberos[0].number)
+          }
           for (let step = 1; step < numbers.length; step++) {
             const player = numbers[step - 1], libero = numbers[step]
             const isLibero = number => /\bL[12]\b/i.test(rosters[teamIndex]?.get(number)?.name || '')
@@ -480,12 +490,13 @@ export function parseItems(items, width, height, operatorList = null, options = 
     .join(' ')
     .trim()
 
+  // City column only: the signature one (x 513) holds the validation code and its date
   const ref1City = words
     .filter(
       w =>
         Math.abs(w.y - 694.9) <= 5 &&
         w.x >= 400 &&
-        w.x < 550,
+        w.x < 510,
     )
     .sort((a, b) => a.x - b.x)
     .map(w => w.text)
@@ -497,7 +508,7 @@ export function parseItems(items, width, height, operatorList = null, options = 
       w =>
         Math.abs(w.y - 720.4) <= 5 &&
         w.x >= 400 &&
-        w.x < 550,
+        w.x < 510,
     )
     .sort((a, b) => a.x - b.x)
     .map(w => w.text)

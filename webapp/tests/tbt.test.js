@@ -41,6 +41,10 @@ test('TBT: header, teams and result', () => {
   assert.equal(u14.number, '1234')
   assert.equal(u14.gender, 'Femminile')
   assert.equal(u14.championship, 'UNDER 14 FEMMINILE GIRONE X')
+  // "SERIE C" read with the euro sign in place of the C
+  const readings = load('tbt-u14-readings.json')
+  readings.page1.header.competition.text = 'SERIE € FEMMINILE GIRONE A'
+  assert.equal(parseTbt(readings).championship, 'SERIE C FEMMINILE GIRONE A')
   assert.deepEqual(u14.sets.map(s => [s.scoreOwn, s.scoreOther, s.durationMinutes]), [[25, 10, 17], [25, 19, 27], [25, 19, 29]])
   assert.equal(u14.durationMinutes, 73)
   assert.deepEqual(serieD.sets.map(s => [s.scoreOwn, s.scoreOther]), [[7, 25], [20, 25], [13, 25]])

@@ -357,7 +357,8 @@ export function parseTbt({ page1, page2 = null }) {
     sourceFormat: 'TBT',
     progressionsImported: true,
     durationMinutes: scores.reduce((total, s) => total + (Number(s.durationMinutes) || 0), 0),
-    championship: header.competition?.text || '',
+    // a lone bold "C" ("SERIE C") is sometimes read as the euro sign
+    championship: (header.competition?.text || '').replace(/€/g, 'C'),
     event: '',
     gender: header.gender || '',
     team: names.A,

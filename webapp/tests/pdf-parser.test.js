@@ -24,6 +24,7 @@ test('SNUG sample imports valid sets and distinct complete named rosters, includ
   assert.ok(!match.roster.some(p => p.number === 43))
   assert.ok(!match.opponentRoster.some(p => p.number === 7))
   assert.ok([...match.roster, ...match.opponentRoster].every(p => p.name))
+  assert.deepEqual(match.referees, { first: 'ARBITRO 1', firstCity: 'CITTÀ', second: '', scorer: 'SEGNAPUNTI', scorerCity: 'CITTÀ' })
 })
 
 test('SNUG: substitutions and time-outs are read per position', () => {
@@ -102,6 +103,24 @@ test('reimport respects the selected team after swapping sides', () => {
 
 test('unsupported documents give an explicit error', () => {
   assert.throws(() => parse([]), /^Error: Formato non riconosciuto. Attualmente sono supportati i formati dei software di NEWBIT, SNUG e TieBreakTech.$/)
+})
+
+test('SNUG is recognized also when the observations name the other software', () => {
+  const note = items.find(item => item.str.startsWith('Alle ore 17.30'))
+  const match = parse(items.map(item => item === note ? { ...item, str: 'ritardo per assistenza referto elettronico NEWBIT -' } : item))
+  assert.equal(match.notes, 'ritardo per assistenza referto elettronico NEWBIT -')
+  assert.deepEqual(match.sets.map(s => [s.scoreOwn, s.scoreOther]), [[6, 25], [22, 25], [15, 25]])
+})
+
+test('SNUG libero box with only the replaced player: the libero is known when the team has one', () => {
+  // first row of the second team in set 1: "48-15" written as "48"
+  const lone = input => input.map(item => item.str === '48-15' && Math.abs(item.transform[4] - 562) < 3 ? { ...item, str: '48' } : item)
+  const rows = match => [match.sets[0].libero, match.sets[0].opponentLibero].map(box => `${box.onCourt[0]}-${box.entered[0]}`)
+  assert.ok(rows(parse()).includes('48-15'))
+  const oneLibero = lone(items).map(item => item.str === 'ATLETA 1 - L2' ? { ...item, str: 'ATLETA 1' } : item)
+  assert.ok(rows(parse(oneLibero)).includes('48-15'))
+  // two liberos: who entered is not guessed, the row is left to the user
+  assert.ok(!rows(parse(lone(items))).some(row => row.startsWith('48')))
 })
 
 
