@@ -12,7 +12,7 @@ import ScrollableTable from './ScrollableTable.jsx'
 import UpdateNotice, { UpdateSettings } from './UpdateNotice.jsx'
 import ImportLog from './ImportLog.jsx'
 import { loadPrintSections, savePrintSections } from './print-sections.js'
-import { swapTeams } from './match-teams.js'
+import { commonTeam, swapTeams } from './match-teams.js'
 import { isSetter, rosterPlayer } from './athletes.js'
 import { normalizeScore, supportedSoftwareList } from './pdf-parser'
 import { duplicateLineupNumbers, validateMatch } from './analysis'
@@ -1130,7 +1130,7 @@ function MainApp() {
                           onChange={() => toggleMatchSelection(m.id)}
                         />
                         <span style={{ fontWeight: isChecked ? 600 : 400, color: 'var(--vs-heading)' }}>
-                          {m.date} vs {m.opponent}
+                          {m.date} vs {m.opponent}{m.invertedView ? ' · vista invertita' : ''}
                           <small style={{ display: 'block' }}>{matchHeading(m)}</small>
                         </span>
                         <span style={{ fontSize: '0.78rem', color: 'var(--vs-muted)', marginLeft: 'auto' }}>
@@ -1279,6 +1279,11 @@ function MainApp() {
                       <span style={{ color: 'var(--vs-muted)' }}>
                         {visibleMatches.length} gare analizzate · {visibleMatches.reduce((acc, m) => acc + m.sets.length, 0)} set complessivi
                       </span>
+                      {visibleMatches.some(m => m.invertedView) && (
+                        <span style={{ display: 'block', color: 'var(--vs-muted)' }}>
+                          {visibleMatches.filter(m => m.invertedView).length === 1 ? 'Una gara è salvata' : `${visibleMatches.filter(m => m.invertedView).length} gare sono salvate`} con l’avversaria come squadra analizzata: qui {visibleMatches.filter(m => m.invertedView).length === 1 ? 'è letta' : 'sono lette'} dal punto di vista di {activeTeam}, l’archivio non cambia.
+                        </span>
+                      )}
                     </div>
                     <span className="tabular-nums" style={{ fontWeight: 800, color: 'var(--vs-orange-ink)', fontSize: '1.05rem' }}>
                       {formatWins(aggregatedAnalysis.wins, visibleMatches.length)}
@@ -1570,13 +1575,14 @@ function MainApp() {
                           className="vs-btn vs-btn-sm vs-btn-primary"
                           onClick={() => {
                             const selected = filteredMatches.filter(m => selectedHistoryIds.includes(m.id))
-                            if (new Set(selected.map(m => m.team)).size > 1) {
-                              setError('Per confrontare le rotazioni, seleziona gare della stessa squadra analizzata.')
+                            // the team that plays them all: where it is the opponent the match is read swapped
+                            const team = commonTeam(selected)
+                            if (selected.length && !team) {
+                              setError('Per confrontare le rotazioni, seleziona gare in cui gioca la stessa squadra: nelle gare scelte non c’è una squadra presente in tutte.')
                               return
                             }
-                            const first = selected[0]
-                            if (first) setSelectedTeam(first.team)
-                            selectMatchesForAnalysis(selected.map(m => m.id))
+                            if (team) setSelectedTeam(team)
+                            selectMatchesForAnalysis(selected.map(m => m.id), selected.filter(m => m.team !== team).map(m => m.id))
                           }}
                         >
                           📊 Analizza e aggrega {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara' : 'gare'}

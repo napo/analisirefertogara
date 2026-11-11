@@ -8,7 +8,7 @@ import { advanceLog } from './import-log.js'
 import { withDisplayNames } from './match-names.js'
 import { emptySubstitutions, emptyTimeouts, refreshImportedMatch } from './pdf-parser'
 import { emptyFilters, filterMatches } from './match-filters'
-import { swapTeams } from './match-teams.js'
+import { swapTeams, viewAs } from './match-teams.js'
 import { saveFile, savedMessage } from './save-file.js'
 
 export function createBlankSet(number) {
@@ -90,6 +90,9 @@ export function MatchStoreProvider({ children }) {
 
   const [latestMatchId, setLatestMatchId] = useState(null)
   const [selectedMatchIds, setSelectedMatchIds] = useState([])
+  // Matches aggregated from the history for a team that is their opponent: shown swapped among the matches
+  // of that team (views, the archive keeps them as saved)
+  const [guestMatchIds, setGuestMatchIds] = useState([])
   // "Inverti": id of the saved match shown from the opponent's point of view. Only a view: the archive
   // keeps the match as saved; any other selection closes it.
   const [invertedId, setInvertedId] = useState(null)
@@ -165,8 +168,9 @@ export function MatchStoreProvider({ children }) {
 
   // Unique teams
   const teams = useMemo(() => {
-    return [...new Set(filteredMatches.map(m => m.team).filter(Boolean))]
-  }, [filteredMatches])
+    const guests = filteredMatches.filter(m => guestMatchIds.includes(m.id))
+    return [...new Set([...filteredMatches.map(m => m.team), ...guests.map(m => m.opponent)].filter(Boolean))]
+  }, [filteredMatches, guestMatchIds])
 
   // The inverted view of a saved match, with its own analysis (never persisted)
   const invertedView = useMemo(() => {
@@ -189,8 +193,10 @@ export function MatchStoreProvider({ children }) {
   }, [teams, selectedTeam, invertedView])
 
   const teamMatches = useMemo(() => {
-    return filteredMatches.filter(m => m.team === activeTeam)
-  }, [filteredMatches, activeTeam])
+    return filteredMatches
+      .map(m => (m.team !== activeTeam && guestMatchIds.includes(m.id) ? viewAs(m, activeTeam) : m))
+      .filter(m => m?.team === activeTeam)
+  }, [filteredMatches, activeTeam, guestMatchIds])
 
   // In dropdown and listings, present the latest/most recently loaded match first!
   const sortedTeamMatches = useMemo(() => {
@@ -230,8 +236,10 @@ export function MatchStoreProvider({ children }) {
   }, [visibleMatches])
 
   // Select a subset of matches for aggregated analysis and jump to analysis tab
-  const selectMatchesForAnalysis = useCallback((ids) => {
+  // guestIds: the ones to read from the opponent's side, for the team chosen by the caller
+  const selectMatchesForAnalysis = useCallback((ids, guestIds = []) => {
     setInvertedId(null)
+    setGuestMatchIds(guestIds)
     if (!ids || ids.length === 0) {
       setSelectedMatchIds([])
       setSelectedMatchId('all')

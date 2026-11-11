@@ -41,3 +41,20 @@ export function swapTeams(match) {
   delete next.analysis
   return next
 }
+
+// The team that plays all these matches, analyzed or as the opponent; '' when there is none. When two teams
+// do (the same two met more than once), the one analyzed in more matches, then the one of the first match.
+export function commonTeam(matches) {
+  const [first, ...rest] = matches
+  if (!first) return ''
+  const candidates = [first.team, first.opponent].filter(name => name && rest.every(m => m.team === name || m.opponent === name))
+  const analyzed = name => matches.filter(m => m.team === name).length
+  return candidates.sort((a, b) => analyzed(b) - analyzed(a))[0] || ''
+}
+
+// The match from the point of view of a team: as saved, or swapped (a view marked invertedView, never
+// persisted) when the team is the opponent; null when the team did not play it
+export function viewAs(match, team) {
+  if (match.team === team) return match
+  return match.opponent === team ? { ...swapTeams(match), invertedView: true } : null
+}
