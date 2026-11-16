@@ -1,11 +1,11 @@
 # Statistiche di Referto Volley
 
-Aggiornate il 09/11/2026, ogni lunedì in automatico. I dati vengono da GitHub: l'app non invia nulla. Lo storico è in `github-stats.json`.
+Aggiornate il 16/11/2026, ogni lunedì in automatico. I dati vengono da GitHub: l'app non invia nulla. Lo storico è in `github-stats.json`.
 
 ## In breve
 
-- **Uso delle app desktop:** 0,4 controlli di aggiornamento al giorno con la v0.33.
-- **Visite al repository:** 18 nella settimana del 02/11/2026, contro 44 della precedente.
+- **Uso delle app desktop:** 0,8 controlli di aggiornamento al giorno con la v0.36.
+- **Visite al repository:** 8 nella settimana del 09/11/2026, contro 18 della precedente.
 - **Repository:** 0 stelle, 1 fork.
 
 ## Uso delle app, versione per versione
@@ -19,16 +19,17 @@ Ogni app desktop legge `latest.json` all'avvio, se il controllo aggiornamenti è
 | v0.22 | 05/10/2026 | 2,4 | 2 | 0,8 | 2 | 3 | 4 | 3 | 1 |
 | v0.24 | 07/10/2026 | 16,2 | 26 | 1,6 | 12 | 3 | 6 | 5 | 1 |
 | v0.25 | 23/10/2026 | 8,0 | 17 | 2,1 | 14 | 6 | 6 | 5 | 6 |
-| v0.33 | 02/11/2026 | 6,9 | 3 | 0,4 | 3 | 2 | 5 | 5 | 1 |
+| v0.33 | 02/11/2026 | 8,7 | 5 | 0,6 | 4 | 2 | 5 | 5 | 1 |
+| v0.36 | 11/11/2026 | 5,2 | 4 | 0,8 | 3 | 2 | 3 | 5 | 1 |
 
 Le colonne per piattaforma sono i download dei pacchetti di installazione. Anche una versione appena uscita ne ha qualcuno per piattaforma, per prove o bot: conta ciò che supera quella soglia.
 
 ```mermaid
 xychart-beta
   title "Controlli di aggiornamento al giorno"
-  x-axis ["v0.16", "v0.18", "v0.22", "v0.24", "v0.25", "v0.33"]
+  x-axis ["v0.16", "v0.18", "v0.22", "v0.24", "v0.25", "v0.33", "v0.36"]
   y-axis "Numero" 0 --> 4
-  bar [2.2, 4, 0.8, 1.6, 2.1, 0.4]
+  bar [2.2, 4, 0.8, 1.6, 2.1, 0.6, 0.8]
 ```
 
 ## Visite al repository
@@ -36,9 +37,9 @@ xychart-beta
 ```mermaid
 xychart-beta
   title "Visite per settimana"
-  x-axis ["12/10", "19/10", "26/10", "02/11"]
+  x-axis ["12/10", "19/10", "26/10", "02/11", "09/11"]
   y-axis "Numero" 0 --> 44
-  bar [4, 10, 44, 18]
+  bar [4, 10, 44, 18, 8]
 ```
 
 | Settimana dal | Visite | Persone* |
@@ -47,29 +48,22 @@ xychart-beta
 | 19/10/2026 | 10 | 9 |
 | 26/10/2026 | 44 | 16 |
 | 02/11/2026 | 18 | 9 |
+| 09/11/2026 | 8 | 3 |
 
 \* Somma delle persone diverse di ogni giorno: chi torna in due giorni conta due volte.
-
-## Da dove arrivano
-Ultimi 14 giorni.
-
-| Provenienza | Visite | Persone |
-| --- | --- | --- |
-| napo.github.io | 3 | 2 |
-| github.com | 1 | 1 |
 
 ## Pagine più viste
 Ultimi 14 giorni.
 
 | Pagina | Visite | Persone |
 | --- | --- | --- |
-| `/` | 19 | 9 |
-| `/releases` | 17 | 13 |
+| `/` | 11 | 6 |
+| `/releases` | 8 | 6 |
 | `/tree/stats` | 6 | 2 |
-| `/releases/tag/v0.25` | 2 | 2 |
+| `/blob/main/README.md` | 2 | 1 |
 | `/releases/tag/v0.33` | 2 | 1 |
 
 ## Clonazioni
 
-Copie del codice: 343 in 4 settimane. Sono in gran parte automatismi, quindi non indicano quante persone usano l'app.
+Copie del codice: 400 in 5 settimane. Sono in gran parte automatismi, quindi non indicano quante persone usano l'app.
 
