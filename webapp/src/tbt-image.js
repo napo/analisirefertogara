@@ -225,6 +225,28 @@ export function cleanText(image, { charHeight = 22 } = {}) {
 // Struck-through text (ended libero exchanges): the line crosses the upper half of the text, as thick as the
 // strokes of the digits, broken only between characters. The rows of the band are whitened except where a
 // stroke of a digit crosses it (ink right above and right below the band).
+// Vertical grid lines inside a cell crop (columns almost all ink) turned white where no stroke crosses them
+// (ink on both sides): a digit that crosses a line stays whole and is no longer joined to it. The tallest
+// digit ("1") fills less than 80% of a cell.
+export function removeVerticalLines(image, threshold = DARK) {
+  const { data, width, height } = image
+  const out = new Uint8Array(data)
+  const ink = (x, y) => x >= 0 && x < width && data[y * width + x] < threshold
+  const line = x => { let n = 0; for (let y = 0; y < height; y++) if (ink(x, y)) n++; return n > height * 0.85 }
+  for (let x = 0; x < width; x++) {
+    if (!line(x)) continue
+    let end = x
+    while (end + 1 < width && line(end + 1)) end++
+    for (let y = 0; y < height; y++) {
+      const crossed = [-1, 0, 1].some(dy => ink(x - 1, Math.min(height - 1, Math.max(0, y + dy)))) &&
+        [-1, 0, 1].some(dy => ink(end + 1, Math.min(height - 1, Math.max(0, y + dy))))
+      if (!crossed) for (let i = x; i <= end; i++) out[y * width + i] = 255
+    }
+    x = end
+  }
+  return { data: out, width, height }
+}
+
 export function removeStrike(image) {
   const { width, height } = image
   const ink = (x, y) => image.data[y * width + x] < DARK

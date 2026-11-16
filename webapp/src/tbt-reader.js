@@ -5,7 +5,7 @@
 // image = grayscale { data, width, height }. The same code runs in the browser (tesseract.js on a canvas)
 // and in Node tests. Numeric cells keep all candidate readings: tbt-parser.js picks the ones that respect
 // the rules of the scoresheet (increasing progressions, final points).
-import { DARK, cleanCell, cleanText, cropGray, glyphImage, glyphShape, inkRatio, openInk, removeRings, removeStrike, scaledImage, shapeSimilarity, smoothImage, splitPair, components } from './tbt-image.js'
+import { DARK, cleanCell, cleanText, cropGray, glyphImage, glyphShape, inkRatio, openInk, removeRings, removeStrike, removeVerticalLines, scaledImage, shapeSimilarity, smoothImage, splitPair, components } from './tbt-image.js'
 import { LAYOUTS, LIBERO_PAGE, PAGE2_WIDTH } from './tbt-layout.js'
 
 const DIGITS = '0123456789'
@@ -183,10 +183,15 @@ export function createReader(ocr) {
     return text.length === group.length ? { text, confidence } : shorter || read
   }
 
+  const OVERFLOW = 24 // px of the reference width read past the right line of a score cell
+
   // "a : b" (substitution scores, time-outs): the two numbers are read separately
   async function readPair(image, rect, scale, charHeight = 24) {
-    const crop = box(image, rect, scale)
-    const cleaned = cleanCell(crop, { charHeight: charHeight * scale })
+    // wide scores overflow the cell on the right: the crop goes past the grid line (removed, so that a digit
+    // crossing it is not joined to it) and keeps the digits that start inside the cell
+    const edge = (rect[2] - rect[0] - 2) * scale
+    const crop = removeVerticalLines(box(image, [rect[0], rect[1], rect[2] + OVERFLOW, rect[3]], scale))
+    const cleaned = cleanCell(crop, { charHeight: charHeight * scale, accept: g => g.minX < edge })
     if (!cleaned) return { empty: true }
     const groups = splitPair(cleaned.glyphs)
     if (groups) {

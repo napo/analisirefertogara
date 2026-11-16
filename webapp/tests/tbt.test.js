@@ -5,7 +5,7 @@ import { chooseIncreasing, decodeLiberoColumn, decodeLiberoEntry, parseTbt, valu
 import { LAYOUTS } from '../src/tbt-layout.js'
 import { advanceLog, formatElapsed, visibleSteps } from '../src/import-log.js'
 import { fieldLocation, fieldRegion } from '../src/tbt-snippets.js'
-import { cleanCell, openInk, removeRings, removeStrike, shrinkGray } from '../src/tbt-image.js'
+import { cleanCell, openInk, removeRings, removeStrike, removeVerticalLines, shrinkGray } from '../src/tbt-image.js'
 import { isTbtPage } from '../src/tbt-reader.js'
 import { validateMatch } from '../src/analysis.js'
 import { fieldId, fieldPatch, flaggedFields, validFieldInput } from '../src/import-flags.js'
@@ -438,4 +438,18 @@ test('TBT images: strike-through line removed, crossing strokes kept', () => {
   // nothing to remove: the image is returned as it is
   const plain = image(20, 14, (x, y) => y >= 2 && y < 12 && (x === 4 || x === 5))
   assert.equal(removeStrike(plain), plain)
+})
+
+test('TBT: a score digit crossing the grid line stays whole and leaves the line', () => {
+  // 20×20 cell: grid line at x = 12, a digit-like block from x = 8 to 15 crossing it in rows 4-15
+  const width = 20, height = 20
+  const data = new Uint8Array(width * height).fill(255)
+  for (let y = 0; y < height; y++) data[y * width + 12] = 0
+  for (let y = 4; y < 16; y++) for (let x = 8; x < 16; x++) data[y * width + x] = 0
+  const out = removeVerticalLines({ data, width, height })
+  assert.equal(out.data[1 * width + 12], 255) // line removed where nothing crosses it
+  assert.equal(out.data[10 * width + 12], 0) // kept inside the stroke
+  const cleaned = cleanCell(out, { charHeight: 12 })
+  assert.equal(cleaned.glyphs.length, 1)
+  assert.equal(cleaned.glyphs[0].w, 8)
 })
