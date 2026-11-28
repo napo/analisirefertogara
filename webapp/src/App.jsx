@@ -137,6 +137,9 @@ const isFemaleTeamOrMatch = (matchOrList, activeTeam = '') => {
 }
 
 
+// Pages of the main menu
+const NAV_TABS = [['reports', 'Referti di gara'], ['analysis', 'Analisi referto'], ['history', 'Storico gare'], ['info', 'Informazioni'], ['faq', 'FAQ']]
+
 function MainApp() {
   const { colors, fontFamily, setPrintMode } = useA11y()
   const {
@@ -186,6 +189,27 @@ function MainApp() {
     closeInvertedView,
     savedMatch,
   } = useMatchStore()
+
+  // Menu of narrow screens (hamburger): closes with Escape, a click outside the bar or a wider window
+  const [navOpen, setNavOpen] = useState(false)
+  useEffect(() => {
+    if (!navOpen) return undefined
+    const onKey = event => { if (event.key === 'Escape') setNavOpen(false) }
+    const onClick = event => { if (!event.target.closest?.('.vs-navbar')) setNavOpen(false) }
+    // the menu button disappears on a wider window: the menu is shown in the bar again
+    const onResize = () => {
+      const toggle = document.querySelector('.vs-nav-toggle')
+      if (toggle && getComputedStyle(toggle).display === 'none') setNavOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('click', onClick)
+    window.addEventListener('resize', onResize)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('click', onClick)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [navOpen])
 
   const fileInputRef = useRef(null)
   const backupInputRef = useRef(null)
@@ -588,70 +612,49 @@ function MainApp() {
       <header className="vs-navbar">
         <div className="vs-navbar-inner">
           {/* Zone 1: Single element wordmark with custom volleyball and scoresheet logo */}
-          <a href="/" className="vs-brand" onClick={(e) => { e.preventDefault(); setActiveTab('reports'); }}>
+          <a href="/" className="vs-brand" onClick={(e) => { e.preventDefault(); setActiveTab('reports'); setNavOpen(false) }}>
             <VolleyScoresheetLogo size={34} />
             <span>Referto Volley</span>
           </a>
 
-          {/* Zone 2: Navigation Links / Tabs (Strictly named) */}
-          <nav aria-label="Navigazione principale">
-            <ul className="vs-nav-tabs">
-              <li>
-                <button
-                  type="button"
-                  className={`vs-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
-                  aria-current={activeTab === 'reports' ? 'page' : undefined}
-                  onClick={() => setActiveTab('reports')}
-                >
-                  Referti di gara
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`vs-nav-item ${activeTab === 'analysis' ? 'active' : ''}`}
-                  aria-current={activeTab === 'analysis' ? 'page' : undefined}
-                  onClick={() => setActiveTab('analysis')}
-                >
-                  Analisi referto
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`vs-nav-item ${activeTab === 'history' ? 'active' : ''}`}
-                  aria-current={activeTab === 'history' ? 'page' : undefined}
-                  onClick={() => setActiveTab('history')}
-                >
-                  Storico gare
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`vs-nav-item ${activeTab === 'info' ? 'active' : ''}`}
-                  aria-current={activeTab === 'info' ? 'page' : undefined}
-                  onClick={() => setActiveTab('info')}
-                >
-                  Informazioni
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`vs-nav-item ${activeTab === 'faq' ? 'active' : ''}`}
-                  aria-current={activeTab === 'faq' ? 'page' : undefined}
-                  onClick={() => setActiveTab('faq')}
-                >
-                  FAQ
-                </button>
-              </li>
+          {/* Zone 2: Navigation Links / Tabs (Strictly named). On narrow screens they fold into the menu
+              button (hamburger) and open as a list under the bar */}
+          <nav aria-label="Navigazione principale" className={`vs-nav${navOpen ? ' open' : ''}`}>
+            <ul className="vs-nav-tabs" id="vs-nav-menu">
+              {NAV_TABS.map(([id, label]) => (
+                <li key={id}>
+                  <button
+                    type="button"
+                    className={`vs-nav-item ${activeTab === id ? 'active' : ''}`}
+                    aria-current={activeTab === id ? 'page' : undefined}
+                    onClick={() => { setActiveTab(id); setNavOpen(false) }}
+                  >
+                    {label}
+                  </button>
+                </li>
+              ))}
             </ul>
           </nav>
 
-          {/* Zone 3: the Accessibilità button (theme, colors, text), same width as the former upload button
-              so the menu keeps its place */}
-          <div className="vs-nav-actions vs-nav-a11y"><A11yPanel /></div>
+          {/* Zone 3: the Accessibilità button (an icon) and, on narrow screens, the menu button */}
+          <div className="vs-nav-actions vs-nav-a11y">
+            <A11yPanel />
+            <button
+              type="button"
+              className="vs-nav-toggle"
+              aria-expanded={navOpen}
+              aria-controls="vs-nav-menu"
+              aria-label={navOpen ? 'Chiudi il menu' : 'Apri il menu'}
+              title={navOpen ? 'Chiudi il menu' : 'Menu'}
+              onClick={() => setNavOpen(open => !open)}
+            >
+              <svg width="1.5em" height="1.5em" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                {navOpen
+                  ? <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  : <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />}
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 

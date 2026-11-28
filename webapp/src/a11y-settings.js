@@ -106,5 +106,7 @@ export function applySettings(settings, root = globalThis.document?.documentElem
   root.style.fontSize = settings.textScale === 1 ? '' : `${settings.textScale * 100}%`
   // larger or wider text: buttons and menus may wrap instead of overflowing (index.css)
   root.dataset.textflow = settings.textScale > 1 || settings.font !== 'default' || settings.spacing ? 'wrap' : 'normal'
+  // large text: the main menu folds into the menu button on wider screens too (App.css)
+  root.dataset.textsize = settings.textScale >= 1.25 ? 'large' : 'normal'
   root.style.colorScheme = theme === 'dark' ? 'dark' : 'light'
 }

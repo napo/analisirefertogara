@@ -1403,19 +1403,6 @@
 }
 
 @media (max-width: 768px) {
-  .vs-navbar-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-  }
-  .vs-nav-tabs {
-    overflow-x: auto;
-    padding-bottom: 0.35rem;
-    gap: 1.25rem;
-  }
-  .vs-nav-item.active::after {
-    bottom: -0.35rem;
-  }
   .vs-metrics-grid {
     grid-template-columns: 1fr;
   }
@@ -2383,3 +2370,37 @@
 .vs-info-tabs { margin: 0 0 1.1rem; gap: 0.4rem; }
 .vs-info-tabs .vs-flow-tab { font-size: 0.9rem; padding: 0.45rem 0.95rem; min-height: 2.5rem; }
 .vs-info-tabs .vs-flow-tab:focus-visible { outline: 3px solid var(--vs-focus); outline-offset: 2px; }
+
+/* Menu button (hamburger): only on narrow screens, where the pages fold into a list under the bar */
+.vs-nav-toggle {
+  display: none; align-items: center; justify-content: center;
+  width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 0.6rem;
+  border: 1px solid var(--vs-border-hover); background: var(--vs-surface); color: var(--vs-heading); cursor: pointer;
+}
+.vs-nav-toggle:hover { border-color: var(--vs-accent); color: var(--vs-accent); }
+.vs-nav-toggle:focus-visible { outline: 3px solid var(--vs-focus); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .vs-navbar-inner { flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.6rem 1rem; }
+  .vs-brand { min-width: 0; }
+  .vs-brand span { overflow: hidden; text-overflow: ellipsis; }
+  .vs-nav-toggle { display: inline-flex; }
+  .vs-nav { order: 3; flex-basis: 100%; display: none; }
+  .vs-nav.open { display: block; }
+  .vs-nav-tabs { flex-direction: column; align-items: stretch; gap: 0.15rem; padding: 0.25rem 0 0.5rem; }
+  .vs-nav-item { display: block; width: 100%; text-align: left; padding: 0.75rem 0.85rem; border-radius: 0.5rem; font-size: 1rem; white-space: normal; }
+  .vs-nav-item.active { background: var(--vs-surface-2); }
+  .vs-nav-item.active::after { top: 0.5rem; bottom: 0.5rem; left: 0; right: auto; width: 4px; height: auto; border-radius: 0 3px 3px 0; }
+}
+/* large text: the full menu does not fit in the bar, so the menu button is used up to wide screens */
+@media (max-width: 1600px) {
+  :root[data-textsize="large"] .vs-navbar-inner { flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.6rem 1rem; }
+  :root[data-textsize="large"] .vs-brand { min-width: 0; }
+  :root[data-textsize="large"] .vs-brand span { overflow: hidden; text-overflow: ellipsis; }
+  :root[data-textsize="large"] .vs-nav-toggle { display: inline-flex; }
+  :root[data-textsize="large"] .vs-nav { order: 3; flex-basis: 100%; display: none; }
+  :root[data-textsize="large"] .vs-nav.open { display: block; }
+  :root[data-textsize="large"] .vs-nav-tabs { flex-direction: column; align-items: stretch; gap: 0.15rem; padding: 0.25rem 0 0.5rem; }
+  :root[data-textsize="large"] .vs-nav-item { display: block; width: 100%; text-align: left; padding: 0.75rem 0.85rem; border-radius: 0.5rem; font-size: 1rem; white-space: normal; }
+  :root[data-textsize="large"] .vs-nav-item.active { background: var(--vs-surface-2); }
+  :root[data-textsize="large"] .vs-nav-item.active::after { top: 0.5rem; bottom: 0.5rem; left: 0; right: auto; width: 4px; height: auto; border-radius: 0 3px 3px 0; }
+}

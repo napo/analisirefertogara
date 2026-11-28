@@ -30,11 +30,12 @@ test('accessibility settings: "come il dispositivo" follows dark mode and high c
 test('accessibility settings: written on <html> as data attributes and root font size', () => {
   const root = { dataset: {}, style: {} }
   applySettings({ ...A11Y_DEFAULTS, theme: 'system', palette: 'red-green', font: 'legible', textScale: 1.5, underlineLinks: true }, root, { prefersDark: true, prefersReducedMotion: true })
-  assert.deepEqual(root.dataset, { theme: 'dark', palette: 'red-green', font: 'legible', spacing: 'normal', underline: 'on', motion: 'reduce', textflow: 'wrap' })
+  assert.deepEqual(root.dataset, { theme: 'dark', palette: 'red-green', font: 'legible', spacing: 'normal', underline: 'on', motion: 'reduce', textflow: 'wrap', textsize: 'large' })
   assert.equal(root.style.fontSize, '150%')
   assert.equal(root.style.colorScheme, 'dark')
   applySettings(A11Y_DEFAULTS, root)
   assert.equal(root.style.fontSize, '')
   assert.equal(root.dataset.motion, 'full')
   assert.equal(root.dataset.textflow, 'normal')
+  assert.equal(root.dataset.textsize, 'normal')
 })

@@ -12,7 +12,7 @@ const percent = scale => `${Math.round(scale * 100)}%`
 // Universal access symbol (person in a circle)
 function AccessIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="1.4em" height="1.4em" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="10.5" stroke="currentColor" strokeWidth="1.8" />
       <circle cx="12" cy="6.6" r="1.6" fill="currentColor" />
       <path d="M6.5 9.3c1.8.5 3.6.8 5.5.8s3.7-.3 5.5-.8M12 10.1v3.6m0 0-2.3 5m2.3-5 2.3 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -63,9 +63,8 @@ export default function A11yPanel() {
 
   return (
     <>
-      <button type="button" className="vs-a11y-button" onClick={open} aria-haspopup="dialog" title="Accessibilità: tema, colori, testo">
+      <button type="button" className="vs-a11y-button" onClick={open} aria-haspopup="dialog" aria-label="Accessibilità" title="Accessibilità: tema, colori, testo">
         <AccessIcon />
-        <span>Accessibilità</span>
       </button>
       <dialog ref={dialogRef} className="vs-a11y-dialog" aria-labelledby={titleId}
         onClick={event => { if (event.target === dialogRef.current) close() }}>
