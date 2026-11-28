@@ -2001,6 +2001,11 @@
   font-weight: 600; color: var(--vs-success-strong);
 }
 
+/* Deletion of the selected rows: confirmation in line, in the selection bar */
+.vs-btn-danger-solid { background: var(--vs-danger-strong); border: 1px solid var(--vs-danger-strong); color: var(--vs-accent-contrast); }
+.vs-btn-danger-solid:hover { background: var(--vs-danger); border-color: var(--vs-danger); text-decoration: none; }
+.vs-delete-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 0.5rem; background: var(--vs-danger-soft); border: 1px solid var(--vs-danger-border); color: var(--vs-danger-strong); font-weight: 600; font-size: 0.85rem; }
+
 /* Notices with several lines (import summary, list of the problems found in an archive) */
 .vs-notice > span { white-space: pre-line; }
 
