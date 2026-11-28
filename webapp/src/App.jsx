@@ -7,6 +7,7 @@ import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import { MatchStoreProvider, useMatchStore } from './store'
 import CourtAnalysis from './CourtAnalysis.jsx'
+import TeamComparison from './TeamComparison.jsx'
 import PrintToggle from './PrintToggle.jsx'
 import ScrollableTable from './ScrollableTable.jsx'
 import UpdateNotice, { UpdateSettings } from './UpdateNotice.jsx'
@@ -1478,6 +1479,10 @@ function MainApp() {
                 <p className="vs-flow-footnote">TT conta i tratti continui di turno con la stessa P effettiva; un cambio di P divide il turno. I turni senza rally osservati non sono conteggiati.</p>
                 {aggregatedAnalysis.excludedRallies > 0 && <p className="vs-flow-notice">{aggregatedAnalysis.excludedRallies} rally esclusi dal rendimento per rotazione perché la P non è determinata.</p>}
                 </>}
+                {/* Confronto tra le squadre: only for a single match */}
+                {isSingleMatch && visibleMatches[0] && inReport('teams') && (
+                  <TeamComparison key={visibleMatches[0].id} match={visibleMatches[0]} printing={exportingPdf} printToggle={printToggle} />
+                )}
                 {/* Andamento della gara: only for a single match, right after the rotation table */}
                 {isSingleMatch && visibleMatches[0] && !exportingPdf && <div className="vs-print-toggle-row">{printToggle('flow')}</div>}
                 {isSingleMatch && visibleMatches[0] && inReport('flow') && (

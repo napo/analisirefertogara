@@ -144,3 +144,52 @@ button.vs-rc-cell:focus-visible, button.vs-rc-cell[aria-pressed="true"] { outlin
 .vs-rc-grid.compact th.vs-rc-row, .vs-rc-grid.compact thead th:first-child { width: 132px; }
 /* Without colors (mono palette) the P most in difficulty is told apart by a dashed border, not only by its label */
 :root[data-palette="mono"] .vs-rc-cell.total.worst, :root[data-palette="mono"] .vs-rc-rowhead.worst, :root[data-palette="mono"] .vs-rc-tile.worst { border-style: dashed; }
+
+/* "Confronto tra le squadre" (TeamComparison.jsx): analyzed team on the left, opponent on the right */
+.vs-tc-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; margin-top: .8rem; }
+.vs-tc-tile { border: 1px solid var(--vs-border); border-radius: .6rem; padding: .5rem .65rem; background: var(--vs-surface-2); min-width: 0; }
+.vs-tc-tile-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--vs-muted); }
+.vs-tc-tile-value { display: flex; flex-wrap: nowrap; white-space: nowrap; align-items: baseline; gap: .35rem; font-family: var(--vs-font-heading); font-size: 1.25rem; color: var(--vs-muted); }
+.vs-tc-tile-value b { font-weight: 700; }
+.vs-tc-tile-value b.win { color: var(--vs-heading); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.vs-tc-tiles-note { font-size: .78rem; color: var(--vs-muted); margin: .35rem 0 .8rem; }
+.vs-tc-tabs { margin-bottom: .9rem; }
+.vs-tc-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; font-size: .8rem; color: var(--vs-muted); margin-bottom: .4rem; }
+.vs-tc-legend i { display: inline-block; width: .75rem; height: .75rem; border-radius: 3px; margin-right: .35rem; vertical-align: -1px; }
+.vs-tc-legend i.bp, .vs-tc-bf i.bp, .vs-tc-split .bp { background: var(--vs-bp); }
+.vs-tc-legend i.cp, .vs-tc-bf i.cp, .vs-tc-split .cp { background: var(--vs-cp); }
+.vs-tc-names { display: grid; grid-template-columns: minmax(0, 1fr) 2.6rem minmax(0, 1fr); font-family: var(--vs-font-heading); font-weight: 700; font-size: .85rem; color: var(--vs-heading); margin-bottom: .2rem; }
+.vs-tc-names span:first-child { text-align: right; }
+.vs-tc-block { border-top: 1px solid var(--vs-border); padding: .3rem 0; break-inside: avoid; }
+.vs-tc-block-head { text-align: center; font-size: .78rem; color: var(--vs-muted); margin-bottom: .1rem; }
+.vs-tc-block-head b { color: var(--vs-heading); }
+.vs-tc-count { font-size: .72rem; }
+.vs-tc-bf { display: grid; grid-template-columns: minmax(0, 1fr) 2.6rem minmax(0, 1fr); align-items: center; min-height: 1.1rem; margin: .12rem 0; }
+.vs-tc-bf-side { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+.vs-tc-bf-side.left { justify-content: flex-end; }
+.vs-tc-bf-side i { display: block; height: .75rem; border-radius: 0 3px 3px 0; }
+.vs-tc-bf-side.left i { border-radius: 3px 0 0 3px; }
+.vs-tc-bf-side span { font-size: .78rem; font-weight: 700; min-width: 2.2rem; font-variant-numeric: tabular-nums; color: var(--vs-heading); }
+.vs-tc-bf-side.left span { text-align: right; }
+.vs-tc-bf-label { text-align: center; font-size: .7rem; font-weight: 700; color: var(--vs-muted); }
+.vs-tc-reading { background: var(--vs-surface-2); border-left: 4px solid var(--vs-cp); border-radius: .4rem; padding: .55rem .75rem; font-size: .88rem; margin: .9rem 0 0; }
+.vs-tc-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+.vs-tc h4 { font-family: var(--vs-font-heading); font-size: .9rem; color: var(--vs-heading); margin: 0 0 .45rem; }
+.vs-tc-split { display: flex; min-height: 2.4rem; border-radius: .5rem; overflow: hidden; border: 1px solid var(--vs-border); }
+.vs-tc-split i { display: flex; align-items: center; justify-content: center; text-align: center; font-style: normal; font-size: .76rem; font-weight: 700; padding: .2rem .35rem; flex-basis: 0; min-width: 0; overflow-wrap: anywhere; }
+.vs-tc-split .bp { color: var(--vs-on-bp, #fff); }
+.vs-tc-split .cp { color: var(--vs-on-cp, #fff); }
+.vs-tc-split .bp-soft, .vs-tc-split .cp-soft { background: var(--vs-surface-2); color: var(--vs-heading); }
+.vs-tc-sub { margin-top: 1.2rem !important; }
+.vs-tc-duel { border-collapse: collapse; width: 100%; font-size: .85rem; }
+.vs-tc-duel th, .vs-tc-duel td { padding: .35rem .5rem; border-bottom: 1px solid var(--vs-border); text-align: center; }
+.vs-tc-duel th[scope="row"] { text-align: left; color: var(--vs-muted); font-weight: 500; }
+.vs-tc-mini { height: .5rem; background: var(--vs-surface-2); border-radius: .25rem; overflow: hidden; min-width: 3rem; }
+.vs-tc-mini i { display: block; height: 100%; background: var(--vs-bp); }
+.vs-tc-print { margin-top: 1rem; break-inside: avoid-page; }
+.vs-tc-print h3 { font-family: var(--vs-font-heading); font-size: 1rem; color: var(--vs-heading); margin: 0 0 .5rem; }
+@media (max-width: 640px) {
+  .vs-tc-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vs-tc-tile-value { font-size: 1.05rem; }
+  .vs-tc-duo { grid-template-columns: minmax(0, 1fr); }
+}
