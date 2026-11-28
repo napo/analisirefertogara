@@ -46,6 +46,15 @@ export const FAQ_GROUPS = [
     ],
   },
   {
+    title: 'Accessibilità',
+    items: [
+      { id: 'a11y-panel', q: 'Posso cambiare colori, dimensione del testo o carattere?', a: ['Sì, dal pulsante «Accessibilità» in alto a destra: tema chiaro, scuro o ad alto contrasto (o come il dispositivo), colori dei dati per chi distingue male i colori, dimensione del testo, un carattere ad alta leggibilità o per la dislessia, spaziatura ampia, collegamenti sottolineati e meno animazioni.', 'Le modifiche si vedono subito e restano su quel dispositivo e in quel browser; non riguardano i dati delle gare.'] },
+      { id: 'a11y-colors', q: 'Faccio fatica a distinguere i colori: quale scelta uso?', a: ['In «Colori dei dati» scegli «Rosso-verde» per deuteranopia e protanopia, «Blu-giallo» per tritanopia e «Senza colori» per chi vede solo chiaro e scuro: accanto a ogni scelta vedi i colori di BP, CP, positivo, negativo e P1–P6. Le combinazioni sono controllate con la simulazione di ciascun tipo di daltonismo. Le P hanno sempre la loro etichetta e senza colori il negativo è anche tratteggiato, così il colore non è mai l’unico modo per capire.'] },
+      { id: 'a11y-fonts', q: 'Quale carattere scelgo se ho dislessia?', a: ['Prova «Per la dislessia» (OpenDyslexic), con lettere dalla base più pesante, e «Alta leggibilità» (Atkinson Hyperlegible), che distingue bene le lettere simili. Insieme alla spaziatura ampia e a un testo più grande aiutano molte persone; scegli quello con cui leggi meglio.'] },
+      { id: 'a11y-pdf', q: 'Le impostazioni valgono anche per il report PDF?', a: ['In parte: il PDF usa sempre il tema chiaro e la dimensione standard del testo, così si stampa bene e entra nella pagina, ma mantiene i colori dei dati e il carattere che hai scelto.'] },
+    ],
+  },
+  {
     title: 'Dati e dispositivi',
     items: [
       { id: 'data', q: 'Dove finiscono i dati?', a: ['Restano sul dispositivo: anche la versione web gira tutta nel browser, compreso l’OCR, e il progetto non ha un server che riceva i referti. Lasciano il dispositivo solo per tua scelta: quando esporti un archivio, colleghi un servizio cloud o mandi un file all’autore.', 'Attenzione: i dati stanno in quel browser su quel dispositivo. Se cancelli i dati del sito o cambi browser non li ritrovi, a meno di averli esportati o sincronizzati.'] },

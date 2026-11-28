@@ -9,7 +9,6 @@ import {
   COMPARISON_MIN_RALLIES, PHASES, comparisonStates, courtsOnField, doubleChangeStretches, filterSet, formations,
   isDoubleChange, rotationComparison,
 } from './court-stats.js'
-import { COMPARISON_COLORS, EVENT_COLORS, PHASE_COLORS, PHASE_TEXT_COLORS, ROTATION_COLORS } from './theme.js'
 
 const MEASURES = [['difference', 'Vinti − persi'], ['average', 'Rispetto alla media']]
 const DOUBLE_CHANGE_FILTERS = [['all', 'Inclusi'], ['exclude', 'Esclusi'], ['only', 'Solo DC']]
@@ -35,7 +34,7 @@ const flagOf = (comparison, row) => (comparison.best?.P === row + 1 ? 'best' : c
 const FLAG_TEXT = { best: 'più redditizia', worst: 'più in difficoltà' }
 
 function PBadge({ P }) {
-  return <span className="vs-rc-p"><i style={{ background: ROTATION_COLORS[P].fill }} aria-hidden="true" />P{P}</span>
+  return <span className="vs-rc-p"><i style={{ background: `var(--vs-p${P})` }} aria-hidden="true" />P{P}</span>
 }
 
 // Nominal formation (libero excluded) with the setter marked
@@ -93,7 +92,7 @@ function Bar({ phase, cell, max, measure, labeled }) {
     <span className="vs-rc-bar">
       {labeled && <span className="vs-rc-phase">{phase}</span>}
       <span className="vs-rc-track">
-        {visible && <span className={`vs-rc-fill ${value >= 0 ? 'right' : 'left'}`} style={{ width: `calc(${width}% - 1px)`, background: PHASE_COLORS[phase] }} />}
+        {visible && <span className={`vs-rc-fill ${value >= 0 ? 'right' : 'left'}`} style={{ width: `calc(${width}% - 1px)`, background: `var(--vs-${phase.toLowerCase()})` }} />}
       </span>
       <span className={`vs-rc-value${visible ? '' : ' zero'}`}>{rallies ? signed(value, measure) : '·'}</span>
     </span>
@@ -170,12 +169,12 @@ function ComparisonGrid({ comparison, team, opponent, selected = null, onSelect 
 function Legend() {
   return (
     <div className="vs-rc-legend">
-      <span><i className="vs-rc-swatch" style={{ background: PHASE_COLORS.BP }} />BP, squadra al servizio</span>
-      <span><i className="vs-rc-swatch" style={{ background: PHASE_COLORS.CP }} />CP, squadra in ricezione</span>
+      <span><i className="vs-rc-swatch" style={{ background: 'var(--vs-bp)' }} />BP, squadra al servizio</span>
+      <span><i className="vs-rc-swatch" style={{ background: 'var(--vs-cp)' }} />CP, squadra in ricezione</span>
       <span>BP sopra, CP sotto · barra a destra positivo, a sinistra negativo</span>
-      <span><i className="vs-rc-ring" style={{ borderColor: COMPARISON_COLORS.best }} />P più redditizia</span>
-      <span><i className="vs-rc-ring" style={{ borderColor: COMPARISON_COLORS.worst }} />P più in difficoltà</span>
-      <span><b className="vs-rc-dc-key" style={{ color: EVENT_COLORS.doubleChange, borderColor: EVENT_COLORS.doubleChange }}>DC</b>rally con in campo chi è entrato per doppio cambio</span>
+      <span><i className="vs-rc-ring" style={{ borderColor: 'var(--vs-best)' }} />P più redditizia</span>
+      <span><i className="vs-rc-ring" style={{ borderColor: 'var(--vs-worst)' }} />P più in difficoltà</span>
+      <span><b className="vs-rc-dc-key" style={{ color: 'var(--vs-dc)', borderColor: 'var(--vs-dc)' }}>DC</b>rally con in campo chi è entrato per doppio cambio</span>
       <span>cella chiara = meno di {COMPARISON_MIN_RALLIES} rally · — = incrocio non giocato</span>
     </div>
   )
@@ -227,7 +226,7 @@ function Detail({ comparison, row, col, team, opponent, title = null }) {
           return (
             <div className="vs-rc-phase-box" key={phase}>
               <p className="vs-rc-phase-title">
-                <strong style={{ color: PHASE_TEXT_COLORS[phase] }}>{phase === 'BP' ? 'BP · squadra al servizio' : 'CP · squadra in ricezione'}</strong>{' '}
+                <strong style={{ color: `var(--vs-${phase.toLowerCase()}-text)` }}>{phase === 'BP' ? 'BP · squadra al servizio' : 'CP · squadra in ricezione'}</strong>{' '}
                 {cell[phase].won} vinti, {cell[phase].lost} persi · {signed(cell[phase].value, comparison.measure)}
               </p>
               {inPhase.length ? <>

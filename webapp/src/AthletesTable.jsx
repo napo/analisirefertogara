@@ -1,6 +1,5 @@
 import React, { Fragment, useMemo, useState } from 'react'
 import { ATHLETE_INDICATORS, MIN_RALLIES_FOR_SHARE, TABLE_INDICATORS, TREND_INDICATOR, athleteRows, extremes, indicatorValue } from './athlete-indicators'
-import { PHASE_COLORS } from './theme'
 import { InfoTip } from './GlossaryView'
 
 const formatNumber = (value, decimals) => Number(value).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: decimals })
@@ -48,7 +47,7 @@ function SetTrend({ row, max, scope }) {
           <span key={i} className={`vs-ath-bar${scope === i ? ' current' : ''}`}>
             <span className="vs-ath-bar-track">
               {entry.state === 'value'
-                ? <span className="vs-ath-bar-fill" style={{ height, background: PHASE_COLORS.BP }} />
+                ? <span className="vs-ath-bar-fill" style={{ height, background: 'var(--vs-bp)' }} />
                 : <span className="vs-ath-bar-empty">{entry.state === 'absent' ? '·' : '–'}</span>}
             </span>
             <span className="vs-ath-bar-value">{entry.state === 'value' ? formatNumber(entry.value, 1) : ''}</span>

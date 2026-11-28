@@ -28,6 +28,18 @@ Il punto che riconquista il servizio è conquistato in fase cambio palla e viene
 
 Nell’analisi di più gare, punti e turni vengono sommati per rotazione e le medie sono calcolate sui totali. Nella tabella degli atleti, i rally nei set di presenza sono tutti i rally dei set in cui l’atleta risulta in campo, non i soli rally giocati; i servizi sono stimati dai progressivi. I punti in fase break point sono sempre punti della squadra.
 
+## Accessibilità
+
+Il pulsante **Accessibilità** in alto a destra apre un pannello con:
+
+- tema: come il dispositivo, chiaro, scuro, alto contrasto;
+- colori dei dati (BP, CP, P1–P6, positivo e negativo, eventi): standard, rosso-verde (deuteranopia, protanopia), blu-giallo (tritanopia), senza colori (acromatopsia). Le combinazioni sono verificate dai test con la simulazione di ciascun tipo di daltonismo (`webapp/tests/palettes.test.js`);
+- dimensione del testo dall’87,5% al 175%: tutta l’interfaccia segue, pulsanti e menu vanno a capo invece di uscire dallo schermo;
+- carattere: standard, alta leggibilità (Atkinson Hyperlegible Next), per la dislessia (OpenDyslexic), inclusi nell’applicazione e scaricati solo quando scelti;
+- spaziatura ampia di lettere, parole e righe, collegamenti sempre sottolineati, riduzione delle animazioni.
+
+Le scelte restano sul dispositivo (localStorage). Il report PDF usa sempre il tema chiaro e la dimensione standard, con i colori dei dati e il carattere scelti.
+
 ## Dati, privacy e funzionamento locale
 
 L’applicazione è progettata per elaborare i referti localmente nel browser:
@@ -58,7 +70,7 @@ Referto Volley importa direttamente il file `.zrv`, senza estrarlo e senza scegl
 
 Punteggi, turni, formazioni, sostituzioni e time-out vengono dal referto. Posizioni, prima linea, P e presenza in campo rally per rally sono ricostruite con le regole della pallavolo. Il libero è collocato nei periodi in seconda linea della giocatrice indicata sul referto: quando l’ingresso del referto corrisponde a un periodo la presenza è mostrata normalmente; quando non è collocabile con certezza compare come `L?⇒#11` e non viene presentata come osservata. Nei rally in campo della tabella atlete quei rally sono attribuiti all’atleta indicata sul referto e segnalati con un asterisco; se invece è certo che il libero fosse in campo ma non quale dei due, il rally non viene attribuito a nessuna atleta. La prima linea (posti 2, 3, 4) non dipende dal libero, che non può occupare quei posti.
 
-Referto Volley non utilizza cookie di profilazione, analytics o pubblicitari e non utilizza cookie per memorizzare i dati delle gare. L’archivio dell’applicazione viene conservato localmente nel browser tramite IndexedDB. Il codice applicativo non imposta cookie e non integra servizi di analytics, tracking, pubblicità o telemetria. localStorage conserva solo due preferenze dell’interfaccia (blocchi da includere nel report PDF, controllo degli aggiornamenti), mai dati delle gare.
+Referto Volley non utilizza cookie di profilazione, analytics o pubblicitari e non utilizza cookie per memorizzare i dati delle gare. L’archivio dell’applicazione viene conservato localmente nel browser tramite IndexedDB. Il codice applicativo non imposta cookie e non integra servizi di analytics, tracking, pubblicità o telemetria. localStorage conserva solo preferenze dell’interfaccia (blocchi da includere nel report PDF, controllo degli aggiornamenti, impostazioni di accessibilità), mai dati delle gare.
 
 Font, script, worker e risorse sono inclusi nel progetto: nessun caricamento da Google Fonts o CDN durante l’uso. La versione web deve essere caricata dal sito; i pacchetti Tauri includono il frontend per l’uso locale. Browser e applicazioni native hanno archivi separati: usa l’archivio `.zrv` per trasferire le gare. Le build e l’installazione delle dipendenze di sviluppo richiedono invece accesso ai registri npm/Cargo e agli SDK delle piattaforme.
 

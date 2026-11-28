@@ -2,7 +2,10 @@
 // Pure function: layers and filters only change what is drawn, never the data.
 // Visual hierarchy: 1. difference line  2. phase lane  3. P lane  4. events lane  5. details (tooltip).
 import { eventLabel } from './match-reading.js'
-import { EVENT_COLORS, PHASE_COLORS, ROTATION_COLORS, TREND_COLORS } from './theme.js'
+import { textOn, themeColors } from './theme.js'
+
+// Colors of the standard palette on the light theme (PDF report, tests); the app passes its own
+const STANDARD_COLORS = themeColors()
 
 export const DEFAULT_LAYERS = {
   score: true,
@@ -24,7 +27,6 @@ const EVENT_LANES = ['other:1', 'other:0', 'own:1', 'own:0'] // bottom to top
 const COMPACT_EVENT_LANES = ['other:0', 'own:0']
 const GRID_LEFT = 70
 const GRID_RIGHT = 16
-const AXIS_INK = '#6B6B6B'
 const LANE_NAME = { phase: 'Fase', rotation: 'P', server: 'Al servizio', events: 'Eventi' }
 const LANE_HEIGHT = { phase: 14, rotation: 20, server: 16, events: 4 * 15 }
 const textWidth = text => String(text).length * 5.8 + 8 // 9px bold labels, approximate
@@ -72,17 +74,17 @@ export function matchesFilters(point, filters) {
     (filters.rotation === 'all' || String(point.rotation) === String(filters.rotation))
 }
 
-export function tooltipHtml(flow, x, context) {
+export function tooltipHtml(flow, x, context, colors = STANDARD_COLORS) {
   if (x <= 0) return '<strong>Inizio set</strong><br/>Punteggio: 0-0'
   const point = flow.points[x - 1]
   if (!point) return ''
   const rows = [
-    `<span style="color:#6B6B6B">Rally ${point.index}</span>`,
+    `<span style="color:${colors.CHART.muted}">Rally ${point.index}</span>`,
     `<strong>Punteggio: ${point.own}-${point.other}</strong>`,
     `Differenza: ${signed(point.diff)}`,
-    `Fase: ${swatch(PHASE_COLORS[point.phase])}${point.phase}`,
+    `Fase: ${swatch(colors.PHASE[point.phase])}${point.phase}`,
   ]
-  if (point.rotation) rows.push(`P: ${swatch(ROTATION_COLORS[point.rotation].fill)}P${point.rotation}`)
+  if (point.rotation) rows.push(`P: ${swatch(colors.ROTATION[point.rotation].fill)}P${point.rotation}`)
   if (!point.rotation) rows.push('P: non determinata')
   rows.push(`P avversaria: ${point.opponentRotation ? `P${point.opponentRotation}` : 'non determinata'}`)
   for (const [label, players] of [['Nostra prima linea', point.frontRow], ['Prima linea avversaria', point.opponentFrontRow]]) {
@@ -138,7 +140,10 @@ export function chartLayout(flow, layers, { compact = false } = {}) {
 }
 
 // yRange: a common scale for several sets ("Tutti i set"); by default the scale fits this set
-export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAULT_FILTERS, context = {}, width = 900, compact = false, yRange = null } = {}) {
+// colors: themeColors() of the chosen palette and theme; fontFamily: the font chosen in Accessibilità
+export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAULT_FILTERS, context = {}, width = 900, compact = false, yRange = null, colors = STANDARD_COLORS, fontFamily = 'Roboto, sans-serif' } = {}) {
+  const { PHASE, ROTATION, EVENT, TREND, CHART } = colors
+  const AXIS_INK = CHART.muted
   const n = flow.points.length
   const pxPerRally = Math.max(1, (width - GRID_LEFT - GRID_RIGHT) / Math.max(1, n))
   const fits = (rallies, label) => rallies * pxPerRally >= textWidth(label)
@@ -154,16 +159,16 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
   const grids = [{ left: GRID_LEFT, right: GRID_RIGHT, top: layout.top, height: layout.main }]
   const xAxes = [{
     type: 'value', min: 0, max: n, gridIndex: 0, interval: 5,
-    axisLine: { onZero: false, lineStyle: { color: '#CFD8DC' } },
-    axisTick: { lineStyle: { color: '#CFD8DC' } },
+    axisLine: { onZero: false, lineStyle: { color: CHART.axis } },
+    axisTick: { lineStyle: { color: CHART.axis } },
     axisLabel: { color: AXIS_INK, showMaxLabel: false, fontSize: 10 },
     splitLine: { show: false },
   }]
   const yAxes = [{
     type: 'value', min: yMin, max: yMax, gridIndex: 0, minInterval: 1,
-    name: 'Differenza', nameTextStyle: { color: '#505050', fontSize: 11, align: 'left' },
+    name: 'Differenza', nameTextStyle: { color: CHART.text, fontSize: 11, align: 'left' },
     axisLabel: { color: AXIS_INK, fontSize: 10, formatter: value => signed(value) },
-    splitLine: { lineStyle: { color: '#F1F3F5' } },
+    splitLine: { lineStyle: { color: CHART.grid } },
   }]
   const series = []
 
@@ -172,9 +177,9 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
     name: 'Differenza', type: 'line', data, symbol: 'none', lineStyle: { opacity: 0 }, z: 1,
     markLine: {
       silent: true, symbol: 'none',
-      lineStyle: { color: TREND_COLORS.level, width: 1.6, type: 'solid' },
+      lineStyle: { color: TREND.level, width: 1.6, type: 'solid' },
       // at the end of the set, on the side the line is not
-      label: { show: true, position: (diffs.at(-1) ?? 0) > 0 ? 'insideEndBottom' : 'insideEndTop', formatter: 'Parità', color: TREND_COLORS.level, fontSize: 10, fontWeight: 600 },
+      label: { show: true, position: (diffs.at(-1) ?? 0) > 0 ? 'insideEndBottom' : 'insideEndTop', formatter: 'Parità', color: TREND.level, fontSize: 10, fontWeight: 600 },
       data: [{ yAxis: 0 }],
     },
   })
@@ -182,11 +187,12 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
   // 1. The difference line: dominant, no fill. The difference moves by one point per rally, so it
   // always touches zero when it changes sign and splitting it at zero is exact.
   if (layers.score) {
-    for (const [name, keep, color] of [['In vantaggio', d => d >= 0, TREND_COLORS.positive], ['In svantaggio', d => d <= 0, TREND_COLORS.negative]]) {
+    for (const [name, keep, color] of [['In vantaggio', d => d >= 0, TREND.positive], ['In svantaggio', d => d <= 0, TREND.negative]]) {
       series.push({
         name, type: 'line', silent: true, symbol: 'none', connectNulls: false, z: 5,
         data: data.map(([x, d]) => [x, keep(d) ? d : null]),
-        lineStyle: { color, width: 2.6, opacity: filtering ? 0.3 : 1, cap: 'round', join: 'round' },
+        // without colors (mono palette) the deficit is also dashed, not only lighter
+        lineStyle: { color, width: 2.6, opacity: filtering ? 0.3 : 1, cap: 'round', join: 'round', type: colors.palette === 'mono' && name === 'In svantaggio' ? 'dashed' : 'solid' },
       })
     }
   }
@@ -194,7 +200,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
   // Runs: the stretch of the line itself is highlighted, with a small "+4" / "−3" label
   if (layers.runs) {
     flow.runs.forEach((run, i) => {
-      const color = run.sign > 0 ? TREND_COLORS.positive : TREND_COLORS.negative
+      const color = run.sign > 0 ? TREND.positive : TREND.negative
       const stretch = data.slice(run.start - 1, run.end + 1)
       series.push({
         name: `Serie ${i + 1}`, type: 'line', silent: true, symbol: 'none', z: 4,
@@ -210,7 +216,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
         label: {
           show: true, position: run.sign > 0 ? 'top' : 'bottom', distance: 6,
           formatter: `${run.sign > 0 ? '+' : '−'}${run.length}`,
-          color: run.sign > 0 ? TREND_COLORS.positive : TREND_COLORS.negative, fontWeight: 700, fontSize: 11,
+          color: run.sign > 0 ? TREND.positive : TREND.negative, fontWeight: 700, fontSize: 11,
         },
       })),
     })
@@ -221,7 +227,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
       name: 'Rally filtrati', type: 'scatter', symbolSize: 8, z: 6,
       data: flow.points.filter(point => matchesFilters(point, filters)).map(point => ({
         value: [point.index, point.diff],
-        itemStyle: { color: point.winner === 'own' ? TREND_COLORS.positive : TREND_COLORS.negative, borderColor: '#FFFFFF', borderWidth: 1.5 },
+        itemStyle: { color: point.winner === 'own' ? TREND.positive : TREND.negative, borderColor: CHART.surface, borderWidth: 1.5 },
       })),
     })
   }
@@ -235,7 +241,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
         silent: true, symbol: 'none', label: { show: false },
         data: events.map(event => ({
           xAxis: event.after,
-          lineStyle: { color: '#B0BEC5', width: 1, opacity: 0.55, type: event.team === 'other' ? 'dashed' : 'solid' },
+          lineStyle: { color: CHART.eventLine, width: 1, opacity: 0.55, type: event.team === 'other' ? 'dashed' : 'solid' },
         })),
       },
     })
@@ -248,7 +254,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
     yAxes.push({
       type: 'category', gridIndex, data: [''],
       name: LANE_NAME[position.lane], nameLocation: 'middle', nameRotate: 0, nameGap: 12,
-      nameTextStyle: { fontSize: 10, color: '#505050', align: 'right', fontWeight: 600 },
+      nameTextStyle: { fontSize: 10, color: CHART.text, align: 'right', fontWeight: 600 },
       axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
       ...extra,
     })
@@ -262,8 +268,8 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
         const dimmed = filtering && !flow.points.slice(block.from, block.to).some(point => matchesFilters(point, filters))
         return [{
           xAxis: block.from,
-          itemStyle: { color: block.color, opacity: dimmed ? 0.25 : 1, borderColor: '#FFFFFF', borderWidth },
-          label: { show: fits(block.to - block.from, block.label), position: 'inside', formatter: block.label, color: block.textColor || '#FFFFFF', fontSize: 9, fontWeight: 700 },
+          itemStyle: { color: block.color, opacity: dimmed ? 0.25 : 1, borderColor: CHART.surface, borderWidth },
+          label: { show: fits(block.to - block.from, block.label), position: 'inside', formatter: block.label, color: block.textColor || textOn(block.color), fontSize: 9, fontWeight: 700 },
         }, { xAxis: block.to }]
       }),
     },
@@ -274,15 +280,15 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
     if (position.lane === 'phase') {
       const gridIndex = laneAxis(position)
       blocksSeries(gridIndex, 'Fase', segments(flow.points, point => point.phase)
-        .map(block => ({ ...block, color: PHASE_COLORS[block.value], label: block.value })), 1)
+        .map(block => ({ ...block, color: PHASE[block.value], label: block.value })), 1)
     }
     if (position.lane === 'rotation') {
       const gridIndex = laneAxis(position)
       // Stretches with P not determined (no setter marked or on court, ambiguity not resolved): neutral
       // gray block "P?", never a P color
-      blocksSeries(gridIndex, 'P', segments(flow.points, point => point.rotation).map(block => (ROTATION_COLORS[block.value]
-        ? { ...block, color: ROTATION_COLORS[block.value].fill, textColor: ROTATION_COLORS[block.value].text, label: `P${block.value}` }
-        : { ...block, color: '#E0E0E0', textColor: '#455A64', label: 'P?' })), 2)
+      blocksSeries(gridIndex, 'P', segments(flow.points, point => point.rotation).map(block => (ROTATION[block.value]
+        ? { ...block, color: ROTATION[block.value].fill, textColor: ROTATION[block.value].text, label: `P${block.value}` }
+        : { ...block, color: CHART.unknown, textColor: CHART.unknownText, label: 'P?' })), 2)
       // Double changes of the analyzed team: a clear break in the P lane (the P itself comes from the
       // app's logic and is not reinterpreted here)
       if (doubleChanges.length && layers.doubleChanges) {
@@ -290,7 +296,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
           name: 'Discontinuità P', type: 'line', xAxisIndex: gridIndex, yAxisIndex: gridIndex, data: [], silent: true,
           markLine: {
             silent: true, symbol: ['none', 'triangle'], symbolSize: 7,
-            lineStyle: { color: EVENT_COLORS.doubleChange, width: 3, type: 'solid' },
+            lineStyle: { color: EVENT.doubleChange, width: 3, type: 'solid' },
             label: { show: false },
             data: doubleChanges.map(event => ({ xAxis: event.after })),
           },
@@ -302,7 +308,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
       blocksSeries(gridIndex, 'Al servizio', segments(flow.points, point => `${point.server.team}:${point.server.number}`).map(block => {
         const own = block.value.startsWith('own:')
         const number = block.value.split(':')[1]
-        return { ...block, color: own ? '#ECEFF1' : '#FAFAFA', label: number ? `#${number}` : '', textColor: own ? '#011627' : '#9E9E9E' }
+        return { ...block, color: own ? CHART.ownBlock : CHART.otherBlock, label: number ? `#${number}` : '', textColor: own ? CHART.ink : CHART.otherBlockText }
       }), 1)
     }
     if (position.lane === 'events') {
@@ -310,7 +316,7 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
         data: layout.eventLanes,
         name: '',
         axisLabel: {
-          show: true, margin: 12, fontSize: 10, fontWeight: 600, color: '#505050',
+          show: true, margin: 12, fontSize: 10, fontWeight: 600, color: CHART.text,
           formatter: lane => ({ 'own:0': 'Eventi', 'other:0': 'avv.' })[lane] || '',
         },
       })
@@ -334,14 +340,14 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
       series.push({
         name: 'Eventi', type: 'scatter', xAxisIndex: gridIndex, yAxisIndex: gridIndex, silent: true, symbol: 'roundRect',
         data: badges.map(badge => {
-          const color = badge.events.length === 1 ? EVENT_COLORS[badge.events[0].type] : '#455A64'
+          const color = badge.events.length === 1 ? EVENT[badge.events[0].type] : CHART.mixedEvent
           const own = badge.team === 'own'
           // Analyzed team: filled badge. Opponent: outlined badge (same color, lighter weight)
           return {
             value: [badge.after, badge.lane],
             symbolSize: [badge.badgeWidth, 14],
-            itemStyle: own ? { color } : { color: '#FFFFFF', borderColor: color, borderWidth: 1.5 },
-            label: { show: true, position: 'inside', color: own ? '#FFFFFF' : color, fontSize: 9, fontWeight: 700, formatter: badge.label },
+            itemStyle: own ? { color } : { color: CHART.surface, borderColor: color, borderWidth: 1.5 },
+            label: { show: true, position: 'inside', color: own ? textOn(color) : color, fontSize: 9, fontWeight: 700, formatter: badge.label },
           }
         }),
       })
@@ -351,17 +357,19 @@ export function flowChartOption(flow, { layers = DEFAULT_LAYERS, filters = DEFAU
   return {
     animation: false,
     aria: { enabled: true },
+    textStyle: { fontFamily },
     grid: grids,
     xAxis: xAxes,
     yAxis: yAxes,
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'line', lineStyle: { color: '#90A4AE' } },
-      textStyle: { fontFamily: 'Roboto, sans-serif', fontSize: 12 },
+      axisPointer: { type: 'line', lineStyle: { color: CHART.pointer } },
+      backgroundColor: CHART.surface, borderColor: CHART.axis,
+      textStyle: { fontFamily, fontSize: 12, color: CHART.heading },
       formatter: params => {
         const x = Math.round(Array.isArray(params) ? params[0]?.axisValue ?? params[0]?.value?.[0] : params?.value?.[0])
-        return tooltipHtml(flow, Number.isFinite(x) ? x : 0, context)
+        return tooltipHtml(flow, Number.isFinite(x) ? x : 0, context, colors)
       },
     },
     series,

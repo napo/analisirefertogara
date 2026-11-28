@@ -6,7 +6,7 @@ import { MarkAreaComponent, MarkLineComponent } from 'echarts/components'
 import { matchFlow } from './match-flow'
 import { describeMatch, describeSet, eventLabel } from './match-reading'
 import { ALL_SETS_LAYERS, DEFAULT_FILTERS, DEFAULT_LAYERS, chartLayout, commonYRange, flowChartOption } from './match-flow-chart'
-import { EVENT_COLORS, PHASE_COLORS, ROTATION_COLORS } from './theme'
+import { useA11y } from './a11y.jsx'
 
 echarts.use([LineChart, ScatterChart, MarkAreaComponent, MarkLineComponent])
 
@@ -33,8 +33,8 @@ const signed = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0')
 
 // Color swatch next to a filter value, so BP/CP and P1-P6 read the same as in the chart
 const filterSwatch = (key, value) => {
-  if (key === 'phase' && PHASE_COLORS[value]) return PHASE_COLORS[value]
-  if (key === 'rotation' && ROTATION_COLORS[value]) return ROTATION_COLORS[value].fill
+  if (key === 'phase' && ['BP', 'CP'].includes(value)) return `var(--vs-${value.toLowerCase()})`
+  if (key === 'rotation' && /^[1-6]$/.test(String(value))) return `var(--vs-p${value})`
   return null
 }
 
@@ -44,7 +44,8 @@ function FlowChart({ flow, layers, filters = DEFAULT_FILTERS, context, compact =
   const chartRef = useRef(null)
   // The option depends on the width: labels are shown only where they fit
   const [width, setWidth] = useState(900)
-  const option = useMemo(() => flowChartOption(flow, { layers, filters, context, width, compact, yRange }), [flow, layers, filters, context, width, compact, yRange])
+  const { colors, fontFamily } = useA11y()
+  const option = useMemo(() => flowChartOption(flow, { layers, filters, context, width, compact, yRange, colors, fontFamily }), [flow, layers, filters, context, width, compact, yRange, colors, fontFamily])
   const { height } = chartLayout(flow, layers, { compact })
 
   useLayoutEffect(() => {
@@ -79,7 +80,7 @@ function EventKey({ flows, layers, team }) {
   return (
     <p className="vs-flow-key">
       {shown.map(([short, label, type]) => (
-        <span key={short}><b style={{ color: EVENT_COLORS[type] }}>{short}</b> {label}</span>
+        <span key={short}><b style={{ color: `var(--vs-ev-${type})` }}>{short}</b> {label}</span>
       ))}
       {shown.some(([, , type]) => type === 'substitution' || type === 'doubleChange') && <span>↑ entra · ↓ esce</span>}
       <span>pieno: {team} · contorno: avversaria</span>
