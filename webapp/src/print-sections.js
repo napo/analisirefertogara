@@ -5,6 +5,7 @@ export const PRINT_SECTIONS = [
   { id: 'summary', label: 'Riepilogo' },
   { id: 'charts', label: 'Grafici' },
   { id: 'rotations', label: 'Le sei rotazioni a confronto' },
+  { id: 'teams', label: 'Confronto tra le squadre' },
   { id: 'flow', label: 'Andamento della gara' },
   { id: 'athletes', label: 'Atleti entrati' },
   { id: 'matchup', label: 'Confronto delle rotazioni' },

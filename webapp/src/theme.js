@@ -149,6 +149,8 @@ export function themeCssVars(colors) {
     '--vs-cp': colors.PHASE.CP,
     '--vs-bp-text': colors.PHASE_TEXT.BP,
     '--vs-cp-text': colors.PHASE_TEXT.CP,
+    '--vs-on-bp': textOn(colors.PHASE.BP),
+    '--vs-on-cp': textOn(colors.PHASE.CP),
     '--vs-positive': colors.TREND.positive,
     '--vs-negative': colors.TREND.negative,
     '--vs-positive-text': colors.TREND_TEXT.positive,
