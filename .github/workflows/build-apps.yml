@@ -120,6 +120,8 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
       - run: npm ci --include=optional
       - run: npm run tauri -- android init --ci --skip-targets-install
+      - name: Icone dell'app nel progetto Android generato
+        run: node scripts/mobile-icons.mjs android
       - name: Configura firma release opzionale
         run: python3 scripts/android-signing.py
         env:
@@ -195,6 +197,8 @@ jobs:
           key: ${{ matrix.rust-target }}
       - run: npm ci --include=optional
       - run: npm run tauri -- ios init --ci --skip-targets-install
+      - name: Icone dell'app nel progetto iOS generato
+        run: node scripts/mobile-icons.mjs ios
       - name: Build iOS/iPadOS senza credenziali Apple
         run: npm run ios:build -- --target ${{ matrix.target }} --no-sign --ci -- --locked
       - name: Pacchetto IPA unsigned per sideloading (AltStore, Sideloadly, TrollStore)
@@ -260,6 +264,8 @@ jobs:
           PY
       - run: npm ci --include=optional
       - run: npm run tauri -- ios init --ci --skip-targets-install
+      - name: Icone dell'app nel progetto iOS generato
+        run: node scripts/mobile-icons.mjs ios
       - run: npm run ios:build -- --target aarch64 --export-method app-store-connect --build-number ${{ github.run_number }} --ci -- --locked
       - uses: actions/upload-artifact@v4
         with:
