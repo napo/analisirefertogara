@@ -8,6 +8,7 @@ import html2canvas from 'html2canvas'
 import { MatchStoreProvider, useMatchStore } from './store'
 import CourtAnalysis from './CourtAnalysis.jsx'
 import TeamComparison from './TeamComparison.jsx'
+import InfoTabs from './InfoTabs.jsx'
 import PrintToggle from './PrintToggle.jsx'
 import ScrollableTable from './ScrollableTable.jsx'
 import UpdateNotice, { UpdateSettings } from './UpdateNotice.jsx'
@@ -1778,13 +1779,13 @@ function MainApp() {
         {activeTab === 'faq' && <Faq />}
 
         {activeTab === 'info' && (
-          <section>
+          <InfoTabs tabs={[
+            ['project', 'Il progetto', <>
             <SupportCard />
 
             <AboutProject />
-
-            <DownloadSection />
-
+            </>],
+            ['how', 'Come funziona', <>
             <div className="vs-card">
               <h2 className="vs-card-title">Come funziona l’analisi</h2>
               <p>
@@ -1848,7 +1849,8 @@ function MainApp() {
                 per rotazione e calcola le medie sui totali: non è la media semplice delle medie delle singole gare.
               </p>
             </div>
-
+            </>],
+            ['glossary', 'Glossario', <>
             <div className="vs-card" id="glossario">
               <h2 className="vs-card-title">Glossario</h2>
               <p className="vs-card-subtitle">
@@ -1857,12 +1859,17 @@ function MainApp() {
               </p>
               <GlossaryList />
             </div>
+            </>],
+            ['download', 'Scarica e aggiornamenti', <>
+            <DownloadSection />
 
             <UpdateSettings />
-
-            <SyncInfoCard />
+            </>],
+            ['data', 'Dati, privacy e sincronizzazione', <>
             <PrivacyCard />
-          </section>
+            <SyncInfoCard />
+            </>],
+          ]} />
         )}
 
         {/* FOOTER */}

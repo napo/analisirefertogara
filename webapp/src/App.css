@@ -2378,3 +2378,8 @@
 .vs-championship-edit span { color: var(--vs-muted); font-size: 0.9em; }
 .vs-championship-edit:hover { text-decoration: underline; }
 .vs-championship-input { width: 100%; min-width: 8rem; box-sizing: border-box; padding: 0.25rem 0.4rem; border: 1px solid var(--vs-border); border-radius: 0.3rem; font: inherit; font-size: 0.85rem; color: var(--vs-heading); background: var(--vs-surface); }
+
+/* "Informazioni" as tabs (InfoTabs.jsx) */
+.vs-info-tabs { margin: 0 0 1.1rem; gap: 0.4rem; }
+.vs-info-tabs .vs-flow-tab { font-size: 0.9rem; padding: 0.45rem 0.95rem; min-height: 2.5rem; }
+.vs-info-tabs .vs-flow-tab:focus-visible { outline: 3px solid var(--vs-focus); outline-offset: 2px; }
