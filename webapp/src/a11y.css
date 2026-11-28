@@ -1,8 +1,8 @@
 /* "Accessibilità" button and panel (A11yPanel.jsx): theme tokens only, so it follows the theme it sets */
-.vs-nav-a11y { width: 179px; flex: none; justify-content: flex-end; }
+.vs-nav-a11y { flex: none; justify-content: flex-end; gap: 0.5rem; }
 .vs-a11y-button {
-  display: inline-flex; align-items: center; gap: 0.45rem;
-  padding: 0.45rem 0.8rem; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 999px;
   border: 1px solid var(--vs-border-hover); background: var(--vs-surface); color: var(--vs-heading);
   font-family: var(--vs-font-nav); font-weight: 600; font-size: 0.9rem; cursor: pointer;
 }
@@ -41,14 +41,7 @@
 .vs-a11y-check { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; min-height: 2.25rem; }
 .vs-a11y-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.6rem; }
 
-/* larger text: when the header wraps, the button stays on the right */
-:root[data-textflow="wrap"] .vs-nav-a11y { margin-left: auto; }
-
 @media (max-width: 768px) {
-  .vs-navbar-inner { position: relative; }
-  .vs-nav-a11y { position: absolute; top: 0.7rem; right: 1rem; width: auto; display: flex !important; }
-  .vs-a11y-button span { display: none; }
-  .vs-a11y-button { padding: 0.45rem; }
   .vs-a11y-panel { padding: 0.9rem 0.85rem 1rem; }
 }
 @media print { .vs-nav-a11y, .vs-a11y-dialog { display: none !important; } }
