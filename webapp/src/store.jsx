@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
-import { onArchiveChange, listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, saveMany as dbSaveMany } from './storage'
+import { onArchiveChange, listMatches, saveMatch as dbSaveMatch, deleteMatch as dbDeleteMatch, deleteMany as dbDeleteMany, saveMany as dbSaveMany } from './storage'
 import { ARCHIVE_EXTENSION, ARCHIVE_MIME, archiveFileName, buildArchive, importSummary, planImport } from './archive.js'
 import { APP_VERSION } from './version.js'
 import { analyze, validateMatch } from './analysis'
@@ -454,6 +454,28 @@ export function MatchStoreProvider({ children }) {
     }
   }, [selectedMatchId])
 
+  // Delete the selected matches of a list, in one go; returns how many were deleted (0 on error)
+  const deleteMatches = useCallback(async (ids) => {
+    const list = [...new Set(ids)].filter(id => matches.some(m => m.id === id))
+    if (!list.length) return 0
+    setBusy(true)
+    setError('')
+    try {
+      await dbDeleteMany(list)
+      setMatches(prev => prev.filter(m => !list.includes(m.id)))
+      setInvertedId(current => (list.includes(current) ? null : current))
+      if (list.includes(selectedMatchId)) setSelectedMatchId('all')
+      setSelectedMatchIds(current => current.filter(id => !list.includes(id)))
+      setMessage(list.length === 1 ? 'Referto e analisi rimossi dall’archivio locale.' : `${list.length} referti e le loro analisi rimossi dall’archivio locale.`)
+      return list.length
+    } catch (e) {
+      setError(`Eliminazione non riuscita: ${e.message}`)
+      return 0
+    } finally {
+      setBusy(false)
+    }
+  }, [matches, selectedMatchId])
+
   // Export the archive (all matches, or the selected ones) as a .zrv file (ZIP: documented JSON, CSV
   // tables, original PDFs)
   const exportBackup = useCallback(async (selected = matches) => {
@@ -537,6 +559,7 @@ export function MatchStoreProvider({ children }) {
     saveDraft,
     updateMatch,
     deleteMatch,
+    deleteMatches,
     sync,
     syncStatus,
     exportBackup,
@@ -577,6 +600,7 @@ export function MatchStoreProvider({ children }) {
     saveDraft,
     updateMatch,
     deleteMatch,
+    deleteMatches,
     sync,
     syncStatus,
     exportBackup,

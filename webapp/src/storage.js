@@ -61,6 +61,14 @@ export const deleteMatch = async id => {
   await remember([{ id, deletedAt: new Date().toISOString() }])
   changed('local')
 }
+// Several matches deleted in one transaction (the selected rows of a list): one change, one synchronisation
+export const deleteMany = async ids => {
+  if (!ids.length) return
+  await transact('readwrite', store => { ids.forEach(id => store.delete(id)) })
+  const deletedAt = new Date().toISOString()
+  await remember(ids.map(id => ({ id, deletedAt })))
+  changed('local')
+}
 export const saveMany = async matches => {
   const stored = await Promise.all(matches.map(match => encode(stamped(match))))
   await transact('readwrite', store => { stored.forEach(m => store.put(m)) })

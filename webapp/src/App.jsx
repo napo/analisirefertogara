@@ -176,6 +176,7 @@ function MainApp() {
     saveDraft,
     updateMatch,
     deleteMatch,
+    deleteMatches,
     exportBackup,
     importArchive,
     invertedView,
@@ -852,11 +853,13 @@ function MainApp() {
                   const chosen = matches.filter(m => exportIds.includes(m.id))
                   return chosen.length > 0 && (
                     <div className="vs-selection-bar">
-                      <span>✓ {chosen.length} {chosen.length === 1 ? 'referto selezionato' : 'referti selezionati'} per l’esportazione</span>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span>✓ {chosen.length} {chosen.length === 1 ? 'referto selezionato' : 'referti selezionati'}</span>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                         <button type="button" className="vs-btn vs-btn-sm vs-btn-primary" disabled={busy} onClick={() => exportBackup(chosen)}>
                           Esporta {chosen.length} {chosen.length === 1 ? 'referto' : 'referti'} (.zrv)
                         </button>
+                        <DeleteSelected count={chosen.length} noun={['referto', 'referti']} busy={busy}
+                          onDelete={async () => { if (await deleteMatches(chosen.map(m => m.id))) setExportIds([]) }} />
                         <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => setExportIds([])}>
                           Deseleziona tutti
                         </button>
@@ -875,8 +878,8 @@ function MainApp() {
                         <th style={{ width: '2.5rem' }}>
                           <input
                             type="checkbox"
-                            aria-label="Seleziona tutti i referti per l’esportazione"
-                            title="Seleziona tutti i referti per l’esportazione"
+                            aria-label="Seleziona tutti i referti (per esportarli o eliminarli)"
+                            title="Seleziona tutti i referti (per esportarli o eliminarli)"
                             checked={filteredMatches.length > 0 && filteredMatches.every(m => exportIds.includes(m.id))}
                             onChange={event => setExportIds(event.target.checked ? filteredMatches.map(m => m.id) : [])}
                           />
@@ -894,8 +897,8 @@ function MainApp() {
                             <td>
                               <input
                                 type="checkbox"
-                                aria-label={`Seleziona per l’esportazione: ${m.team} vs ${m.opponent}`}
-                                title="Seleziona per l’esportazione"
+                                aria-label={`Seleziona: ${m.team} vs ${m.opponent}`}
+                                title="Seleziona (per esportare o eliminare)"
                                 checked={exportIds.includes(m.id)}
                                 onChange={() => setExportIds(ids => (ids.includes(m.id) ? ids.filter(id => id !== m.id) : [...ids, m.id]))}
                               />
@@ -1575,9 +1578,9 @@ function MainApp() {
                       }}
                     >
                       <div style={{ fontWeight: 600, color: 'var(--vs-success-strong)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>✓ {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara selezionata' : 'gare selezionate'} per l&apos;analisi aggregata</span>
+                        <span>✓ {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara selezionata' : 'gare selezionate'}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                         <button
                           type="button"
                           className="vs-btn vs-btn-sm vs-btn-primary"
@@ -1603,6 +1606,8 @@ function MainApp() {
                         >
                           Esporta {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara' : 'gare'} (.zrv)
                         </button>
+                        <DeleteSelected count={selectedHistoryIds.length} noun={['gara', 'gare']} busy={busy}
+                          onDelete={async () => { if (await deleteMatches(selectedHistoryIds)) setSelectedHistoryIds([]) }} />
                         <button
                           type="button"
                           className="vs-btn vs-btn-sm vs-btn-secondary"
@@ -2860,6 +2865,28 @@ function PdfIcon({ size = 18 }) {
 }
 
 // Subcomponent: ECharts Wrapper
+// "Elimina" for the selected rows of a list: a second click confirms (as for a single row)
+function DeleteSelected({ count, noun, busy, onDelete }) {
+  const [confirming, setConfirming] = useState(false)
+  const label = `${count} ${count === 1 ? noun[0] : noun[1]}`
+  if (!confirming) {
+    return (
+      <button type="button" className="vs-btn vs-btn-sm vs-btn-danger" disabled={busy} onClick={() => setConfirming(true)}>
+        Elimina {label}
+      </button>
+    )
+  }
+  return (
+    <span className="vs-delete-confirm" role="group" aria-label={`Conferma l’eliminazione di ${label}`}>
+      <span>Eliminare {label} dall’archivio? Se usi la sincronizzazione spariscono anche dagli altri dispositivi.</span>
+      <button type="button" className="vs-btn vs-btn-sm vs-btn-danger-solid" disabled={busy} onClick={async () => { await onDelete(); setConfirming(false) }}>
+        Conferma
+      </button>
+      <button type="button" className="vs-btn vs-btn-sm vs-btn-secondary" onClick={() => setConfirming(false)}>Annulla</button>
+    </span>
+  )
+}
+
 function Chart({ title, subtitle, option }) {
   const containerRef = useRef(null)
 
