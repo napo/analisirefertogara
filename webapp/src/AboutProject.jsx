@@ -189,7 +189,7 @@ export function SupportCard({ paypalUrl = PAYPAL_DONATION_URL }) {
 // Shown when a TieBreakTech scoresheet is imported: real files are what improves its recognition
 export function TbtImportNotice() {
   return (
-    <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '0.5rem', color: '#6D4C00', fontSize: '0.85rem' }}>
+    <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: 'var(--vs-warning-soft)', border: '1px solid var(--vs-warning-border)', borderRadius: '0.5rem', color: 'var(--vs-warning-ink)', fontSize: '0.85rem' }}>
       I PDF di TieBreakTech sono difficili da interpretare: confronta i dati con il file e correggili a mano (il contorno arancione indica i valori incerti). Se trovi errori, invia il file via email all’<ContactEmail subject="Referto TieBreakTech da migliorare" body="Allego il PDF del referto: gli errori che ho trovato sono questi:">autore</ContactEmail>: sarà usato solo per migliorare il progetto, non sarà pubblicato né condiviso con altri e sarà cancellato quando non serve più o su richiesta.
     </div>
   )

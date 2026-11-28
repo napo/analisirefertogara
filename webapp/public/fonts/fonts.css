@@ -19,3 +19,39 @@
   font-display: swap;
   src: url('./rubik.ttf') format('truetype');
 }
+/* Accessibility fonts (Accessibilità panel): downloaded by the browser only when chosen */
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('./atkinson-hyperlegible-next.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible Next';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('./atkinson-hyperlegible-next-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./opendyslexic-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  font-style: normal;
+  font-weight: 500 900;
+  font-display: swap;
+  src: url('./opendyslexic-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./opendyslexic-400-italic.woff2') format('woff2');
+}

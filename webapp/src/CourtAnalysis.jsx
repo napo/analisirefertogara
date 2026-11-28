@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from 'react'
 import { chooseSetter, matchStates, setterVerification } from './rally-state.js'
 import { rosterPlayer, isSetter } from './athletes.js'
 import { FEW_RALLIES, courtConfigurations } from './court-stats.js'
-import { PHASE_COLORS, ROTATION_COLORS } from './theme.js'
 import { configurationsReading } from './court-reading.js'
 import RotationComparison from './RotationComparison.jsx'
 import './court-analysis.css'
@@ -29,10 +28,10 @@ function BackRow({ labels }) {
 // P always written, the color swatch is only an extra cue
 function PBadge({ P }) {
   if (!P) return <span className="vs-court-muted">non determinata</span>
-  return <span className="vs-court-p"><i style={{ background: ROTATION_COLORS[P].fill }} aria-hidden="true" />P{P}</span>
+  return <span className="vs-court-p"><i style={{ background: `var(--vs-p${P})` }} aria-hidden="true" />P{P}</span>
 }
 function PhaseBadge({ phase }) {
-  return <span className="vs-court-phase" style={{ borderColor: PHASE_COLORS[phase] }}>{phase}</span>
+  return <span className="vs-court-phase" style={{ borderColor: `var(--vs-${phase.toLowerCase()})` }}>{phase}</span>
 }
 function Percent({ row }) {
   return <>{percent(row.percent)}{few(row.rallies) && <small className="vs-court-few">pochi rally osservati</small>}</>

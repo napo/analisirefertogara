@@ -1,28 +1,240 @@
 :root {
+  /* ---- Theme tokens: light (default). Dark and high contrast below; the data colors (--vs-bp, --vs-cp,
+     --vs-p1...--vs-p6, --vs-positive, --vs-negative, --vs-best, --vs-worst, --vs-dc, --vs-ev-*) are written
+     on <html> by the Accessibilità settings from src/theme.js, for the chosen palette and theme ---- */
   --vs-bg: #F4F4F4;
+  --vs-bg-translucent: rgba(244, 244, 244, 0.94);
   --vs-surface: #FFFFFF;
+  --vs-surface-2: #FAFAFA;
+  --vs-surface-3: #F0F2F4;
+  --vs-surface-fade: rgba(255, 255, 255, 0.92);
+  --vs-surface-fade-0: rgba(255, 255, 255, 0);
   --vs-border: rgba(1, 22, 39, 0.10);
   --vs-border-hover: rgba(1, 22, 39, 0.22);
+  --vs-border-subtle: #E5E7EB;
+  --vs-border-strong: #D0D7DE;
+  --vs-line: #8A959E;
   --vs-text: #505050;
   --vs-heading: #383838;
   --vs-muted: #6B6B6B;
+  --vs-ink: #142636;
+  --vs-ink-muted: #546E7A;
   --vs-accent: #011627;
   --vs-accent-hover: #03304F;
   --vs-accent-contrast: #FFFFFF;
+  --vs-accent-2: #245B7B;
+  --vs-focus: #011627;
   --vs-orange: #E65100;
   /* orange for text: #E65100 is below 4.5:1 on white and on the soft orange */
   --vs-orange-ink: #BF4400;
   --vs-orange-soft: #FFF3E0;
+  --vs-orange-wash: #FFF7ED;
+  --vs-orange-border: #FDBA74;
+  --vs-orange-deep: #8A2E00;
+  --vs-orange-faint: rgba(230, 81, 0, 0.45);
   --vs-teal: #028090;
   --vs-teal-soft: #E0F2F1;
-  /* Phases (same values as src/theme.js PHASE_COLORS): BP navy, CP orange */
+  --vs-teal-ink: #00695C;
+  --vs-teal-strong: #00897B;
+  --vs-teal-border: #80CBC4;
+  --vs-danger: #C62828;
+  --vs-danger-strong: #B71C1C;
+  --vs-danger-soft: #FFEBEE;
+  --vs-danger-border: #FFCDD2;
+  --vs-danger-fill: #D84315;
+  --vs-success: #2E7D32;
+  --vs-success-strong: #1B5E20;
+  --vs-success-soft: #E8F5E9;
+  --vs-success-border: #C8E6C9;
+  --vs-warning: #B45309;
+  --vs-warning-soft: #FFF8E1;
+  --vs-warning-border: #FFB300;
+  --vs-warning-ink: #6D4C00;
+  --vs-warning-link: #8A5A00;
+  --vs-warning-border-soft: #E0D5B0;
+  --vs-verify-bg: #FFD54F;
+  --vs-verify-hover: #FFCA28;
+  --vs-verify-border: #C79100;
+  --vs-verify-ink: #2B1D00;
+  --vs-info: #1976D2;
+  --vs-info-soft: #EAF1F8;
+  --vs-neutral-soft: #F5F0EA;
+  --vs-dc-soft: #FBEEF3;
+  /* Data colors, standard palette (same values as src/theme.js); replaced at start by the settings */
   --vs-bp: #011627;
   --vs-cp: #E65100;
+  --vs-bp-text: #011627;
+  --vs-cp-text: #BF4400;
+  --vs-positive: #2E7D32;
+  --vs-negative: #C62828;
+  --vs-positive-text: #2E7D32;
+  --vs-negative-text: #C62828;
+  --vs-best: #2E7D32;
+  --vs-worst: #C62828;
+  --vs-dc: #AD1457;
+  --vs-ev-timeout: #6A1B9A;
+  --vs-ev-substitution: #00796B;
+  --vs-ev-doubleChange: #AD1457;
+  --vs-ev-courtChange: #1565C0;
+  --vs-p1: #2a78d6; --vs-p2: #eda100; --vs-p3: #4a3aa7; --vs-p4: #1baf7a; --vs-p5: #9085e9; --vs-p6: #e87ba4;
   --vs-font-heading: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --vs-font-nav: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --vs-font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   --vs-radius: 0.75rem;
   --vs-container-max: 1180px;
+  color-scheme: light;
+}
+
+/* Dark theme: navy surfaces, light text; data colors made light by src/theme.js */
+:root[data-theme="dark"] {
+  --vs-bg: #0E1923;
+  --vs-bg-translucent: rgba(14, 25, 35, 0.94);
+  --vs-surface: #15232F;
+  --vs-surface-2: #1A2A38;
+  --vs-surface-3: #22323F;
+  --vs-surface-fade: rgba(21, 35, 47, 0.92);
+  --vs-surface-fade-0: rgba(21, 35, 47, 0);
+  --vs-border: rgba(255, 255, 255, 0.12);
+  --vs-border-hover: rgba(255, 255, 255, 0.28);
+  --vs-border-subtle: #26343F;
+  --vs-border-strong: #3A4A58;
+  --vs-line: #7D8C99;
+  --vs-text: #C9D1D8;
+  --vs-heading: #EEF2F5;
+  --vs-muted: #A3AEB8;
+  --vs-ink: #E6ECF1;
+  --vs-ink-muted: #AAB7C2;
+  --vs-accent: #9CC3F0;
+  --vs-accent-hover: #BCD8F6;
+  --vs-accent-contrast: #0E1923;
+  --vs-accent-2: #8FB8E8;
+  --vs-focus: #9CC3F0;
+  --vs-orange: #FF8A3D;
+  --vs-orange-ink: #FFA36B;
+  --vs-orange-soft: #3A2416;
+  --vs-orange-wash: #33200F;
+  --vs-orange-border: #8A4A1F;
+  --vs-orange-deep: #FFB98C;
+  --vs-orange-faint: rgba(255, 138, 61, 0.55);
+  --vs-teal: #4DD0C8;
+  --vs-teal-soft: #12302E;
+  --vs-teal-ink: #7FE0D8;
+  --vs-teal-strong: #4DB6AC;
+  --vs-teal-border: #2E6B66;
+  --vs-danger: #FF7A70;
+  --vs-danger-strong: #FF9C94;
+  --vs-danger-soft: #3A1C1E;
+  --vs-danger-border: #6E2E31;
+  --vs-danger-fill: #F06A50;
+  --vs-success: #6CCB73;
+  --vs-success-strong: #93E09B;
+  --vs-success-soft: #16301C;
+  --vs-success-border: #2C5A33;
+  --vs-warning: #F2A541;
+  --vs-warning-soft: #33290F;
+  --vs-warning-border: #A87C12;
+  --vs-warning-ink: #F5D27A;
+  --vs-warning-link: #F5C25A;
+  --vs-warning-border-soft: #5C4E22;
+  --vs-verify-hover: #FFE082;
+  --vs-info: #7FB6F2;
+  --vs-info-soft: #17293B;
+  --vs-neutral-soft: #2A2622;
+  --vs-dc-soft: #3A1A2A;
+  color-scheme: dark;
+}
+
+/* High contrast: black on white, strong borders, links always underlined, thick focus */
+:root[data-theme="contrast"] {
+  --vs-bg: #FFFFFF;
+  --vs-bg-translucent: rgba(255, 255, 255, 0.97);
+  --vs-surface: #FFFFFF;
+  --vs-surface-2: #F5F5F5;
+  --vs-surface-3: #EBEBEB;
+  --vs-border: #1A1A1A;
+  --vs-border-hover: #000000;
+  --vs-border-subtle: #595959;
+  --vs-border-strong: #333333;
+  --vs-line: #333333;
+  --vs-text: #000000;
+  --vs-heading: #000000;
+  --vs-muted: #262626;
+  --vs-ink: #000000;
+  --vs-ink-muted: #262626;
+  --vs-accent: #000000;
+  --vs-accent-hover: #262626;
+  --vs-accent-contrast: #FFFFFF;
+  --vs-accent-2: #003A75;
+  --vs-focus: #000000;
+  --vs-orange: #B33C00;
+  --vs-orange-ink: #8A2E00;
+  --vs-orange-soft: #FFF0E0;
+  --vs-orange-wash: #FFF5EB;
+  --vs-orange-border: #8A2E00;
+  --vs-orange-deep: #5C1F00;
+  --vs-orange-faint: rgba(138, 46, 0, 0.75);
+  --vs-teal: #005F68;
+  --vs-teal-ink: #00413F;
+  --vs-teal-strong: #005F68;
+  --vs-teal-border: #005F68;
+  --vs-danger: #A30000;
+  --vs-danger-strong: #7A0000;
+  --vs-danger-soft: #FFE5E5;
+  --vs-danger-border: #A30000;
+  --vs-danger-fill: #A30000;
+  --vs-success: #1B5E20;
+  --vs-success-strong: #0F3D14;
+  --vs-success-soft: #E3F2E5;
+  --vs-success-border: #1B5E20;
+  --vs-warning: #7A3E00;
+  --vs-warning-soft: #FFF4D6;
+  --vs-warning-border: #7A5200;
+  --vs-warning-ink: #3D2600;
+  --vs-warning-link: #5C3A00;
+  --vs-warning-border-soft: #7A5200;
+  --vs-verify-border: #000000;
+  --vs-info: #0B4A8F;
+  --vs-info-soft: #E6EEF8;
+  --vs-neutral-soft: #F0F0F0;
+  --vs-dc-soft: #FBE6EF;
+}
+:root[data-theme="contrast"] a { text-decoration: underline; }
+:root[data-theme="contrast"] :focus-visible { outline: 3px solid #000000 !important; outline-offset: 2px; }
+
+/* Fonts of the Accessibilità panel: every text of the interface follows (headings included) */
+:root[data-font="legible"] {
+  --vs-font-heading: 'Atkinson Hyperlegible Next', Roboto, Arial, sans-serif;
+  --vs-font-nav: 'Atkinson Hyperlegible Next', Roboto, Arial, sans-serif;
+  --vs-font-sans: 'Atkinson Hyperlegible Next', Roboto, Arial, sans-serif;
+}
+:root[data-font="dyslexia"] {
+  --vs-font-heading: OpenDyslexic, 'Atkinson Hyperlegible Next', Arial, sans-serif;
+  --vs-font-nav: OpenDyslexic, 'Atkinson Hyperlegible Next', Arial, sans-serif;
+  --vs-font-sans: OpenDyslexic, 'Atkinson Hyperlegible Next', Arial, sans-serif;
+}
+:root[data-font="dyslexia"] body { line-height: 1.75; }
+:root[data-font="dyslexia"] h1, :root[data-font="dyslexia"] h2, :root[data-font="dyslexia"] h3 { letter-spacing: 0; }
+
+/* Wider text spacing (WCAG 1.4.12 values): line height 1.5+, letters 0.12em, words 0.16em, paragraphs 2em */
+:root[data-spacing="wide"] body { line-height: 1.8; letter-spacing: 0.12em; word-spacing: 0.16em; }
+:root[data-spacing="wide"] p { margin-bottom: 2em; }
+
+/* Larger, wider or different text (data-textflow="wrap"): buttons and the main menu wrap instead of
+   overflowing the page (WCAG 1.4.4 resize text, 1.4.10 reflow) */
+:root[data-textflow="wrap"] .vs-btn { white-space: normal; max-width: 100%; text-align: center; }
+:root[data-textflow="wrap"] .vs-navbar-inner { flex-wrap: wrap; }
+:root[data-textflow="wrap"] .vs-navbar-inner nav { min-width: 0; max-width: 100%; }
+:root[data-textflow="wrap"] .vs-nav-tabs { flex-wrap: wrap; row-gap: 0.35rem; }
+
+/* Links always underlined */
+:root[data-underline="on"] a { text-decoration: underline; text-underline-offset: 0.15em; }
+
+/* Reduced motion: no animations or smooth scrolling */
+:root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 * {
@@ -36,7 +248,8 @@ body {
   background-color: var(--vs-bg);
   color: var(--vs-text);
   font-family: var(--vs-font-sans);
-  font-size: 15px;
+  /* in rem: the text size of the Accessibilità panel scales every size of the interface */
+  font-size: 0.9375rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

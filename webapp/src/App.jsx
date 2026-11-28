@@ -22,7 +22,8 @@ import { VolleyScoresheetLogo } from './Logo'
 import MatchFlow from './MatchFlow'
 import AthletesTable from './AthletesTable'
 import { GlossaryDetails, GlossaryList, GlossaryPrintTable, InfoTip } from './GlossaryView'
-import { CHART_SERIES_COLORS } from './theme'
+import { useA11y } from './a11y.jsx'
+import A11yPanel from './A11yPanel.jsx'
 import { APP_VERSION } from './version'
 import { AboutProject, DownloadSection, PrivacyCard, SyncInfoCard, SupportCard, TbtImportNotice } from './AboutProject.jsx'
 import ExternalLink from './ExternalLink.jsx'
@@ -135,6 +136,7 @@ const isFemaleTeamOrMatch = (matchOrList, activeTeam = '') => {
 
 
 function MainApp() {
+  const { colors, fontFamily, setPrintMode } = useA11y()
   const {
     matches,
     filteredMatches,
@@ -250,6 +252,8 @@ function MainApp() {
   const exportToPdf = async () => {
     if (!reportExportRef.current) return
     setExportingPdf(true)
+    // light theme, standard size and spacing during the capture (palette and font are kept)
+    setPrintMode(true)
     const el = reportExportRef.current
     try {
       const logoPng = await svgToPng(el.querySelector('.vs-export-header svg'), 160)
@@ -396,36 +400,40 @@ function MainApp() {
     } finally {
       el.classList.remove('vs-pdf-export')
       setExportingPdf(false)
+      setPrintMode(false)
     }
   }
 
-  // ECharts default styling for Referto Volley
+  // ECharts default styling for Referto Volley: palette, theme and font of the Accessibilità settings
   const baseChart = useMemo(() => ({
-    color: CHART_SERIES_COLORS,
+    color: colors.CHART_SERIES,
     aria: { enabled: true },
+    textStyle: { fontFamily },
     tooltip: {
       trigger: 'axis',
-      textStyle: { fontFamily: 'Roboto, sans-serif' },
+      backgroundColor: colors.CHART.surface,
+      borderColor: colors.CHART.axis,
+      textStyle: { fontFamily, color: colors.CHART.heading },
     },
     legend: {
       top: 0,
-      textStyle: { fontFamily: 'Rubik, sans-serif', color: '#505050' },
+      textStyle: { fontFamily, color: colors.CHART.text },
     },
     // Room for a legend wrapped on two lines at narrow widths (e.g. PDF export)
     grid: { left: 45, right: 20, top: 55, bottom: 30 },
     yAxis: {
       type: 'value',
       minInterval: 1,
-      splitLine: { lineStyle: { color: '#E5E7EB' } },
-      axisLabel: { color: '#6B6B6B', fontVariantNumeric: 'tabular-nums' },
+      splitLine: { lineStyle: { color: colors.CHART.grid } },
+      axisLabel: { color: colors.CHART.muted, fontVariantNumeric: 'tabular-nums' },
     },
     xAxis: {
       type: 'category',
       axisTick: { show: false },
-      axisLine: { lineStyle: { color: '#D1D5DB' } },
-      axisLabel: { color: '#383838', fontFamily: 'Rubik, sans-serif' },
+      axisLine: { lineStyle: { color: colors.CHART.axis } },
+      axisLabel: { color: colors.CHART.heading, fontFamily },
     },
-  }), [])
+  }), [colors, fontFamily])
 
   // Rotation Chart Option
   const rotationOption = useMemo(() => {
@@ -638,9 +646,9 @@ function MainApp() {
             </ul>
           </nav>
 
-          {/* Zone 3: empty, same width as the former upload button so the menu keeps its place
-              (uploading starts from the logo or from "Referti di gara") */}
-          <div className="vs-nav-actions vs-nav-spacer" aria-hidden="true" />
+          {/* Zone 3: the Accessibilità button (theme, colors, text), same width as the former upload button
+              so the menu keeps its place */}
+          <div className="vs-nav-actions vs-nav-a11y"><A11yPanel /></div>
         </div>
       </header>
 
@@ -1120,7 +1128,7 @@ function MainApp() {
                           cursor: 'pointer',
                           padding: '0.4rem 0.6rem',
                           borderRadius: '0.4rem',
-                          background: isChecked ? 'var(--vs-orange-soft)' : '#FAFAFA',
+                          background: isChecked ? 'var(--vs-orange-soft)' : 'var(--vs-surface-2)',
                           border: isChecked ? '1px solid rgba(230, 81, 0, 0.3)' : '1px solid var(--vs-border)',
                         }}
                       >
@@ -1343,7 +1351,7 @@ function MainApp() {
                     <strong
                       className="vs-metric-value"
                       style={{
-                        color: (aggregatedAnalysis.scored - aggregatedAnalysis.conceded) >= 0 ? 'var(--vs-heading)' : '#D32F2F',
+                        color: (aggregatedAnalysis.scored - aggregatedAnalysis.conceded) >= 0 ? 'var(--vs-heading)' : 'var(--vs-negative-text)',
                       }}
                     >
                       {(aggregatedAnalysis.scored - aggregatedAnalysis.conceded) > 0 ? '+' : ''}
@@ -1445,7 +1453,7 @@ function MainApp() {
                                 className="num-cell"
                                 style={{
                                   fontWeight: 700,
-                                  color: diff > 0 ? 'var(--vs-orange-ink)' : diff < 0 ? '#C62828' : 'var(--vs-muted)',
+                                  color: diff > 0 ? 'var(--vs-orange-ink)' : diff < 0 ? 'var(--vs-negative-text)' : 'var(--vs-muted)',
                                 }}
                               >
                                 {diff > 0 ? '+' : ''}{fmt(diff)}
@@ -1558,15 +1566,15 @@ function MainApp() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '0.75rem 1rem',
-                        background: '#E8F5E9',
-                        border: '1px solid #C8E6C9',
+                        background: 'var(--vs-success-soft)',
+                        border: '1px solid var(--vs-success-border)',
                         borderRadius: 'var(--vs-radius)',
                         marginBottom: '1rem',
                         flexWrap: 'wrap',
                         gap: '0.75rem',
                       }}
                     >
-                      <div style={{ fontWeight: 600, color: '#1B5E20', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--vs-success-strong)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span>✓ {selectedHistoryIds.length} {selectedHistoryIds.length === 1 ? 'gara selezionata' : 'gare selezionate'} per l&apos;analisi aggregata</span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -2073,7 +2081,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
               key={name}
               style={{
                 padding: '0.85rem 1rem',
-                background: '#FAFAFA',
+                background: 'var(--vs-surface-2)',
                 border: '1px solid var(--vs-border)',
                 borderRadius: '0.5rem',
               }}
@@ -2096,10 +2104,10 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                   marginTop: '0.65rem',
                   marginBottom: '0.65rem',
                   padding: '0.65rem 0.95rem',
-                  backgroundColor: '#FFF7ED',
-                  border: '1.5px solid #F97316',
+                  backgroundColor: 'var(--vs-orange-wash)',
+                  border: '1.5px solid var(--vs-orange)',
                   borderRadius: '0.5rem',
-                  color: '#9A3412',
+                  color: 'var(--vs-orange-deep)',
                   fontWeight: 700,
                   fontSize: '0.94rem',
                   boxShadow: '0 2px 5px rgba(249, 115, 22, 0.12)',
@@ -2236,9 +2244,9 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
                       padding: '0.85rem 1.6rem',
                       fontSize: '1rem',
                       fontWeight: 700,
-                      backgroundColor: '#028090',
-                      borderColor: '#028090',
-                      color: '#FFFFFF',
+                      backgroundColor: 'var(--vs-teal)',
+                      borderColor: 'var(--vs-teal)',
+                      color: 'var(--vs-accent-contrast)',
                       borderRadius: '0.5rem',
                       boxShadow: '0 4px 14px rgba(2, 128, 144, 0.35)',
                       display: 'inline-flex',
@@ -2265,7 +2273,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
       {/* Sezione Arbitri e Ufficiali di Gara */}
       <details
         style={{
-          background: '#FAFAFA',
+          background: 'var(--vs-surface-2)',
           border: '1px solid var(--vs-border)',
           borderRadius: '0.5rem',
           padding: '0.75rem 1rem',
@@ -2395,7 +2403,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
       </div>
 
       {draft.importWarnings?.length > 0 && (
-        <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFF8E1', border: '1px solid #FFB300', borderRadius: '0.5rem', color: '#6D4C00', fontSize: '0.85rem' }}>
+        <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: 'var(--vs-warning-soft)', border: '1px solid var(--vs-warning-border)', borderRadius: '0.5rem', color: 'var(--vs-warning-ink)', fontSize: '0.85rem' }}>
           <strong>Dati del PDF da controllare:</strong> {draft.sourceFormat === 'TBT'
             ? 'alcuni valori non sono stati letti con certezza: l’app li ha ricavati dagli altri dati del referto, quando possibile. Confrontali con il PDF originale.'
             : 'alcuni valori non sono stati letti come previsto o non sono coerenti tra loro. L’app non li ha corretti: confrontali con il PDF originale.'}
@@ -2414,7 +2422,7 @@ function DraftReviewCard({ draft, setDraft, onCancel, onSave, onAddSet, onRemove
       )}
 
       {validationErrors.length > 0 && (
-        <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: '#FFEBEE', borderRadius: '0.5rem', color: '#B71C1C', fontSize: '0.85rem' }}>
+        <div style={{ margin: '1rem 0', padding: '0.85rem 1rem', background: 'var(--vs-danger-soft)', borderRadius: '0.5rem', color: 'var(--vs-danger-strong)', fontSize: '0.85rem' }}>
           <strong>Verifica i seguenti punti prima di salvare:</strong>
           <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.25rem' }}>
             {validationErrors.map((err, i) => (
